@@ -1,0 +1,121 @@
+// Client Content Approval Portal - Prisma Schema
+// Multi-tenant: Admin vs Client roles; clients see only their workspace.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  CLIENT
+}
+
+enum Platform {
+  FACEBOOK
+  INSTAGRAM
+  LINKEDIN
+  GBP
+}
+
+enum PostStatus {
+  PENDING
+  APPROVED
+  NEEDS_REVISION
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum WebhookEvent {
+  POST_APPROVED
+  POST_STATUS_CHANGED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String?
+  email        String   @unique
+  passwordHash String?  // null if using OAuth later
+  role         Role
+  clientId     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  client   Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  comments Comment[]
+}
+
+model Client {
+  id           String   @id @default(cuid())
+  companyName  String
+  slug         String   @unique
+  contactEmail String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users    User[]
+  posts    PostItem[]
+  webhooks WebhookSubscription[]
+}
+
+model PostItem {
+  id               String     @id @default(cuid())
+  clientId         String
+  platform         Platform
+  captionText      String     @default("")
+  status           PostStatus @default(PENDING)
+  scheduledFor     DateTime?
+  publishedAt      DateTime?  // Set when n8n marks as published
+  externalRef      String?    // External ID from n8n/social platform
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  createdByUserId  String?
+
+  client   Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  media    MediaAsset[]
+  comments Comment[]
+}
+
+model MediaAsset {
+  id          String    @id @default(cuid())
+  postItemId  String
+  type        MediaType
+  url         String
+  thumbnailUrl String?
+  filename    String
+  mimeType    String
+  sizeBytes   Int
+  createdAt   DateTime  @default(now())
+
+  postItem PostItem @relation(fields: [postItemId], references: [id], onDelete: Cascade)
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  postItemId String
+  userId     String
+  body       String
+  createdAt  DateTime @default(now())
+
+  postItem PostItem @relation(fields: [postItemId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WebhookSubscription {
+  id        String       @id @default(cuid())
+  clientId  String?      // null = all clients (admin-level)
+  event     WebhookEvent
+  targetUrl String
+  secret    String
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+
+  client Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}

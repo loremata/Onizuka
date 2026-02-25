@@ -1,0 +1,28 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build
+.next
+out
+build
+dist
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Local uploads (filesystem fallback)
+.uploads
+
+# Debug / IDE
+*.log
+npm-debug.log*
+.DS_Store
+.idea
+.vscode
+
+# Vercel
+.vercel
