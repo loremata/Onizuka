@@ -1,21 +1,10 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { platformSelectRows, postStatusSelectRows } from "@/lib/post-ui-labels";
 
-const PLATFORMS = [
-  { value: "", label: "All platforms" },
-  { value: "FACEBOOK", label: "Facebook" },
-  { value: "INSTAGRAM", label: "Instagram" },
-  { value: "LINKEDIN", label: "LinkedIn" },
-  { value: "GBP", label: "Google Business" },
-];
-
-const STATUSES = [
-  { value: "", label: "All statuses" },
-  { value: "PENDING", label: "Pending" },
-  { value: "APPROVED", label: "Approved" },
-  { value: "NEEDS_REVISION", label: "Needs revision" },
-];
+const PLATFORMS = [{ value: "", label: "Tutte le piattaforme" }, ...platformSelectRows()];
+const STATUSES = [{ value: "", label: "Tutti gli stati" }, ...postStatusSelectRows()];
 
 type Props = { currentPlatform: string; currentStatus: string };
 
@@ -33,7 +22,7 @@ export function ClientPostsFilters({ currentPlatform, currentStatus }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-4">
       <div className="flex items-center gap-2">
-        <label className="text-sm font-medium">Platform</label>
+        <label className="text-sm font-medium">Piattaforma</label>
         <select
           value={currentPlatform}
           onChange={(e) => setFilter("platform", e.target.value)}
@@ -47,7 +36,7 @@ export function ClientPostsFilters({ currentPlatform, currentStatus }: Props) {
         </select>
       </div>
       <div className="flex items-center gap-2">
-        <label className="text-sm font-medium">Status</label>
+        <label className="text-sm font-medium">Stato</label>
         <select
           value={currentStatus}
           onChange={(e) => setFilter("status", e.target.value)}

@@ -1,21 +1,12 @@
 import { cn } from "@/lib/utils";
+import { postStatusLabelIt } from "@/lib/post-ui-labels";
+import type { PostStatus } from "@prisma/client";
 
-const statusConfig = {
-  PENDING: {
-    label: "Pending",
-    className: "bg-muted text-muted-foreground",
-  },
-  APPROVED: {
-    label: "Approved",
-    className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  },
-  NEEDS_REVISION: {
-    label: "Needs revision",
-    className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-  },
-} as const;
-
-type PostStatus = keyof typeof statusConfig;
+const statusClassName: Record<PostStatus, string> = {
+  PENDING: "bg-muted text-muted-foreground",
+  APPROVED: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  NEEDS_REVISION: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+};
 
 type Props = {
   status: PostStatus;
@@ -23,16 +14,17 @@ type Props = {
 };
 
 export function StatusBadge({ status, className }: Props) {
-  const config = statusConfig[status] ?? { label: status, className: "bg-muted text-muted-foreground" };
+  const classKey = statusClassName[status] ?? "bg-muted text-muted-foreground";
+  const label = postStatusLabelIt[status] ?? String(status);
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-        config.className,
+        classKey,
         className
       )}
     >
-      {config.label}
+      {label}
     </span>
   );
 }

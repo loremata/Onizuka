@@ -1,31 +1,22 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAppClientContext } from "@/lib/app-client-session";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PostActions } from "./post-actions";
-
-const PLATFORM_LABELS: Record<string, string> = {
-  FACEBOOK: "Facebook",
-  INSTAGRAM: "Instagram",
-  LINKEDIN: "LinkedIn",
-  GBP: "Google Business Profile",
-};
+import { platformLabelIt } from "@/lib/post-ui-labels";
 
 export default async function ClientPostDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.clientId) notFound();
-
+  const ctx = await requireAppClientContext();
   const { id } = await params;
   const post = await prisma.postItem.findFirst({
-    where: { id, clientId: session.user.clientId },
+    where: { id, clientId: ctx.clientId },
     include: {
       media: true,
       comments: { include: { user: { select: { name: true, email: true } } }, orderBy: { createdAt: "asc" } },
@@ -38,31 +29,31 @@ export default async function ClientPostDetailPage({
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button asChild variant="ghost" size="sm">
-          <Link href="/app">← Back to posts</Link>
+          <Link href="/app">← Torna ai post</Link>
         </Button>
       </div>
 
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle>{PLATFORM_LABELS[post.platform] ?? post.platform}</CardTitle>
+            <CardTitle>{platformLabelIt[post.platform]}</CardTitle>
             <StatusBadge status={post.status} />
           </div>
           <CardDescription>
-            Created {new Date(post.createdAt).toLocaleString()}
+            Creato il {new Date(post.createdAt).toLocaleString()}
             {post.updatedAt.getTime() !== post.createdAt.getTime() &&
-              ` · Updated ${new Date(post.updatedAt).toLocaleString()}`}
+              ` · Aggiornato il ${new Date(post.updatedAt).toLocaleString()}`}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Caption</p>
+            <p className="text-sm font-medium text-muted-foreground">Didascalia</p>
             <p className="mt-1 whitespace-pre-wrap">{post.captionText || "—"}</p>
           </div>
 
           {post.scheduledFor && (
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Scheduled for</p>
+              <p className="text-sm font-medium text-muted-foreground">Programmato per</p>
               <p className="mt-1">{new Date(post.scheduledFor).toLocaleString()}</p>
             </div>
           )}
@@ -92,10 +83,10 @@ export default async function ClientPostDetailPage({
           </div>
 
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Activity & comments</p>
+            <p className="text-sm font-medium text-muted-foreground">Attività e commenti</p>
             <ul className="mt-2 space-y-3">
               <li className="text-sm text-muted-foreground">
-                Post created {new Date(post.createdAt).toLocaleString()}
+                Post creato il {new Date(post.createdAt).toLocaleString()}
               </li>
               {post.comments.map((c) => (
                 <li key={c.id} className="rounded-md border bg-muted/30 p-3">

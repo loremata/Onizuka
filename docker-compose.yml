@@ -1,0 +1,22 @@
+# PostgreSQL locale + pgvector (memoria RAG, dedupe) — porta host 5433
+# Avvio: npm run db:up   oppure   docker compose up -d
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: onizuka
+      POSTGRES_PASSWORD: onizuka
+      POSTGRES_DB: onizuka
+    volumes:
+      - onizuka_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U onizuka -d onizuka"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  onizuka_pg_data:

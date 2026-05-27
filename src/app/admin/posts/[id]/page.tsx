@@ -4,19 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminPostActions } from "./admin-post-actions";
-
-const PLATFORM_LABELS: Record<string, string> = {
-  FACEBOOK: "Facebook",
-  INSTAGRAM: "Instagram",
-  LINKEDIN: "LinkedIn",
-  GBP: "Google Business Profile",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: "Pending",
-  APPROVED: "Approved",
-  NEEDS_REVISION: "Needs revision",
-};
+import { platformLabelIt, postStatusLabelIt } from "@/lib/post-ui-labels";
+import { nativePublishAvailableForPlatform } from "@/lib/social-publish-native";
 
 export default async function AdminPostDetailPage({
   params,
@@ -39,26 +28,26 @@ export default async function AdminPostDetailPage({
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button asChild variant="ghost" size="sm">
-          <Link href="/admin/posts">← Posts</Link>
+          <Link href="/admin/posts">← Post</Link>
         </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Post details</CardTitle>
+          <CardTitle>Dettaglio post</CardTitle>
           <CardDescription>
-            {post.client.companyName} · {PLATFORM_LABELS[post.platform] ?? post.platform} ·{" "}
-            {STATUS_LABELS[post.status] ?? post.status}
+            {post.client.companyName} · {platformLabelIt[post.platform]} · {postStatusLabelIt[post.status]}
+            {!post.awaitingClientReview ? " · Invio cliente (revisione admin)" : ""}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Caption</p>
+            <p className="text-sm font-medium text-muted-foreground">Didascalia</p>
             <p className="whitespace-pre-wrap">{post.captionText || "—"}</p>
           </div>
           {post.scheduledFor && (
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Scheduled for</p>
+              <p className="text-sm font-medium text-muted-foreground">Programmato per</p>
               <p>{new Date(post.scheduledFor).toLocaleString()}</p>
             </div>
           )}
@@ -91,7 +80,9 @@ export default async function AdminPostDetailPage({
           </div>
           {post.comments.length > 0 && (
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Comments ({post.comments.length})</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Commenti ({post.comments.length})
+              </p>
               <ul className="mt-2 space-y-2">
                 {post.comments.map((c) => (
                   <li key={c.id} className="rounded-md border bg-muted/30 p-2 text-sm">
@@ -105,9 +96,13 @@ export default async function AdminPostDetailPage({
               </ul>
             </div>
           )}
-          {post.status !== "PENDING" && (
-            <AdminPostActions postId={post.id} />
-          )}
+          <AdminPostActions
+            postId={post.id}
+            awaitingClientReview={post.awaitingClientReview}
+            publishedAt={post.publishedAt}
+            platform={post.platform}
+            nativePublishAvailable={nativePublishAvailableForPlatform(post.platform)}
+          />
         </CardContent>
       </Card>
     </div>

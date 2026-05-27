@@ -16,7 +16,7 @@ export function WebhookToggleButton({ id, isActive }: Props) {
       disabled={pending}
       onClick={() => startTransition(() => toggleWebhook(id))}
     >
-      {pending ? "…" : isActive ? "Deactivate" : "Activate"}
+      {pending ? "…" : isActive ? "Disattiva" : "Attiva"}
     </Button>
   );
 }

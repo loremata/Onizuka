@@ -1,10 +1,16 @@
 /**
- * Serves uploaded files from local filesystem (dev only).
- * In production, configure S3/R2 so media URLs point to object storage; this route is not used for new uploads.
+ * Serve file da filesystem solo in sviluppo o con ALLOW_LOCAL_UPLOAD_SERVE=1 in produzione.
+ * In produzione standard gli URL devono puntare a S3/R2 (S3_PUBLIC_URL).
  */
 import { NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import path from "path";
+import { getServerSession } from "next-auth";
+import { ApiErrorCode, jsonApiError } from "@/lib/api-json-errors";
+import { authOptions } from "@/lib/auth";
+import { allowsLocalUploadFilesystemInProduction } from "@/lib/storage";
+
+export const dynamic = "force-dynamic";
 
 const UPLOADS_DIR = process.env.UPLOADS_DIR ?? path.join(process.cwd(), ".uploads");
 
@@ -18,19 +24,46 @@ const MIME: Record<string, string> = {
   ".webm": "video/webm",
 };
 
+function localUploadApiEnabled(): boolean {
+  if (process.env.NODE_ENV !== "production") return true;
+  return allowsLocalUploadFilesystemInProduction();
+}
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
+  if (!localUploadApiEnabled()) {
+    return jsonApiError(
+      404,
+      ApiErrorCode.LOCAL_UPLOAD_DISABLED,
+      "API upload locale disattivata in produzione. I media sono serviti dallo storage oggetti (S3_PUBLIC_URL)."
+    );
+  }
+
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return jsonApiError(401, ApiErrorCode.UNAUTHORIZED, "Non autorizzato");
+  }
+
   const { path: pathSegments } = await params;
   const segments = Array.isArray(pathSegments) ? pathSegments : pathSegments ? [pathSegments] : [];
-  if (!segments.length) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!segments.length) return jsonApiError(404, ApiErrorCode.NOT_FOUND, "Non trovato");
+
+  const clientIdFromKey = segments[0];
+  if (session.user.role === "CLIENT") {
+    if (!session.user.clientId || session.user.clientId !== clientIdFromKey) {
+      return jsonApiError(403, ApiErrorCode.FORBIDDEN, "Accesso negato");
+    }
+  } else if (session.user.role !== "ADMIN") {
+    return jsonApiError(403, ApiErrorCode.FORBIDDEN, "Accesso negato");
+  }
 
   const safeSegments = segments.map((s) => s.replace(/\.\./g, ""));
   const filePath = path.resolve(UPLOADS_DIR, ...safeSegments);
   const uploadsRoot = path.resolve(UPLOADS_DIR);
   if (!filePath.startsWith(uploadsRoot)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return jsonApiError(403, ApiErrorCode.FORBIDDEN, "Accesso negato");
   }
 
   try {
@@ -44,6 +77,6 @@ export async function GET(
       },
     });
   } catch {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return jsonApiError(404, ApiErrorCode.NOT_FOUND, "Non trovato");
   }
 }

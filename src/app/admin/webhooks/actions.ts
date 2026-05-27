@@ -4,11 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { requireFullAdmin } from "@/lib/admin-session";
+import { logAuditEvent } from "@/lib/admin-audit-log";
 import { prisma } from "@/lib/prisma";
 
 async function ensureAdmin() {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "ADMIN") redirect("/login");
+  const session = await requireFullAdmin();
   return session;
 }
 
@@ -16,7 +17,7 @@ export async function createWebhook(
   _prev: unknown,
   formData: FormData
 ): Promise<{ error: string } | null> {
-  await ensureAdmin();
+  const session = await ensureAdmin();
 
   const event = (formData.get("event") as string)?.trim();
   const targetUrl = (formData.get("targetUrl") as string)?.trim();
@@ -24,9 +25,9 @@ export async function createWebhook(
   const clientId = (formData.get("clientId") as string)?.trim() || null;
 
   if (!event || !targetUrl || !secret)
-    return { error: "Event, target URL, and secret are required." };
+    return { error: "Evento, URL di destinazione e secret sono obbligatori." };
   if (event !== "POST_APPROVED" && event !== "POST_STATUS_CHANGED")
-    return { error: "Invalid event." };
+    return { error: "Evento non valido." };
 
   try {
     await prisma.webhookSubscription.create({
@@ -34,20 +35,32 @@ export async function createWebhook(
     });
   } catch (e) {
     console.error(e);
-    return { error: "Failed to create webhook." };
+    return { error: "Creazione webhook non riuscita." };
   }
 
   revalidatePath("/admin/webhooks");
+  revalidatePath("/admin/audit");
+  revalidatePath("/admin");
   redirect("/admin/webhooks");
 }
 
 export async function toggleWebhook(id: string) {
-  await ensureAdmin();
+  const session = await ensureAdmin();
   const sub = await prisma.webhookSubscription.findUnique({ where: { id } });
   if (!sub) return;
+  const next = !sub.isActive;
   await prisma.webhookSubscription.update({
     where: { id },
-    data: { isActive: !sub.isActive },
+    data: { isActive: next },
+  });
+  void logAuditEvent({
+    actorUserId: session.user.id,
+    action: "webhook.toggle",
+    entityType: "webhook",
+    entityId: id,
+    summary: `Webhook ${sub.event} ${next ? "attivato" : "disattivato"}`,
   });
   revalidatePath("/admin/webhooks");
+  revalidatePath("/admin/audit");
+  revalidatePath("/admin");
 }

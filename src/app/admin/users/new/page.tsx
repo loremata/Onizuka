@@ -13,13 +13,15 @@ export default async function NewUserPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button asChild variant="ghost" size="sm">
-          <Link href="/admin/users">← Users</Link>
+          <Link href="/admin/users">← Utenti</Link>
         </Button>
       </div>
       <Card className="max-w-lg">
         <CardHeader>
-          <CardTitle>New user</CardTitle>
-          <CardDescription>Create an admin or client user. Client users must be assigned to a client.</CardDescription>
+          <CardTitle>Nuovo utente</CardTitle>
+          <CardDescription>
+            Crea un amministratore o un utente cliente. Gli utenti cliente devono essere associati a un cliente.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <UserForm clients={clients} />

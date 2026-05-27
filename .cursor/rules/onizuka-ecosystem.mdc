@@ -1,0 +1,37 @@
+---
+description: Architettura Online Station / Onizuka — regole permanenti per UI e codice
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Onizuka — regole ecosistema
+
+Leggi `docs/PUNTO-SITUA-DEFINITIVO.md` per il contesto completo.
+
+## Gerarchia
+
+- **Online Station** = contenitore aziendale/commerciale (brand madre).
+- **Onizuka** = BOS interno, clone operativo di Lorenzo. Non pubblico, non SaaS, non vendibile.
+- **Brand verticali** (LabSeven, StudioPop, DoctorLead, Brandity, Sito24Ore, VaultAI, Lorenzo Matarazzo) = comunicazione e offerte verso il mercato.
+- **VaultAI** = linea AI commerciale; Onizuka è il laboratorio interno.
+
+## Vietato in UI e copy funzionale
+
+StationHQ, SINFONIA, DRAKKAR, OPERA, SKALD, OUVERTURE, MAESTRO come moduli, menu o titoli.
+
+## Regola operativa
+
+> Brand fuori · Onizuka dentro · Online Station sopra · Lorenzo al comando.
+
+- Mercato → brand.
+- Dati, clienti, processi, memoria, automazioni → Onizuka.
+- L’AI prepara; Lorenzo approva prima degli invii sensibili.
+
+## Implementazione
+
+- Brand catalogo: `src/lib/commercial-catalog-seed.ts`
+- Checklist: `docs/CURSOR-CHECKLIST-ONIZUKA.md`
+- Gap: `docs/GAP-VS-PUNTO-SITUA.md`
+
+Ogni nuova feature deve rispondere: fa risparmiare tempo, aumenta controllo, migliora una decisione, o aiuta a fatturare?

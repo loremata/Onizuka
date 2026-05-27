@@ -1,0 +1,43 @@
+# Copia in Vercel → Settings → Environment Variables (Production)
+# Non committare valori reali. Genera segreti con: openssl rand -base64 32
+
+NEXTAUTH_URL=https://onizuka.it
+NEXTAUTH_SECRET=
+ONIZUKA_PRIMARY_HOST=onizuka.it
+ONIZUKA_RECAP_TIMEZONE=Europe/Rome
+
+# Supabase: pooler 6543 in DATABASE_URL; direct 5432 solo per migrate da locale
+DATABASE_URL=
+DIRECT_URL=
+
+# Cloudflare R2
+S3_ENDPOINT=
+S3_REGION=auto
+S3_BUCKET=
+S3_ACCESS_KEY=
+S3_SECRET_KEY=
+S3_FORCE_PATH_STYLE=1
+S3_PUBLIC_URL=
+
+CRON_SECRET=
+N8N_API_KEY=
+
+NOTIFY_DIGEST_EMAIL=1
+QUOTE_NOTIFY_EMAIL=1
+TICKET_NOTIFY_EMAIL=1
+
+GMAIL_SMTP_HOST=smtp.gmail.com
+GMAIL_SMTP_PORT=587
+GMAIL_SMTP_SECURE=0
+GMAIL_SMTP_USER=
+GMAIL_SMTP_PASSWORD=
+GMAIL_SMTP_FROM=
+
+# Opzionale — rate limit + bus notifiche (multi-istanza Vercel)
+# UPSTASH_REDIS_REST_URL=
+# UPSTASH_REDIS_REST_TOKEN=
+# REDIS_URL=
+
+# Google OAuth, LLM, Drive, Telegram (vedi .env.example)
+# ONIZUKA_MARKETING_URL=
+# ONIZUKA_ENV=production

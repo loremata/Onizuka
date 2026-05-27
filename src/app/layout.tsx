@@ -6,8 +6,8 @@ import { Providers } from "@/components/providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Client Content Approval Portal",
-  description: "Review and approve social post assets",
+  title: "Onizuka",
+  description: "Sistema operativo intelligente personale e aziendale",
 };
 
 export default function RootLayout({
@@ -16,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="it" className="scroll-smooth dark">
       <body className={`${inter.className} min-h-screen antialiased`}>
         <Providers>{children}</Providers>
       </body>

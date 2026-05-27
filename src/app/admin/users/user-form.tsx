@@ -34,8 +34,8 @@ export function UserForm({ clients }: UserFormProps) {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="name">Name (optional)</Label>
-        <Input id="name" name="name" placeholder="Jane Doe" />
+        <Label htmlFor="name">Nome (opzionale)</Label>
+        <Input id="name" name="name" placeholder="Mario Rossi" />
       </div>
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
@@ -45,28 +45,29 @@ export function UserForm({ clients }: UserFormProps) {
           type="password"
           required
           minLength={8}
-          placeholder="At least 8 characters"
+          placeholder="Almeno 8 caratteri"
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="role">Role</Label>
+        <Label htmlFor="role">Ruolo</Label>
         <select
           id="role"
           name="role"
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <option value="CLIENT">Client</option>
-          <option value="ADMIN">Admin</option>
+          <option value="CLIENT">Cliente</option>
+          <option value="STAFF">Staff (collaboratore)</option>
+          <option value="ADMIN">Amministratore</option>
         </select>
       </div>
       <div className="space-y-2" id="clientIdWrapper">
-        <Label htmlFor="clientId">Client (required for Client role)</Label>
+        <Label htmlFor="clientId">Cliente (obbligatorio per il ruolo Cliente)</Label>
         <select
           id="clientId"
           name="clientId"
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <option value="">Select a client</option>
+          <option value="">Seleziona un cliente</option>
           {clients.map((c) => (
             <option key={c.id} value={c.id}>
               {c.companyName} ({c.slug})
@@ -75,9 +76,9 @@ export function UserForm({ clients }: UserFormProps) {
         </select>
       </div>
       <div className="flex gap-2">
-        <Button type="submit">Create user</Button>
+        <Button type="submit">Crea utente</Button>
         <Button asChild type="button" variant="outline">
-          <Link href="/admin/users">Cancel</Link>
+          <Link href="/admin/users">Annulla</Link>
         </Button>
       </div>
     </form>

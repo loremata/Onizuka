@@ -21,38 +21,38 @@ export function PostActions({ postId }: Props) {
 
   return (
     <div className="space-y-4 border-t pt-4">
-      <p className="text-sm font-medium">Actions</p>
+      <p className="text-sm font-medium">Azioni</p>
       {error && (
         <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <form action={approveAction} className="space-y-2 rounded-lg border p-4">
-          <Label>Approve this post</Label>
-          <p className="text-xs text-muted-foreground">Optionally add a comment.</p>
+          <Label>Approva questo post</Label>
+          <p className="text-xs text-muted-foreground">Puoi aggiungere un commento (opzionale).</p>
           <textarea
             name="comment"
             rows={2}
-            placeholder="Optional comment..."
+            placeholder="Commento opzionale…"
             className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[60px]"
           />
           <Button type="submit" className="w-full sm:w-auto">
-            Approve
+            Approva
           </Button>
         </form>
 
         <form action={requestAction} className="space-y-2 rounded-lg border p-4">
-          <Label>Request changes</Label>
-          <p className="text-xs text-muted-foreground">Comment is required so we know what to change.</p>
+          <Label>Richiedi modifiche</Label>
+          <p className="text-xs text-muted-foreground">Il commento è obbligatorio per capire cosa cambiare.</p>
           <textarea
             name="comment"
             rows={2}
             required
-            placeholder="Describe what you’d like changed..."
+            placeholder="Descrivi cosa vorresti modificare…"
             className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[60px]"
           />
           <Button type="submit" variant="outline" className="w-full sm:w-auto">
-            Request changes
+            Richiedi modifiche
           </Button>
         </form>
       </div>

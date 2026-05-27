@@ -6,16 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createPost } from "./actions";
+import { platformSelectRows } from "@/lib/post-ui-labels";
 import type { Client } from "@prisma/client";
 
 type PostFormProps = { clients: Client[] };
-
-const PLATFORMS = [
-  { value: "FACEBOOK", label: "Facebook" },
-  { value: "INSTAGRAM", label: "Instagram" },
-  { value: "LINKEDIN", label: "LinkedIn" },
-  { value: "GBP", label: "Google Business Profile" },
-] as const;
 
 export function PostForm({ clients }: PostFormProps) {
   const [state, formAction] = useFormState(
@@ -31,14 +25,14 @@ export function PostForm({ clients }: PostFormProps) {
         </div>
       )}
       <div className="space-y-2">
-        <Label htmlFor="clientId">Client</Label>
+        <Label htmlFor="clientId">Cliente</Label>
         <select
           id="clientId"
           name="clientId"
           required
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <option value="">Select a client</option>
+          <option value="">Seleziona un cliente</option>
           {clients.map((c) => (
             <option key={c.id} value={c.id}>
               {c.companyName} ({c.slug})
@@ -47,13 +41,13 @@ export function PostForm({ clients }: PostFormProps) {
         </select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="platform">Platform</Label>
+        <Label htmlFor="platform">Piattaforma</Label>
         <select
           id="platform"
           name="platform"
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {PLATFORMS.map((p) => (
+          {platformSelectRows().map((p) => (
             <option key={p.value} value={p.value}>
               {p.label}
             </option>
@@ -61,21 +55,21 @@ export function PostForm({ clients }: PostFormProps) {
         </select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="captionText">Caption</Label>
+        <Label htmlFor="captionText">Didascalia</Label>
         <textarea
           id="captionText"
           name="captionText"
           rows={4}
           className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[80px]"
-          placeholder="Post copy / caption..."
+          placeholder="Testo del post / didascalia…"
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="scheduledFor">Scheduled for (optional)</Label>
+        <Label htmlFor="scheduledFor">Programmato per (opzionale)</Label>
         <Input id="scheduledFor" name="scheduledFor" type="datetime-local" />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="media">Media (images or videos)</Label>
+        <Label htmlFor="media">Media (immagini o video)</Label>
         <Input
           id="media"
           name="media"
@@ -85,12 +79,14 @@ export function PostForm({ clients }: PostFormProps) {
           required
           className="cursor-pointer"
         />
-        <p className="text-xs text-muted-foreground">At least one file. Images: JPEG, PNG, GIF, WebP. Video: MP4, WebM.</p>
+        <p className="text-xs text-muted-foreground">
+          Almeno un file. Immagini: JPEG, PNG, GIF, WebP. Video: MP4, WebM.
+        </p>
       </div>
       <div className="flex gap-2">
-        <Button type="submit">Create post</Button>
+        <Button type="submit">Crea post</Button>
         <Button asChild type="button" variant="outline">
-          <Link href="/admin/posts">Cancel</Link>
+          <Link href="/admin/posts">Annulla</Link>
         </Button>
       </div>
     </form>

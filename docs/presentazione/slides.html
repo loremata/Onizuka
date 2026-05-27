@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Onizuka — Presentazione</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --card: #14141c;
+      --accent: #6366f1;
+      --accent2: #22d3ee;
+      --text: #f4f4f5;
+      --muted: #a1a1aa;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+    .slide {
+      min-height: 100vh;
+      padding: 3rem 4rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      page-break-after: always;
+      break-after: page;
+      background: linear-gradient(145deg, var(--bg) 0%, #12121a 50%, #0d0d14 100%);
+      border-bottom: 1px solid #27272a;
+    }
+    .slide:last-child { page-break-after: auto; }
+    .tag {
+      display: inline-block;
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent2);
+      margin-bottom: 0.75rem;
+    }
+    h1 {
+      font-size: clamp(2.2rem, 5vw, 3.5rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 1rem;
+      background: linear-gradient(90deg, var(--text), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    h2 {
+      font-size: 1.75rem;
+      margin-bottom: 1.25rem;
+      color: var(--text);
+    }
+    .lead { font-size: 1.35rem; color: var(--muted); max-width: 42rem; }
+    ul { margin: 1rem 0 0 1.25rem; font-size: 1.05rem; }
+    li { margin: 0.45rem 0; color: #d4d4d8; }
+    li strong { color: var(--text); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid #27272a;
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    .card h3 { font-size: 1rem; color: var(--accent2); margin-bottom: 0.5rem; }
+    .card p { font-size: 0.9rem; color: var(--muted); }
+    .footer {
+      margin-top: auto;
+      padding-top: 2rem;
+      font-size: 0.75rem;
+      color: #52525b;
+    }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .slide { min-height: 100vh; padding: 2rem 2.5rem; }
+      @page { size: landscape; margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+<section class="slide">
+  <span class="tag">Onizuka · 2026</span>
+  <h1>Onizuka</h1>
+  <p class="lead">Il sistema operativo intelligente per agenzie e studi: clienti, vendite, contenuti, finanza e operatività in un’unica piattaforma.</p>
+  <div class="footer">onizuka.it · Documento commerciale</div>
+</section>
+
+<section class="slide">
+  <span class="tag">Valore</span>
+  <h2>Perché Onizuka</h2>
+  <ul>
+    <li><strong>Un solo posto</strong> — CRM, task, memoria, finanza, audit, outreach, portale cliente</li>
+    <li><strong>Action Inbox</strong> — priorità operative unificate</li>
+    <li><strong>Memoria + AI</strong> — contesto cifrato, RAG, Ask Onizuka</li>
+    <li><strong>Automazioni</strong> — regole native + n8n per social</li>
+    <li><strong>Go-live misurabile</strong> — checklist e smoke integrati</li>
+  </ul>
+</section>
+
+<section class="slide">
+  <span class="tag">Target</span>
+  <h2>Per chi è pensata</h2>
+  <div class="grid">
+    <div class="card"><h3>Direzione</h3><p>KPI, intelligence, revenue at risk</p></div>
+    <div class="card"><h3>Commerciale</h3><p>Lead, pipeline, preventivi, reach</p></div>
+    <div class="card"><h3>Operations</h3><p>Clienti 360°, flow, ticket</p></div>
+    <div class="card"><h3>Creativi</h3><p>Approvazioni, Social Pro</p></div>
+    <div class="card"><h3>Amministrazione</h3><p>Finanza, time, ERP, FatturaPA</p></div>
+    <div class="card"><h3>Cliente</h3><p>Portale approvazioni e supporto</p></div>
+  </div>
+</section>
+
+<section class="slide">
+  <span class="tag">Modulo 1</span>
+  <h2>Onizuka Core</h2>
+  <ul>
+    <li>Command Center con KPI e trend</li>
+    <li>Action Inbox · Ricerca globale · Barra comando</li>
+    <li>Regia operativa · Intelligence · Voice recap</li>
+    <li>Go-live hub e diagnostica produzione</li>
+  </ul>
+</section>
+
+<section class="slide">
+  <span class="tag">Modulo 2</span>
+  <h2>Onizuka CRM</h2>
+  <ul>
+    <li>Scheda cliente 360°: onboarding, commitment, Drive, GBP</li>
+    <li>Lead, walk-in, pipeline, opportunità, SLA</li>
+    <li>Preventivi PDF · Segnalatori · Dedupe intelligente</li>
+    <li>Health radar · Dormant · Revenue at risk</li>
+  </ul>
+</section>
+
+<section class="slide">
+  <span class="tag">Moduli 3–6</span>
+  <h2>Flow · Memory · Content · Social</h2>
+  <div class="grid">
+    <div class="card"><h3>Flow</h3><p>Task, scadenze, sync Google Calendar</p></div>
+    <div class="card"><h3>Memory</h3><p>Vault, RAG pgvector, export cifrato</p></div>
+    <div class="card"><h3>Content</h3><p>Approvazione post multi-piattaforma</p></div>
+    <div class="card"><h3>Social Pro</h3><p>Calendario, inbox commenti, engagement</p></div>
+  </div>
+</section>
+
+<section class="slide">
+  <span class="tag">Moduli 7–10</span>
+  <h2>Reach · Finance · Time · Audit</h2>
+  <ul>
+    <li><strong>Reach</strong> — sequenze email, WhatsApp, tracking</li>
+    <li><strong>Finance</strong> — ledger, FatturaPA, riconciliazione, Stripe portale</li>
+    <li><strong>Time</strong> — ore, doppia approvazione, push ERP</li>
+    <li><strong>Audit</strong> — log admin, audit digitale, PDF, Google Sheet</li>
+  </ul>
+</section>
+
+<section class="slide">
+  <span class="tag">Moduli 11–13</span>
+  <h2>Insights · Automazioni · Portale</h2>
+  <ul>
+    <li>Insights: raccomandazioni, forecast, attivazioni servizi</li>
+    <li>Regole automazione + flow builder + webhook n8n</li>
+    <li><strong>Portale cliente</strong>: approva post, upload, fatture, ticket, progetti</li>
+  </ul>
+</section>
+
+<section class="slide">
+  <span class="tag">Integrazioni</span>
+  <h2>Ecosistema connesso</h2>
+  <div class="grid">
+    <div class="card"><h3>Google</h3><p>Calendar, Gmail, Drive, GBP</p></div>
+    <div class="card"><h3>n8n</h3><p>Pubblicazione social post approvati</p></div>
+    <div class="card"><h3>Meta / LinkedIn</h3><p>Sync social nativo</p></div>
+    <div class="card"><h3>Stripe</h3><p>Pagamento fatture cliente</p></div>
+    <div class="card"><h3>Telegram</h3><p>Voice e notifiche</p></div>
+    <div class="card"><h3>ERP</h3><p>Zucchetti / SAP partner</p></div>
+  </div>
+</section>
+
+<section class="slide">
+  <span class="tag">Scenari</span>
+  <h2>Cosa puoi fare</h2>
+  <ul>
+    <li>Agenzia marketing — 50 clienti, approvazioni, ticket, memoria per AM</li>
+    <li>Studio commerciale — walk-in, preventivi, reach WhatsApp</li>
+    <li>Consulenza digitale — audit + sequenze follow-up</li>
+    <li>Operations — flow, time→ERP, regia giornaliera</li>
+    <li>Partner — portale segnalatori e commissioni</li>
+  </ul>
+</section>
+
+<section class="slide">
+  <span class="tag">Tecnologia</span>
+  <h2>Stack affidabile</h2>
+  <ul>
+    <li>Next.js 14 · TypeScript · Prisma · PostgreSQL + pgvector</li>
+    <li>Vercel · Supabase · Cloudflare R2 · Upstash</li>
+    <li>~96 schermate admin · ~14 portale · 227 test automatici</li>
+    <li>6 cron API · CI GitHub Actions</li>
+  </ul>
+</section>
+
+<section class="slide">
+  <span class="tag">Roadmap</span>
+  <h2>Prossimi passi (integrati)</h2>
+  <ul>
+    <li><strong>Go-live</strong> — playbook Supabase, R2, Vercel, DNS, SMTP, GHA</li>
+    <li><strong>Q2</strong> — runbook incidenti, SLA dashboard, template onboarding</li>
+    <li><strong>Stack</strong> — worker automazioni, Sentry, staging isolato</li>
+    <li><strong>Prodotto</strong> — PWA portale, 2FA, BI export, inbox Gmail unificata</li>
+  </ul>
+  <p class="footer" style="margin-top:2rem">docs/ROADMAP-MIGLIORAMENTI.md · docs/GO-LIVE-OPS-PLAYBOOK.md</p>
+</section>
+
+<section class="slide">
+  <span class="tag">Chiusura</span>
+  <h1>Grazie</h1>
+  <p class="lead">Onizuka — meno dispersione, più controllo, decisioni più veloci.</p>
+  <p class="footer" style="margin-top:2rem">Demo: /admin · Portale: /app · Walk-in: /walkin</p>
+</section>
+
+</body>
+</html>

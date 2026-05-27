@@ -1,48 +1,19 @@
-import { createHmac } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { notifyAdminUsers } from "@/lib/user-notifications";
+import {
+  deliverWebhookPost,
+  logWebhookDeliveryFailure,
+  logWebhookDeliverySuccess,
+  resolveWebhookBaseUrl,
+  toAbsoluteMediaUrl,
+  type WebhookPayload,
+} from "@/lib/webhook-deliver";
+import { recordFailedWebhookDelivery } from "@/lib/webhook-delivery-queue";
+import { notifyAdminsViaTelegram } from "@/lib/telegram-bot";
+import { runPostApprovedAutomationRules } from "@/lib/automation-rules-run";
 
-const BASE_URL = process.env.NEXTAUTH_URL ?? process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
-
-export type WebhookPayload = {
-  event: "POST_APPROVED" | "POST_STATUS_CHANGED";
-  clientId: string;
-  clientSlug?: string;
-  postItemId: string;
-  status: string;
-  platform: string;
-  captionText: string;
-  mediaUrls: string[];
-  updatedAt: string; // ISO
-  timestamp: number; // Unix seconds for replay check
-  signature: string;
-};
-
-function sign(secret: string, rawBody: string): string {
-  return createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
-}
-
-function toAbsoluteUrl(url: string): string {
-  if (url.startsWith("http")) return url;
-  return `${BASE_URL.replace(/\/$/, "")}${url.startsWith("/") ? url : `/${url}`}`;
-}
-
-/**
- * Build payload and sign. Body sent is JSON; signature is HMAC-SHA256(secret, that same JSON string).
- * Receiver should verify: parse body, take signature, recompute HMAC over the same JSON (with signature removed for verification), compare.
- */
-export function buildSignedPayload(
-  secret: string,
-  data: Omit<WebhookPayload, "signature" | "timestamp">
-): { payload: WebhookPayload; rawBody: string } {
-  const timestamp = Math.floor(Date.now() / 1000);
-  const payloadWithoutSignature = { ...data, timestamp };
-  const rawBody = JSON.stringify(payloadWithoutSignature);
-  const signature = sign(secret, rawBody);
-  const payload = { ...payloadWithoutSignature, signature };
-  return { payload, rawBody: JSON.stringify(payload) };
-}
+export type { WebhookPayload } from "@/lib/webhook-deliver";
+export { buildSignedPayload, resolveWebhookBaseUrl } from "@/lib/webhook-deliver";
 
 /**
  * Notify all active webhook subscriptions when a post's status changes to APPROVED or NEEDS_REVISION.
@@ -67,7 +38,8 @@ export async function notifyStatusChange(postId: string): Promise<void> {
 
   if (!event) return;
 
-  const mediaUrls = post.media.map((m) => toAbsoluteUrl(m.url));
+  const baseUrl = resolveWebhookBaseUrl();
+  const mediaUrls = post.media.map((m) => toAbsoluteMediaUrl(m.url, baseUrl));
 
   const subscriptions = await prisma.webhookSubscription.findMany({
     where: {
@@ -91,15 +63,46 @@ export async function notifyStatusChange(postId: string): Promise<void> {
 
   await Promise.allSettled(
     subscriptions.map(async (sub) => {
-      const { payload, rawBody } = buildSignedPayload(sub.secret, payloadData);
-      const res = await fetch(sub.targetUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: rawBody,
-      });
-      if (!res.ok) {
-        console.error(`Webhook ${sub.targetUrl} failed: ${res.status} ${await res.text()}`);
+      const result = await deliverWebhookPost(sub.targetUrl, sub.secret, payloadData, { retries: 1 });
+      if (result.ok) {
+        void logWebhookDeliverySuccess({
+          subscriptionId: sub.id,
+          targetUrl: sub.targetUrl,
+          status: result.status,
+          postItemId: post.id,
+        });
+      } else {
+        console.error(`Webhook ${sub.targetUrl} failed: ${result.status} ${result.detail}`);
+        await recordFailedWebhookDelivery({
+          subscriptionId: sub.id,
+          postItemId: post.id,
+          event: payloadData.event,
+          targetUrl: sub.targetUrl,
+          httpStatus: result.status,
+          errorDetail: result.detail,
+          payloadData,
+          attempts: 2,
+        });
+        await logWebhookDeliveryFailure({
+          subscriptionId: sub.id,
+          targetUrl: sub.targetUrl,
+          status: result.status,
+          postItemId: post.id,
+        });
+        void notifyAdminUsers({
+          kind: "webhook_failed",
+          title: `Webhook fallito · ${post.client.companyName}`,
+          body: `${sub.targetUrl} — HTTP ${result.status}`,
+          href: "/admin/webhooks",
+        }).catch(() => {});
+        void notifyAdminsViaTelegram(
+          `Webhook fallito · ${post.client.companyName}\n${sub.targetUrl}\nHTTP ${result.status}`
+        );
       }
     })
   );
+
+  if (event === "POST_APPROVED") {
+    void runPostApprovedAutomationRules(postId);
+  }
 }

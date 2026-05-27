@@ -1,0 +1,23 @@
+name: Migrate production DB
+
+on:
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Prisma migrate deploy (Supabase direct)
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+        run: npx prisma migrate deploy

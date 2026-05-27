@@ -21,7 +21,7 @@ export function WebhookForm({ clients }: Props) {
       )}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="event">Event</Label>
+          <Label htmlFor="event">Evento</Label>
           <select
             id="event"
             name="event"
@@ -33,13 +33,13 @@ export function WebhookForm({ clients }: Props) {
           </select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="clientId">Client (optional)</Label>
+          <Label htmlFor="clientId">Cliente (opzionale)</Label>
           <select
             id="clientId"
             name="clientId"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           >
-            <option value="">All clients</option>
+            <option value="">Tutti i clienti</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.companyName} ({c.slug})
@@ -49,26 +49,26 @@ export function WebhookForm({ clients }: Props) {
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="targetUrl">Target URL</Label>
+        <Label htmlFor="targetUrl">URL di destinazione</Label>
         <Input
           id="targetUrl"
           name="targetUrl"
           type="url"
           required
-          placeholder="https://your-n8n.com/webhook/..."
+          placeholder="https://tuo-n8n.com/webhook/..."
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="secret">Secret (for HMAC-SHA256 signature)</Label>
+        <Label htmlFor="secret">Secret (firma HMAC-SHA256)</Label>
         <Input
           id="secret"
           name="secret"
           type="password"
           required
-          placeholder="Shared secret with n8n"
+          placeholder="Secret condiviso con n8n"
         />
       </div>
-      <Button type="submit">Add webhook</Button>
+      <Button type="submit">Aggiungi webhook</Button>
     </form>
   );
 }

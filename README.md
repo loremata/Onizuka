@@ -1,6 +1,30 @@
-# Client Content Approval Portal
+# Onizuka
 
-Multi-tenant web app for agencies to upload social post assets; clients review, approve, or request edits. Integrates with n8n for publishing approved content.
+Onizuka e il sistema operativo intelligente personale, aziendale e commerciale di Lorenzo Matarazzo.
+
+Questa codebase nasce da un portale multi-tenant di approvazione contenuti e viene evoluta in una piattaforma unica con moduli integrati (Core, CRM, Flow, Memory, Audit, Reach, Finance, Insights).
+
+## Regola di naming
+
+- **Onizuka** = BOS interno (questa codebase).
+- **Online Station** = contenitore aziendale/commerciale.
+- I **brand verticali** (LabSeven, StudioPop, …) sono asset commerciali, non moduli UI.
+- Vietati in UI: StationHQ, SINFONIA, DRAKKAR, OPERA, SKALD, OUVERTURE, MAESTRO.
+
+Strategia: [docs/PUNTO-SITUA-DEFINITIVO.md](./docs/PUNTO-SITUA-DEFINITIVO.md)
+
+## Deploy e documentazione
+
+| Cosa | Dove |
+|------|------|
+| **Checklist ops** | **[PASSI-MANCANTI.md](./PASSI-MANCANTI.md)** · live `/admin/go-live` |
+| **Indice doc** | **[docs/README.md](./docs/README.md)** |
+| **Deploy tecnico** | [docs/DEPLOY.md](./docs/DEPLOY.md) |
+
+```bash
+npm run passi-mancanti:full    # verifica locale
+npm run passi-mancanti:prod    # env + smoke produzione
+```
 
 ## Stack
 
@@ -63,6 +87,21 @@ Multi-tenant web app for agencies to upload social post assets; clients review, 
 
 ## Setup
 
+### Avvio rapido (sviluppo locale)
+
+1. **Requisiti:** Node.js 18+, PostgreSQL in esecuzione.
+2. **Dipendenze:** `npm install`
+3. **Ambiente:** copia `.env.example` in `.env` e imposta almeno:
+  - `DATABASE_URL` (es. `postgresql://user:password@localhost:5432/onizuka?schema=public`)
+   - `NEXTAUTH_URL=http://localhost:3000`
+   - `NEXTAUTH_SECRET` (es. genera con `openssl rand -base64 32`)
+4. **Database:** `npx prisma migrate dev --name init` poi `npm run db:seed`
+5. **Avvio:** `npm run dev` → [http://localhost:3000](http://localhost:3000) (redirect a `/login`).
+
+In sviluppo **non** serve configurare S3: i file vanno in `.uploads` e sono serviti da `/api/uploads/`.
+
+---
+
 ### 1. Install dependencies
 
 ```bash
@@ -74,7 +113,7 @@ npm install
 Copy `.env.example` to `.env` and set:
 
 ```env
-DATABASE_URL="postgresql://user:password@localhost:5432/approval_portal?schema=public"
+DATABASE_URL="postgresql://user:password@localhost:5432/onizuka?schema=public"
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-secret"   # e.g. openssl rand -base64 32
 ```
@@ -133,6 +172,6 @@ prisma/
 npm run test
 ```
 
-## Deploy su Vercel (via GitHub)
+## Deploy su Vercel
 
-Per il deploy in produzione su Vercel collegando il repository GitHub, variabili d’ambiente e checklist sono descritti in **[GUIDA-DEPLOY-PASSO-PASSO.md](./GUIDA-DEPLOY-PASSO-PASSO.md)** (guida passo passo semplice). Checklist tecnica: **[DEPLOY.md](./DEPLOY.md)**. In sintesi: configura **PostgreSQL** (preferibilmente con connection pooling), **NEXTAUTH_URL** e **NEXTAUTH_SECRET**, e **S3/R2** per lo storage (obbligatorio in produzione); esegui le migrazioni sull’DB di produzione prima o subito dopo il primo deploy.
+Vedi **[docs/DEPLOY.md](./docs/DEPLOY.md)** e **[PASSI-MANCANTI.md](./PASSI-MANCANTI.md)**.

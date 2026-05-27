@@ -21,14 +21,14 @@ export default async function ResetPasswordPage({
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button asChild variant="ghost" size="sm">
-          <Link href="/admin/users">← Users</Link>
+          <Link href="/admin/users">← Utenti</Link>
         </Button>
       </div>
       <Card className="max-w-lg">
         <CardHeader>
-          <CardTitle>Reset password</CardTitle>
+          <CardTitle>Reimposta password</CardTitle>
           <CardDescription>
-            Set a new password for {user.email}
+            Imposta una nuova password per {user.email}
             {user.name ? ` (${user.name})` : ""}.
           </CardDescription>
         </CardHeader>

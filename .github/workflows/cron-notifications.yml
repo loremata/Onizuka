@@ -1,0 +1,22 @@
+name: Cron notifications
+
+on:
+  schedule:
+    # 06:00 UTC daily — allinea con vercel.json; regola il fuso in ONIZUKA_RECAP_TIMEZONE sul server
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Onizuka notification cron
+        env:
+          CRON_URL: ${{ secrets.ONIZUKA_CRON_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "Skip: imposta secrets ONIZUKA_CRON_URL e CRON_SECRET nel repository."
+            exit 0
+          fi
+          curl -fsS -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_URL}"

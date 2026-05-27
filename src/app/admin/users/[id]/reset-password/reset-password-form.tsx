@@ -23,20 +23,20 @@ export function ResetPasswordForm({ userId }: Props) {
         </div>
       )}
       <div className="space-y-2">
-        <Label htmlFor="password">New password</Label>
+        <Label htmlFor="password">Nuova password</Label>
         <Input
           id="password"
           name="password"
           type="password"
           required
           minLength={8}
-          placeholder="At least 8 characters"
+          placeholder="Almeno 8 caratteri"
         />
       </div>
       <div className="flex gap-2">
-        <Button type="submit">Update password</Button>
+        <Button type="submit">Aggiorna password</Button>
         <Button asChild type="button" variant="outline">
-          <Link href="/admin/users">Cancel</Link>
+          <Link href="/admin/users">Annulla</Link>
         </Button>
       </div>
     </form>

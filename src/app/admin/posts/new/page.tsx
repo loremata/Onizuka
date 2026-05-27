@@ -13,15 +13,15 @@ export default async function NewPostPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button asChild variant="ghost" size="sm">
-          <Link href="/admin/posts">← Posts</Link>
+          <Link href="/admin/posts">← Post</Link>
         </Button>
       </div>
       <Card className="max-w-lg">
         <CardHeader>
-          <CardTitle>New post</CardTitle>
+          <CardTitle>Nuovo post</CardTitle>
           <CardDescription>
-            Select client and platform, add caption and at least one image or video. Optional: set a
-            scheduled date.
+            Seleziona cliente e piattaforma, aggiungi didascalia e almeno un&apos;immagine o un video. Opzionale: data di
+            pubblicazione programmata.
           </CardDescription>
         </CardHeader>
         <CardContent>

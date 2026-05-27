@@ -11,6 +11,7 @@ const mockSessionClientA = {
     email: "client@a.com",
     role: "CLIENT" as const,
     clientId: "client-a",
+    timeZone: null as string | null,
   },
 };
 
@@ -20,6 +21,7 @@ const mockSessionClientB = {
     email: "client@b.com",
     role: "CLIENT" as const,
     clientId: "client-b",
+    timeZone: null as string | null,
   },
 };
 
@@ -29,6 +31,11 @@ const mockPostForClientB = {
   platform: "FACEBOOK" as const,
   captionText: "Caption",
   status: "PENDING" as const,
+  client: { companyName: "Client B Co" },
+};
+
+const postFindArgs = {
+  include: { client: { select: { companyName: true } } },
 };
 
 jest.mock("next-auth", () => ({
@@ -44,6 +51,9 @@ jest.mock("@/lib/prisma", () => ({
     comment: {
       create: jest.fn(),
     },
+    adminAuditLog: {
+      create: jest.fn(() => Promise.resolve({ id: "audit-1" })),
+    },
     $transaction: jest.fn((promises: Promise<unknown>[]) => Promise.all(promises)),
   },
 }));
@@ -54,6 +64,10 @@ jest.mock("next/cache", () => ({
 
 jest.mock("@/lib/webhook", () => ({
   notifyStatusChange: jest.fn(() => Promise.resolve()),
+}));
+
+jest.mock("@/lib/user-notifications", () => ({
+  notifyAdminUsers: jest.fn(() => Promise.resolve()),
 }));
 
 const { getServerSession } = require("next-auth");
@@ -72,9 +86,10 @@ describe("Access control: client actions", () => {
     formData.set("comment", "");
     const result = await approvePost("post-b", null, formData);
 
-    expect(result).toEqual({ error: "Post not found." });
+    expect(result).toEqual({ error: "Post non trovato." });
     expect(prisma.postItem.findFirst).toHaveBeenCalledWith({
       where: { id: "post-b", clientId: "client-a" },
+      ...postFindArgs,
     });
     expect(prisma.postItem.update).not.toHaveBeenCalled();
   });
@@ -92,6 +107,7 @@ describe("Access control: client actions", () => {
     expect(result).toBeNull();
     expect(prisma.postItem.findFirst).toHaveBeenCalledWith({
       where: { id: "post-b", clientId: "client-b" },
+      ...postFindArgs,
     });
     expect(prisma.postItem.update).toHaveBeenCalled();
   });
@@ -104,18 +120,18 @@ describe("Access control: client actions", () => {
     formData.set("comment", "Please change this");
     const result = await requestChanges("post-b", null, formData);
 
-    expect(result).toEqual({ error: "Post not found." });
+    expect(result).toEqual({ error: "Post non trovato." });
     expect(prisma.postItem.update).not.toHaveBeenCalled();
   });
 
-  it("requestChanges returns error when unauthorized (no session)", async () => {
+  it("requestChanges redirects to login when unauthorized (no session)", async () => {
     getServerSession.mockResolvedValue(null);
 
     const formData = new FormData();
     formData.set("comment", "Please change this");
-    const result = await requestChanges("post-b", null, formData);
-
-    expect(result).toEqual({ error: "Unauthorized." });
+    await expect(requestChanges("post-b", null, formData)).rejects.toMatchObject({
+      message: "NEXT_REDIRECT",
+    });
     expect(prisma.postItem.findFirst).not.toHaveBeenCalled();
   });
 
@@ -128,7 +144,7 @@ describe("Access control: client actions", () => {
     const result = await requestChanges("post-b", null, formData);
 
     expect(result).toEqual({
-      error: "Please add a comment explaining what changes you need.",
+      error: "Aggiungi un commento che spieghi quali modifiche servono.",
     });
     expect(prisma.postItem.update).not.toHaveBeenCalled();
   });

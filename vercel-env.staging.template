@@ -1,0 +1,48 @@
+# Template variabili Vercel — progetto STAGING dedicato (onizuka-staging)
+# Copiare in Vercel → Project Settings → Environment Variables → Production (del progetto staging)
+# NON usare su progetto produzione onizuka.it
+
+# === Obbligatori ===
+ONIZUKA_ENV=staging
+ONIZUKA_STAGING_DB_MARKER=
+NEXTAUTH_URL=
+NEXTAUTH_SECRET=
+DATABASE_URL=
+DIRECT_URL=
+
+# === Invii email disabilitati (consigliato) ===
+QUOTE_NOTIFY_EMAIL=0
+TICKET_NOTIFY_EMAIL=0
+NOTIFY_DIGEST_EMAIL=0
+
+# === Cron (secret diverso da produzione) ===
+CRON_SECRET=
+
+# === Timezone ===
+ONIZUKA_RECAP_TIMEZONE=Europe/Rome
+
+# === Storage staging isolato ===
+S3_ENDPOINT=
+S3_REGION=auto
+S3_BUCKET=onizuka-staging-media
+S3_ACCESS_KEY=
+S3_SECRET_KEY=
+S3_FORCE_PATH_STYLE=1
+S3_PUBLIC_URL=
+
+# === Opzionali integrazioni (mock/disabilitate se vuote) ===
+N8N_API_KEY=
+# GOOGLE_PLACES_API_KEY=
+# GOOGLE_SHEET_AUDIT_CSV_URL=
+# TELEGRAM_BOT_TOKEN=
+# OPENAI_API_KEY=
+
+# === E2E da CI locale (non impostare su Vercel runtime) ===
+# PLAYWRIGHT_BASE_URL=https://your-staging-app.vercel.app
+
+# === Email sandbox (Mailtrap/Resend staging) — opzionale ===
+# GMAIL_SMTP_HOST=
+# GMAIL_SMTP_PORT=587
+# GMAIL_SMTP_USER=
+# GMAIL_SMTP_PASSWORD=
+# GMAIL_SMTP_FROM=staging@example.test

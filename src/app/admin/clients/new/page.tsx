@@ -8,13 +8,16 @@ export default function NewClientPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button asChild variant="ghost" size="sm">
-          <Link href="/admin/clients">← Clients</Link>
+          <Link href="/admin/clients">← Clienti</Link>
         </Button>
       </div>
-      <Card className="max-w-lg">
+      <Card className="max-w-3xl">
         <CardHeader>
-          <CardTitle>New client</CardTitle>
-          <CardDescription>Create a client workspace. Slug is used in URLs and n8n; leave blank to generate from company name.</CardDescription>
+          <CardTitle>Nuovo cliente</CardTitle>
+          <CardDescription>
+            Crea uno spazio di lavoro cliente. Lo slug è usato negli URL e in n8n; lascialo vuoto per generarlo dalla
+            ragione sociale.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <ClientForm />

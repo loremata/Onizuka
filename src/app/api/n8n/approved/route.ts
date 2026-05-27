@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server";
+import { ApiErrorCode, jsonApiError } from "@/lib/api-json-errors";
 import { prisma } from "@/lib/prisma";
 import { requireN8nAuth } from "@/lib/n8n-auth";
-import { checkRateLimitN8n } from "@/lib/rate-limit";
+import {
+  checkRateLimitN8n,
+  checkRateLimitN8nIngress,
+  getRequestIp,
+} from "@/lib/rate-limit";
 
-const BASE_URL = process.env.NEXTAUTH_URL ?? process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
+function publicBaseUrl(): string {
+  const authUrl = process.env.NEXTAUTH_URL?.trim();
+  if (authUrl) return authUrl.replace(/\/$/, "");
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL.replace(/\/$/, "")}`;
+  return "http://localhost:3000";
+}
+
+const BASE_URL = publicBaseUrl();
 
 function toAbsoluteUrl(url: string): string {
   if (url.startsWith("http")) return url;
@@ -17,28 +27,34 @@ function toAbsoluteUrl(url: string): string {
  * Returns approved posts for the client (by slug) with media URLs and caption.
  * Auth: X-API-Key or Authorization: Bearer (N8N_API_KEY).
  */
-function getN8nIdentifier(request: Request): string {
-  const key = request.headers.get("x-api-key") ?? request.headers.get("authorization") ?? "";
-  if (key) return key.slice(0, 32);
-  const forwarded = request.headers.get("x-forwarded-for");
-  return forwarded?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip") ?? "anonymous";
-}
-
 export async function GET(request: Request) {
-  const auth = requireN8nAuth(request);
-  if (!auth.ok) {
-    return NextResponse.json(
-      { error: auth.status === 401 ? "Unauthorized" : "N8N_API_KEY not configured" },
-      { status: auth.status }
+  const ingress = await checkRateLimitN8nIngress(getRequestIp(request));
+  if (!ingress.ok) {
+    return jsonApiError(
+      429,
+      ApiErrorCode.RATE_LIMIT,
+      "Troppe richieste",
+      { "Retry-After": String(ingress.retryAfter) }
     );
   }
 
-  const rl = checkRateLimitN8n(getN8nIdentifier(request));
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+  const auth = requireN8nAuth(request);
+  if (!auth.ok) {
+    if (auth.status === 401) {
+      return jsonApiError(401, ApiErrorCode.UNAUTHORIZED, "Non autorizzato");
+    }
+    return jsonApiError(
+      503,
+      ApiErrorCode.N8N_KEY_NOT_CONFIGURED,
+      "Variabile N8N_API_KEY non configurata sul server"
     );
+  }
+
+  const rl = await checkRateLimitN8n(request);
+  if (!rl.ok) {
+    return jsonApiError(429, ApiErrorCode.RATE_LIMIT, "Troppe richieste", {
+      "Retry-After": String(rl.retryAfter),
+    });
   }
 
   const { searchParams } = new URL(request.url);
@@ -46,9 +62,10 @@ export async function GET(request: Request) {
   const platform = searchParams.get("platform")?.trim();
 
   if (!clientSlug) {
-    return NextResponse.json(
-      { error: "clientSlug is required" },
-      { status: 400 }
+    return jsonApiError(
+      400,
+      ApiErrorCode.MISSING_CLIENT_SLUG,
+      "Parametro clientSlug obbligatorio"
     );
   }
 
@@ -57,10 +74,7 @@ export async function GET(request: Request) {
   });
 
   if (!client) {
-    return NextResponse.json(
-      { error: "Client not found" },
-      { status: 404 }
-    );
+    return jsonApiError(404, ApiErrorCode.CLIENT_NOT_FOUND, "Cliente non trovato");
   }
 
   const posts = await prisma.postItem.findMany({

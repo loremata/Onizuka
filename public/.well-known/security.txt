@@ -1,0 +1,3 @@
+Contact: mailto:security@onizuka.it
+Preferred-Languages: it, en
+Canonical: https://onizuka.it/.well-known/security.txt

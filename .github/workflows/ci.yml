@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      DIRECT_URL: postgresql://ci:ci@localhost:5432/ci
+      # next build usa NODE_ENV=production; instrumentation + assert auth/storage
+      NEXTAUTH_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-32chars-min
+      NEXTAUTH_URL: http://localhost:3000
+      ALLOW_LOCAL_UPLOAD_SERVE: "1"
+      N8N_API_KEY: e2e-ci-n8n-api-key-for-playwright-tests
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma migrate deploy
+
+      - run: npm run lint
+
+      - run: npm test
+
+      - run: npm run db:seed
+        env:
+          ONIZUKA_E2E: "1"
+
+      - run: npm run build
+
+      - run: npx playwright install chromium --with-deps
+
+      - run: npm run test:e2e
