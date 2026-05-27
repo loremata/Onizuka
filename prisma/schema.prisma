@@ -7,9 +7,9 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  url       = env("postgresql://postgres.hswxcxtnkrtvgxsuadzy:BN3Ox-w5jI6PMtopYg8lEpN7YwuIJhMV@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1")
   // Supabase: pooler (6543) in runtime; connessione diretta (5432) solo per migrate deploy
-  directUrl = env("DIRECT_URL")
+  directUrl = env("postgresql://postgres.hswxcxtnkrtvgxsuadzy:BN3Ox-w5jI6PMtopYg8lEpN7YwuIJhMV@aws-0-eu-west-1.pooler.supabase.com:5432/postgres")
 }
 
 enum Role {
