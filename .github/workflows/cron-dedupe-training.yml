@@ -1,8 +1,7 @@
 name: Cron dedupe training
 
 on:
-  schedule:
-    - cron: "30 5 * * *"
+  # Cron schedulato disabilitato: feature dedupe-training opzionale, non in uso. workflow_dispatch per run manuale.
   workflow_dispatch:
 
 jobs:

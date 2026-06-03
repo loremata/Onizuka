@@ -1,9 +1,8 @@
 name: Cron notifications
 
 on:
-  schedule:
-    # 06:00 UTC daily — allinea con vercel.json; regola il fuso in ONIZUKA_RECAP_TIMEZONE sul server
-    - cron: "0 6 * * *"
+  # Cron schedulato disabilitato: Vercel cron (vercel.json) copre /api/cron/notifications.
+  # workflow_dispatch resta per esecuzione manuale di backup (richiede i secret ONIZUKA_CRON_URL + CRON_SECRET).
   workflow_dispatch:
 
 jobs:

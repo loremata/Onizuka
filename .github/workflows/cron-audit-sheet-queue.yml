@@ -1,8 +1,7 @@
 name: Cron audit sheet queue
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"
+  # Cron schedulato disabilitato: feature audit-sheet opzionale, non in uso. workflow_dispatch per run manuale.
   workflow_dispatch:
 
 jobs:

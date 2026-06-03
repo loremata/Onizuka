@@ -1,8 +1,8 @@
 name: Cron webhook retry
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"
+  # Cron schedulato disabilitato: Vercel cron (vercel.json) copre /api/cron/webhook-retry ogni 15 min.
+  # workflow_dispatch resta per esecuzione manuale di backup.
   workflow_dispatch:
 
 jobs:
@@ -10,6 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger webhook retry cron
+        env:
+          CRON_URL: ${{ secrets.ONIZUKA_CRON_WEBHOOK_RETRY_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          curl -fsS -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "${{ secrets.ONIZUKA_CRON_URL }}/api/cron/webhook-retry"
+          if [ -z "$CRON_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "Skip: imposta ONIZUKA_CRON_WEBHOOK_RETRY_URL (es. https://onizuka.it/api/cron/webhook-retry) e CRON_SECRET."
+            exit 0
+          fi
+          curl -fsS -H "Authorization: Bearer ${CRON_SECRET}" "${CRON_URL}"

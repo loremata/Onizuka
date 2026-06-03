@@ -1,8 +1,8 @@
 name: Cron reach sequences
 
 on:
-  schedule:
-    - cron: "0 8 * * *"
+  # Cron schedulato disabilitato: Vercel cron (vercel.json) copre /api/cron/reach-sequences.
+  # workflow_dispatch resta per esecuzione manuale di backup.
   workflow_dispatch:
 
 jobs:

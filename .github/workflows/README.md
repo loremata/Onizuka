@@ -15,11 +15,15 @@ Workflow:
 
 | File | Schedule |
 |------|----------|
-| `cron-notifications.yml` | Giornaliero |
-| `cron-webhook-retry.yml` | Ogni 15 min |
-| `cron-reach-sequences.yml` | Giornaliero |
-| `cron-audit-sheet-queue.yml` | Ogni 30 min |
-| `cron-dedupe-training.yml` | Notturno |
+| `cron-notifications.yml` | Solo manuale (`workflow_dispatch`) |
+| `cron-webhook-retry.yml` | Solo manuale (`workflow_dispatch`) |
+| `cron-reach-sequences.yml` | Solo manuale (`workflow_dispatch`) |
+| `cron-audit-sheet-queue.yml` | Solo manuale (`workflow_dispatch`) |
+| `cron-dedupe-training.yml` | Solo manuale (`workflow_dispatch`) |
 | `migrate-production.yml` | Manuale (`SUPABASE_DIRECT_URL`) |
 
-Vercel copre gli stessi path via `vercel.json` se il progetto è su Vercel Pro.
+**I cron schedulati GitHub Actions sono disabilitati**: il progetto è su Vercel Pro
+e `vercel.json` copre `/api/cron/notifications`, `/api/cron/webhook-retry` e
+`/api/cron/reach-sequences`. I workflow restano lanciabili a mano (`workflow_dispatch`)
+come backup: in quel caso imposta i secret nella tabella sopra. Per riattivare lo
+schedule, ripristina il blocco `schedule:` nel relativo file.
