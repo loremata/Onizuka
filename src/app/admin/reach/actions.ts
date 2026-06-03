@@ -11,6 +11,7 @@ import { markOutreachDraftSent } from "@/lib/outreach-sent";
 import { applyReachAbWinnerAsDefault, resolveReachAbVariantForSend } from "@/lib/reach-ab-default";
 import { hasOutreachAb } from "@/lib/outreach-ab";
 import { parseCustomSequenceSteps } from "@/lib/outreach-custom-steps";
+import { logAdminAction } from "@/lib/admin-audit-log";
 
 type ActionResult = { error: string } | null;
 
@@ -240,5 +241,83 @@ export async function cancelOutreachSequence(sequenceId: string): Promise<Action
   if (updated.count === 0) return { error: "Sequenza non trovata." };
   revalidatePath("/admin/reach/sequences");
   revalidatePath("/admin/reach");
+  return null;
+}
+
+/**
+ * «Ha risposto»: ferma la sequenza follow-up e promuove il prospect a opportunità
+ * (riusa un'opportunità aperta esistente o ne crea una nuova ad alta priorità).
+ */
+export async function markSequenceReplied(sequenceId: string): Promise<ActionResult> {
+  const session = await ensureAdmin();
+
+  const seq = await prisma.outreachSequence.findFirst({
+    where: { id: sequenceId, ownerUserId: session.user.id },
+    include: {
+      client: { select: { id: true, companyName: true } },
+      lead: { select: { id: true, businessName: true, title: true } },
+    },
+  });
+  if (!seq) return { error: "Sequenza non trovata." };
+  if (!seq.clientId && !seq.leadId) {
+    return { error: "Sequenza senza cliente/lead collegato: impossibile promuovere a opportunità." };
+  }
+
+  // 1. Ferma la sequenza (se ancora attiva/in pausa).
+  await prisma.outreachSequence.updateMany({
+    where: { id: sequenceId, ownerUserId: session.user.id, status: { in: ["ACTIVE", "PAUSED"] } },
+    data: { status: "CANCELLED" },
+  });
+
+  // 2. Promuovi a opportunità: riusa un'opp aperta o creane una nuova.
+  const partyName =
+    seq.client?.companyName ?? seq.lead?.businessName?.trim() ?? seq.lead?.title ?? "Prospect";
+  const nextAction = "Ha risposto all'outreach: ricontattare per fissare la consulenza gratuita.";
+
+  const existing = await prisma.opportunity.findFirst({
+    where: {
+      ownerUserId: session.user.id,
+      status: "OPEN",
+      ...(seq.clientId ? { clientId: seq.clientId } : { leadId: seq.leadId }),
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  let opportunityId: string;
+  if (existing) {
+    await prisma.opportunity.update({
+      where: { id: existing.id },
+      data: { priority: "HIGH", nextAction },
+    });
+    opportunityId = existing.id;
+  } else {
+    const created = await prisma.opportunity.create({
+      data: {
+        ownerUserId: session.user.id,
+        clientId: seq.clientId ?? undefined,
+        leadId: seq.leadId ?? undefined,
+        digitalAuditId: seq.digitalAuditId ?? undefined,
+        title: `Risposta outreach · ${partyName}`,
+        status: "OPEN",
+        priority: "HIGH",
+        source: "OUTREACH_REPLY",
+        nextAction,
+      },
+    });
+    opportunityId = created.id;
+  }
+
+  void logAdminAction({
+    actorUserId: session.user.id,
+    action: "outreach.replied",
+    entityType: "opportunity",
+    entityId: opportunityId,
+    summary: `Prospect «${partyName}» ha risposto: sequenza fermata e opportunità promossa.`,
+    metadata: { sequenceId, reused: Boolean(existing) },
+  }).catch(() => undefined);
+
+  revalidatePath("/admin/reach/sequences");
+  revalidatePath("/admin/reach");
+  revalidatePath("/admin/crm/opportunities");
   return null;
 }

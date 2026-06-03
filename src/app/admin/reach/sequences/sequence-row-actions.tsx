@@ -2,7 +2,12 @@
 
 import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { cancelOutreachSequence, pauseOutreachSequence, resumeOutreachSequence } from "../actions";
+import {
+  cancelOutreachSequence,
+  pauseOutreachSequence,
+  resumeOutreachSequence,
+  markSequenceReplied,
+} from "../actions";
 
 export function SequenceRowActions({
   sequenceId,
@@ -16,7 +21,17 @@ export function SequenceRowActions({
   if (status !== "ACTIVE" && status !== "PAUSED") return null;
 
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        disabled={pending}
+        title="Ferma la sequenza e promuovi il prospect a opportunità"
+        onClick={() => start(async () => { await markSequenceReplied(sequenceId); })}
+      >
+        Ha risposto
+      </Button>
       {status === "ACTIVE" ? (
         <Button
           type="button"
