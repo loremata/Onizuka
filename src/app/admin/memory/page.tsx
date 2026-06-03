@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
@@ -226,7 +227,7 @@ export default async function AdminMemoryListPage({ searchParams }: Props) {
                       )}
                     </td>
                     <td className="py-3 pr-4 align-top whitespace-nowrap text-muted-foreground">
-                      {new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short" }).format(m.updatedAt)}
+                      {dateTimeFormatIt({ dateStyle: "short", timeStyle: "short" }).format(m.updatedAt)}
                     </td>
                     <td className="py-3 text-right align-top">
                       <Button asChild variant="outline" size="sm">

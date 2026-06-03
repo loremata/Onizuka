@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
@@ -47,7 +48,7 @@ function formatDue(d: Date | null, userTimeZone?: string | null) {
   if (tz && isValidIanaTimeZone(tz)) {
     opts.timeZone = tz;
   }
-  return new Intl.DateTimeFormat("it-IT", opts).format(d);
+  return dateTimeFormatIt(opts).format(d);
 }
 
 const statusOrder: Record<string, number> = {

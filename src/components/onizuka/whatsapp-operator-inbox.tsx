@@ -1,5 +1,6 @@
 "use client";
 
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,7 @@ export function WhatsAppOperatorInbox({
   const [replyBody, setReplyBody] = useState<Record<string, string>>({});
   const [templatePick, setTemplatePick] = useState<Record<string, string>>({});
 
-  const fmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short" });
+  const fmt = dateTimeFormatIt({ dateStyle: "short", timeStyle: "short" });
 
   return (
     <ul className="divide-y text-sm">

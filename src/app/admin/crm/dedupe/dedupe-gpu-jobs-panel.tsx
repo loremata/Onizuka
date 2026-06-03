@@ -1,5 +1,6 @@
 "use client";
 
+import { ITALY_TZ } from "@/lib/datetime-it";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,8 +57,8 @@ export function DedupeGpuJobsPanel({ jobs }: { jobs: JobRow[] }) {
                 <span className="font-mono">{j.id.slice(0, 8)}</span> · {j.status} · {j.pairsCount} coppie
                 {j.weightsVersion ? ` · v${j.weightsVersion}` : ""}
                 {j.completedAt
-                  ? ` · ${new Date(j.completedAt).toLocaleString("it-IT")}`
-                  : ` · ${new Date(j.createdAt).toLocaleString("it-IT")}`}
+                  ? ` · ${new Date(j.completedAt).toLocaleString("it-IT", { timeZone: ITALY_TZ })}`
+                  : ` · ${new Date(j.createdAt).toLocaleString("it-IT", { timeZone: ITALY_TZ })}`}
               </li>
             ))}
           </ul>

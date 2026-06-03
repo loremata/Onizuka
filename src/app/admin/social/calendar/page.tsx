@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
 import { loadEditorialCalendar } from "@/lib/social-editorial-calendar";
@@ -14,7 +15,7 @@ export default async function SocialCalendarPage() {
 
   const items = await loadEditorialCalendar({ from, to });
 
-  const fmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "medium", timeStyle: "short" });
+  const fmt = dateTimeFormatIt({ dateStyle: "medium", timeStyle: "short" });
   const byDay = new Map<string, typeof items>();
   for (const item of items) {
     const d = item.scheduledFor ?? item.createdAt;

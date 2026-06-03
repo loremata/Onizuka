@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
 import { isFullAdmin } from "@/lib/auth-roles";
@@ -34,7 +35,7 @@ export default async function AiRunsPage() {
     },
   });
 
-  const dateFmt = new Intl.DateTimeFormat("it-IT", {
+  const dateFmt = dateTimeFormatIt({
     dateStyle: "short",
     timeStyle: "short",
   });

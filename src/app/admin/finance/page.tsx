@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
@@ -93,7 +94,7 @@ export default async function AdminFinancePage({ searchParams }: Props) {
 
   const s = result.stats;
   const l = ledger.ok ? ledger.stats : null;
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "short" });
 
   return (
     <div className="space-y-8">

@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { prisma } from "@/lib/prisma";
 import { clientKindBadge, clientKindLabel, clientMacroCategoryLabel } from "@/lib/client-kind";
 import { loadClientServiceGaps } from "@/lib/client-commercial-gaps";
@@ -144,7 +145,7 @@ export async function loadClient360Profile(
       title: q.title,
       subtitle: q.status,
       href: `/admin/crm/opportunities/${q.opportunityId}/quotes/${q.id}`,
-      meta: new Intl.DateTimeFormat("it-IT", { dateStyle: "short" }).format(q.updatedAt),
+      meta: dateTimeFormatIt({ dateStyle: "short" }).format(q.updatedAt),
     }));
 
   const outreachSent = outreachAll
@@ -153,7 +154,7 @@ export async function loadClient360Profile(
       id: d.id,
       title: d.subject,
       subtitle: d.sentAt
-        ? `Inviata ${new Intl.DateTimeFormat("it-IT", { dateStyle: "short" }).format(d.sentAt)}`
+        ? `Inviata ${dateTimeFormatIt({ dateStyle: "short" }).format(d.sentAt)}`
         : "Inviata",
       href: `/admin/reach?draft=${d.id}`,
     }));
@@ -173,7 +174,7 @@ export async function loadClient360Profile(
     subtitle: t.priority,
     href: `/admin/flow?clientId=${encodeURIComponent(clientId)}`,
     meta: t.dueDate
-      ? new Intl.DateTimeFormat("it-IT", { dateStyle: "short" }).format(t.dueDate)
+      ? dateTimeFormatIt({ dateStyle: "short" }).format(t.dueDate)
       : undefined,
   }));
 
@@ -183,7 +184,7 @@ export async function loadClient360Profile(
     subtitle: `${f.type} · ${f.status} · € ${f.amountEur.toString()}`,
     href: `/admin/finance?clientId=${encodeURIComponent(clientId)}`,
     meta: f.dueDate
-      ? new Intl.DateTimeFormat("it-IT", { dateStyle: "short" }).format(f.dueDate)
+      ? dateTimeFormatIt({ dateStyle: "short" }).format(f.dueDate)
       : undefined,
   }));
 
@@ -198,7 +199,7 @@ export async function loadClient360Profile(
         subtitle: `Rinnovo MRR`,
         href: financeClientHref,
         meta: f.renewalDate
-          ? new Intl.DateTimeFormat("it-IT", { dateStyle: "short" }).format(f.renewalDate)
+          ? dateTimeFormatIt({ dateStyle: "short" }).format(f.renewalDate)
           : undefined,
       })),
     ...retailRenewals
@@ -209,7 +210,7 @@ export async function loadClient360Profile(
         subtitle: `€ ${r.monthlyEur.toString()}/mese`,
         href: `/admin/clients/${clientId}`,
         meta: r.renewalDate
-          ? new Intl.DateTimeFormat("it-IT", { dateStyle: "short" }).format(r.renewalDate)
+          ? dateTimeFormatIt({ dateStyle: "short" }).format(r.renewalDate)
           : undefined,
       })),
   ];

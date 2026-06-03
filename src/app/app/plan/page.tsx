@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAppClientContext } from "@/lib/app-client-session";
@@ -24,7 +25,7 @@ export default async function ClientEditorialPlanPage() {
     include: { media: { take: 1 } },
   });
 
-  const dateFmt = new Intl.DateTimeFormat("it-IT", {
+  const dateFmt = dateTimeFormatIt({
     weekday: "short",
     day: "numeric",
     month: "short",

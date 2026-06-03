@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
@@ -28,7 +29,7 @@ export default async function SocialInboxPage() {
     }),
   ]);
 
-  const fmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short" });
+  const fmt = dateTimeFormatIt({ dateStyle: "short", timeStyle: "short" });
 
   return (
     <div className="space-y-6">

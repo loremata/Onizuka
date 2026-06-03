@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
@@ -43,7 +44,7 @@ export default async function OpportunityQuotePage({
 
   const lines = parseQuoteLinesJson(quote.linesJson);
   const totals = computeQuoteTotals(lines, quote.taxPercent);
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "long" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "long" });
   const emailEnabled = quoteEmailEnabled();
 
   return (

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ITALY_TZ } from "@/lib/datetime-it";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Platform } from "@prisma/client";
@@ -30,7 +31,7 @@ export function AdminPostPublishForm({
   if (publishedAt) {
     return (
       <p className="text-xs text-muted-foreground">
-        Pubblicato il {publishedAt.toLocaleString("it-IT")}. Aggiorna metriche ripubblicando dal form sotto.
+        Pubblicato il {publishedAt.toLocaleString("it-IT", { timeZone: ITALY_TZ })}. Aggiorna metriche ripubblicando dal form sotto.
       </p>
     );
   }

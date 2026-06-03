@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { prisma } from "@/lib/prisma";
 
 export type ServiceActivationMonthCard = {
@@ -29,7 +30,7 @@ export async function getServiceActivationMonthlyReport(
   month1Based: number
 ): Promise<{ monthLabel: string; cards: ServiceActivationMonthCard[] }> {
   const { start, end } = monthRange(year, month1Based);
-  const monthLabel = new Intl.DateTimeFormat("it-IT", { month: "long", year: "numeric" }).format(start);
+  const monthLabel = dateTimeFormatIt({ month: "long", year: "numeric" }).format(start);
 
   const [catalog, activations] = await Promise.all([
     prisma.commercialService.findMany({

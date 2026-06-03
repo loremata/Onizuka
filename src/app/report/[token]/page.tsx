@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { digitalAuditSectionLabel, digitalAuditStatusLabel } from "@/lib/digital-audit-labels";
@@ -25,7 +26,7 @@ export default async function PublicAuditReportPage({ params }: { params: Promis
     );
   }
 
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "long" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "long" });
 
   return (
     <main className="min-h-screen bg-background">

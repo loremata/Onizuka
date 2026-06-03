@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import type { ApprovalQueueItem } from "@/lib/approval-queue";
 import type { OutreachAbVariant } from "@/lib/outreach-ab";
@@ -63,7 +64,7 @@ export function ApprovalQueueList({ items, smtpConfigured, reachAbDefault = "A" 
                     <span>·</span>
                     <span>
                       Aggiornato{" "}
-                      {new Intl.DateTimeFormat("it-IT", {
+                      {dateTimeFormatIt({
                         dateStyle: "short",
                         timeStyle: "short",
                       }).format(item.updatedAt)}

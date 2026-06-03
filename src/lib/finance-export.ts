@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import type { FinanceEntry } from "@prisma/client";
 import { buildCsvFromRows } from "@/lib/csv-utils";
 
@@ -12,7 +13,7 @@ const statusLabel: Record<string, string> = {
 export function formatFinanceEntriesCsv(
   rows: (FinanceEntry & { client?: { companyName: string } | null })[]
 ): string {
-  const fmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short" });
+  const fmt = dateTimeFormatIt({ dateStyle: "short" });
   const header = ["Etichetta", "Tipo", "Stato", "Importo EUR", "Cliente", "Scadenza", "Pagato il", "Note"];
   const data = rows.map((e) => [
     e.label,

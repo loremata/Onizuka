@@ -1,3 +1,4 @@
+import { ITALY_TZ } from "@/lib/datetime-it";
 import PDFDocument from "pdfkit";
 import type { FinanceLedgerStats } from "@/lib/finance-ledger-stats";
 import { FINANCE_MONTHLY_TARGET_EUR } from "@/lib/finance-ledger-stats";
@@ -57,7 +58,7 @@ export function buildFinanceSummaryPdfBuffer(input: FinanceSummaryPdfInput): Pro
     }
 
     doc.moveDown(2);
-    doc.fontSize(8).fillColor("#999999").text(`Generato ${new Date().toLocaleString("it-IT")} · Onizuka`);
+    doc.fontSize(8).fillColor("#999999").text(`Generato ${new Date().toLocaleString("it-IT", { timeZone: ITALY_TZ })} · Onizuka`);
 
     doc.end();
   });

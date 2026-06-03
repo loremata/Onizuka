@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
@@ -24,7 +25,7 @@ export default async function AdminNotificationsPage({
 
   const page = Math.max(0, Number((await searchParams).page ?? "0") || 0);
   const { items, total } = await loadUserNotificationsPage(session.user.id, page, PAGE_SIZE);
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "short", timeStyle: "short" });
 
   return (
     <div className="space-y-8">

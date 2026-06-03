@@ -1,5 +1,6 @@
 "use client";
 
+import { ITALY_TZ } from "@/lib/datetime-it";
 import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,7 +95,7 @@ function WorkspaceDatabaseRow({
           {workspace.databaseSlug ? ` · slug DB ${workspace.databaseSlug}` : ""}
           {workspace.hasDatabaseUrl ? " · URL impostato" : ""}
           {workspace.databaseProvisionedAt
-            ? ` · migrato ${new Date(workspace.databaseProvisionedAt).toLocaleString("it-IT")}`
+            ? ` · migrato ${new Date(workspace.databaseProvisionedAt).toLocaleString("it-IT", { timeZone: ITALY_TZ })}`
             : ""}
           {workspace.databaseCloudProvider
             ? ` · cloud ${workspace.databaseCloudProvider}${workspace.databaseCloudRef ? ` (${workspace.databaseCloudRef})` : ""}`

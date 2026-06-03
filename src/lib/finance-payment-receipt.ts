@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { prisma } from "@/lib/prisma";
 import { buildFinanceEntryPdfBuffer, financeEntryPdfFilename } from "@/lib/finance-entry-pdf";
 import { isSmtpConfigured, sendEmailViaSmtp } from "@/lib/smtp-send";
@@ -40,7 +41,7 @@ export async function emailFinancePaymentReceipt(
     return { ok: true, skipped: "Nessun email destinatario" };
   }
 
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "long" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "long" });
   const amountEur = Number(entry.amountEur.toString()).toLocaleString("it-IT", {
     minimumFractionDigits: 2,
   });

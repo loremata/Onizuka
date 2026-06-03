@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
@@ -67,7 +68,7 @@ export default async function AdminCalendarPage() {
   const agenda = flowTasksToAgenda(loaded.data);
   const tz = userTz && isValidIanaTimeZone(userTz) ? userTz : undefined;
   const grouped = groupAgendaByDay(agenda, tz);
-  const timeFmt = new Intl.DateTimeFormat("it-IT", {
+  const timeFmt = dateTimeFormatIt({
     hour: "2-digit",
     minute: "2-digit",
     ...(tz ? { timeZone: tz } : {}),

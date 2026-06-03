@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { requireAdminArea } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,7 +33,7 @@ export async function AutomationMarketplaceLibrary() {
                 <p className="font-medium">{t.name}</p>
                 <p className="text-xs text-muted-foreground">
                   da {t.owner.email} ·{" "}
-                  {new Intl.DateTimeFormat("it-IT", { dateStyle: "short" }).format(t.createdAt)}
+                  {dateTimeFormatIt({ dateStyle: "short" }).format(t.createdAt)}
                 </p>
               </div>
               <AutomationTemplateUseButton templateId={t.id} />

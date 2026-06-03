@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdminArea } from "@/lib/admin-session";
@@ -30,7 +31,7 @@ export default async function SequenceDetailPage({ params }: { params: Promise<{
 
   if (!seq) notFound();
 
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "short" });
 
   return (
     <div className="space-y-6">

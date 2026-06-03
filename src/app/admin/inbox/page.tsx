@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ITALY_TZ } from "@/lib/datetime-it";
 import { requireAdminArea } from "@/lib/admin-session";
 import { loadActionInbox, type ActionInboxKind } from "@/lib/action-inbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,7 +67,7 @@ export default async function ActionInboxPage() {
                     <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
                   </div>
                   <span className="text-xs text-muted-foreground tabular-nums">
-                    {item.createdAt.toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" })}
+                    {item.createdAt.toLocaleString("it-IT", { timeZone: ITALY_TZ, dateStyle: "short", timeStyle: "short" })}
                   </span>
                 </li>
               ))}

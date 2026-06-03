@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -7,7 +8,7 @@ export async function WhatsAppInboxPanel() {
     take: 25,
   });
 
-  const fmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short" });
+  const fmt = dateTimeFormatIt({ dateStyle: "short", timeStyle: "short" });
 
   return (
     <Card className="max-w-2xl">

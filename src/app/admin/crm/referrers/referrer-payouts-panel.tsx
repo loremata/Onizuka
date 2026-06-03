@@ -1,5 +1,6 @@
 "use client";
 
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,7 @@ export function ReferrerPayoutsPanel({
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const fmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short" });
+  const fmt = dateTimeFormatIt({ dateStyle: "short" });
 
   return (
     <div className="space-y-4 text-sm">

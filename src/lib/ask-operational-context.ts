@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { prisma } from "@/lib/prisma";
 
 function tokenize(query: string): string[] {
@@ -77,7 +78,7 @@ export async function buildAskOperationalContext(
   }
 
   if (tasks.length > 0) {
-    const fmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short" });
+    const fmt = dateTimeFormatIt({ dateStyle: "short" });
     lines.push(
       "Task Flow:",
       ...tasks.map(

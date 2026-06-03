@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { requireAppClientContext } from "@/lib/app-client-session";
 import { prisma } from "@/lib/prisma";
@@ -19,7 +20,7 @@ export default async function ClientUploadPage() {
     select: { id: true, platform: true, captionText: true, status: true, createdAt: true },
   });
 
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "short" });
 
   return (
     <div className="space-y-6">

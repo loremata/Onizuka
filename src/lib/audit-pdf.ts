@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import PDFDocument from "pdfkit";
 import type { DigitalAuditSectionKey } from "@prisma/client";
 import { digitalAuditSectionLabel } from "@/lib/digital-audit-labels";
@@ -34,7 +35,7 @@ export function auditPdfFilename(businessName: string, auditId: string, variant:
 
 export function buildAuditPdfBuffer(input: AuditPdfInput): Promise<Buffer> {
   const isInternal = input.variant === "internal";
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "long" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "long" });
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50, size: "A4" });

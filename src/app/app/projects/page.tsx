@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAppClientContext } from "@/lib/app-client-session";
@@ -7,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 export default async function ClientProjectsPage() {
   const ctx = await requireAppClientContext();
   const progress = await loadClientProjectProgress(ctx.clientId);
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "medium" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "medium" });
 
   return (
     <div className="space-y-6">

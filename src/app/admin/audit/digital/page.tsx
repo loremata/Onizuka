@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
@@ -49,7 +50,7 @@ export default async function DigitalAuditListPage() {
     },
   });
 
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "medium", timeStyle: "short" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "medium", timeStyle: "short" });
 
   return (
     <div className="space-y-8">

@@ -1,5 +1,6 @@
 "use client";
 
+import { ITALY_TZ } from "@/lib/datetime-it";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,7 +42,7 @@ export function AgencyPartnerCertPanel({ initial }: Props) {
         {initial.contractSignedAt ? (
           <p className="text-xs text-muted-foreground">
             Ultimo aggiornamento contratto:{" "}
-            {new Date(initial.contractSignedAt).toLocaleString("it-IT")}
+            {new Date(initial.contractSignedAt).toLocaleString("it-IT", { timeZone: ITALY_TZ })}
           </p>
         ) : null}
         <label className="flex items-center gap-2">

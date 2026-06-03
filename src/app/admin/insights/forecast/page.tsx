@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
 import { loadOwnerRecurringMrrEur } from "@/lib/finance-mrr";
@@ -55,7 +56,7 @@ export default async function AdminInsightsForecastPage() {
     loadUpcomingFinanceRenewals(ownerId, 60),
   ]);
 
-  const fmtDate = new Intl.DateTimeFormat("it-IT", { dateStyle: "short" });
+  const fmtDate = dateTimeFormatIt({ dateStyle: "short" });
 
   return (
     <div className="space-y-8">

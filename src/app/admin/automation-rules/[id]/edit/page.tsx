@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdminArea } from "@/lib/admin-session";
@@ -67,7 +68,7 @@ export default async function EditAutomationRulePage({ params }: { params: Promi
                 <li key={r.version} className="flex items-center justify-between gap-2">
                   <span>
                     v{r.version} ·{" "}
-                    {new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short" }).format(r.createdAt)}
+                    {dateTimeFormatIt({ dateStyle: "short", timeStyle: "short" }).format(r.createdAt)}
                   </span>
                   <AutomationRevisionRestore ruleId={id} version={r.version} />
                 </li>

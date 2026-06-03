@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { loadPendingWebhookDeliveries } from "@/lib/webhook-delivery-queue";
 import { runWithDb } from "@/lib/with-db";
@@ -9,7 +10,7 @@ export async function WebhookDeliveriesPanel() {
   if (!loaded.ok) return null;
 
   const rows = loaded.data;
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "short", timeStyle: "short" });
 
   return (
     <Card>

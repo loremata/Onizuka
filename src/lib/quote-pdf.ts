@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import PDFDocument from "pdfkit";
 import { computeQuoteTotals, formatEur, parseQuoteLinesJson, type QuoteLine } from "@/lib/quote-lines";
 
@@ -62,7 +63,7 @@ function drawLinesTable(doc: InstanceType<typeof PDFDocument>, lines: QuoteLine[
 export function buildQuotePdfBuffer(input: QuotePdfInput): Promise<Buffer> {
   const lines = parseQuoteLinesJson(input.linesJson);
   const totals = computeQuoteTotals(lines, input.taxPercent);
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "long" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "long" });
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50, size: "A4" });

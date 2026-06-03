@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
 import { isFullAdmin } from "@/lib/auth-roles";
@@ -65,7 +66,7 @@ export default async function AdminTimePage() {
   ]);
 
   const totalMinutes = entries.reduce((a, e) => a + e.minutes, 0);
-  const fmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short" });
+  const fmt = dateTimeFormatIt({ dateStyle: "short", timeStyle: "short" });
 
   return (
     <div className="space-y-8">

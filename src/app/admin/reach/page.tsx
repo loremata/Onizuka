@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
@@ -270,8 +271,8 @@ export default async function AdminReachPage({
                   />
                   <span>· {d.status}</span>
                   {d.sentAt
-                    ? ` · inviata ${new Intl.DateTimeFormat("it-IT", { dateStyle: "short" }).format(d.sentAt)}`
-                    : ` · ${new Intl.DateTimeFormat("it-IT", { dateStyle: "short" }).format(d.updatedAt)}`}
+                    ? ` · inviata ${dateTimeFormatIt({ dateStyle: "short" }).format(d.sentAt)}`
+                    : ` · ${dateTimeFormatIt({ dateStyle: "short" }).format(d.updatedAt)}`}
                   {d.openedAt
                     ? ` · aperta ${d.openCount > 1 ? `(${d.openCount}×)` : ""}`
                     : d.status === "SENT"

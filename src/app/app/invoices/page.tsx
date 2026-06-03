@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAppClientContext } from "@/lib/app-client-session";
@@ -26,7 +27,7 @@ export default async function ClientInvoicesPage({
     take: 40,
   });
 
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "medium" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "medium" });
   const paidFlash = searchParams.paid === "1";
   const stripeOn = isStripeConfigured();
 

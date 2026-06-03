@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import type { TimeEntry } from "@prisma/client";
 
 type Row = TimeEntry & { client: { companyName: string } | null; owner: { email: string } };
@@ -8,7 +9,7 @@ function esc(s: string): string {
 }
 
 function fmtDateIt(d: Date): string {
-  return new Intl.DateTimeFormat("it-IT", { dateStyle: "short" }).format(d);
+  return dateTimeFormatIt({ dateStyle: "short" }).format(d);
 }
 
 import { formatTimeEntriesErpSemicolonCsv } from "@/lib/time-entry-erp-export";

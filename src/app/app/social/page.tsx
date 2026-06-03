@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { requireAppClientContext } from "@/lib/app-client-session";
 import { loadClientSocialMetrics } from "@/lib/client-social-metrics";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 export default async function ClientSocialPage() {
   const ctx = await requireAppClientContext();
   const metrics = await loadClientSocialMetrics(ctx.clientId);
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "medium" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "medium" });
 
   return (
     <div className="space-y-6">

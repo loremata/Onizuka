@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAppClientContext } from "@/lib/app-client-session";
@@ -33,7 +34,7 @@ export default async function ClientTicketsPage() {
     },
   });
 
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "short", timeStyle: "short" });
   const unreadCount = countUnreadTickets(tickets);
 
   return (

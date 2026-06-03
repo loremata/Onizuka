@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
@@ -34,7 +35,7 @@ export default async function DriveClientFolderPage({ params }: { params: Promis
   }
 
   const { client, posts, assets, memoryItems, tickets } = loaded.folder;
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "short" });
 
   return (
     <div className="space-y-8">

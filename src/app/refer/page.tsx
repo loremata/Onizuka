@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PublicReferrerLeadForm } from "./public-referrer-form";
@@ -124,7 +125,7 @@ export default async function PublicReferPage({
       : Promise.resolve([]),
   ]);
 
-  const fmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short" });
+  const fmt = dateTimeFormatIt({ dateStyle: "short", timeStyle: "short" });
   const vapidPublicKey = process.env.VAPID_PUBLIC_KEY?.trim() ?? null;
 
   return (

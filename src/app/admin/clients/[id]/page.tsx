@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
@@ -273,7 +274,7 @@ export default async function ClientOverviewPage({
     tickets: recentTickets,
   });
 
-  const timelineDateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "medium", timeStyle: "short" });
+  const timelineDateFmt = dateTimeFormatIt({ dateStyle: "medium", timeStyle: "short" });
 
   return (
     <div className="space-y-8">
@@ -649,7 +650,7 @@ export default async function ClientOverviewPage({
                     <span className="text-xs text-muted-foreground">
                       {t.status} · priorità {priorityLabel[t.priority] ?? t.priority}
                       {t.dueDate
-                        ? ` · scad. ${new Intl.DateTimeFormat("it-IT", { dateStyle: "short" }).format(t.dueDate)}`
+                        ? ` · scad. ${dateTimeFormatIt({ dateStyle: "short" }).format(t.dueDate)}`
                         : ""}
                     </span>
                   </li>

@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
 import { loadUpcomingRetailRenewals } from "@/lib/retail-contract-renewals";
@@ -7,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 export default async function RetailRenewalsPage() {
   const session = await requireAdminArea();
   const rows = await loadUpcomingRetailRenewals(session.user.id, 90);
-  const fmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "medium" });
+  const fmt = dateTimeFormatIt({ dateStyle: "medium" });
 
   return (
     <div className="space-y-6">

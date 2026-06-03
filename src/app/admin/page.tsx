@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
@@ -265,7 +266,7 @@ export default async function AdminDashboardPage({ searchParams }: Props) {
                       </Link>
                       <span className="text-muted-foreground">
                         {" "}
-                        · {new Intl.DateTimeFormat("it-IT", { dateStyle: "short" }).format(m.updatedAt)}
+                        · {dateTimeFormatIt({ dateStyle: "short" }).format(m.updatedAt)}
                       </span>
                     </li>
                   ))}

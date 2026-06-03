@@ -1,5 +1,6 @@
 "use client";
 
+import { ITALY_TZ } from "@/lib/datetime-it";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -94,7 +95,7 @@ export function AuditOutreachKitPanel({
           )}
           {expires ? (
             <p className="text-xs text-muted-foreground">
-              Scade: {new Date(expires).toLocaleString("it-IT")}
+              Scade: {new Date(expires).toLocaleString("it-IT", { timeZone: ITALY_TZ })}
             </p>
           ) : null}
           <Button

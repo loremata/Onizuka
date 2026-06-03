@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
@@ -36,7 +37,7 @@ export default async function DigitalAuditDetailPage({ params }: { params: Promi
     ? `${baseUrl}${publicReportPath(audit.publicReportToken)}`
     : null;
 
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "long", timeStyle: "short" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "long", timeStyle: "short" });
   const gbpSummary = formatGbpAuditSummary(audit);
 
   return (

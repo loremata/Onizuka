@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { prisma } from "@/lib/prisma";
 import { isSmtpConfigured, sendEmailViaSmtp } from "@/lib/smtp-send";
 import type { UserNotificationRow } from "@/lib/user-notifications";
@@ -11,7 +12,7 @@ export function buildNotificationDigestText(
   items: Pick<UserNotificationRow, "title" | "body" | "href" | "createdAt">[],
   baseUrl: string
 ): string {
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "short", timeStyle: "short" });
   const lines = items.map((n, i) => {
     const when = dateFmt.format(n.createdAt);
     const link = n.href ? `${baseUrl}${n.href}` : baseUrl;

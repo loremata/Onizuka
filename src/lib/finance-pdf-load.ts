@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { prisma } from "@/lib/prisma";
 import { loadFinanceLedgerStats } from "@/lib/finance-ledger-stats";
 import { loadFinanceStats } from "@/lib/finance-stats";
@@ -19,8 +20,8 @@ export async function loadFinanceSummaryPdfInput(
 
   if (!ledger.ok || !pipeline.ok) return null;
 
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short" });
-  const monthLabel = new Intl.DateTimeFormat("it-IT", { month: "long", year: "numeric" }).format(new Date());
+  const dateFmt = dateTimeFormatIt({ dateStyle: "short" });
+  const monthLabel = dateTimeFormatIt({ month: "long", year: "numeric" }).format(new Date());
 
   return {
     monthLabel,

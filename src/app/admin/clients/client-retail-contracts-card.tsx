@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClientRetailContractsForm } from "./client-retail-contracts-form";
@@ -22,7 +23,7 @@ export async function ClientRetailContractsCard({
     take: 20,
   });
 
-  const fmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short" });
+  const fmt = dateTimeFormatIt({ dateStyle: "short" });
 
   return (
     <Card>

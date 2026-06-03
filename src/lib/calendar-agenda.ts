@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import type { FlowTask } from "@prisma/client";
 
 export type AgendaItem = {
@@ -43,7 +44,7 @@ export function groupAgendaByDay(
   items: AgendaItem[],
   timeZone?: string | null
 ): { key: string; label: string; items: AgendaItem[] }[] {
-  const fmt = new Intl.DateTimeFormat("it-IT", {
+  const fmt = dateTimeFormatIt({
     weekday: "long",
     day: "numeric",
     month: "long",

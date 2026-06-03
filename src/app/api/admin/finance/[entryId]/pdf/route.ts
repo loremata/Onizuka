@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -23,7 +24,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ent
     return NextResponse.json({ error: "Voce non trovata" }, { status: 404 });
   }
 
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "long" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "long" });
   const amountEur = Number(entry.amountEur.toString()).toLocaleString("it-IT", {
     minimumFractionDigits: 2,
   });

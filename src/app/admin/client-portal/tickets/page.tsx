@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
@@ -64,7 +65,7 @@ export default async function AdminClientTicketsPage({ searchParams }: Props) {
   }
 
   const tickets = loaded.data;
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "short", timeStyle: "short" });
 
   return (
     <div className="space-y-8">

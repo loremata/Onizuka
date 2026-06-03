@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
@@ -73,7 +74,7 @@ export default async function OutreachSequencesPage() {
   }
 
   const sequences = loaded.data;
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "short" });
 
   return (
     <div className="space-y-8">

@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { loadRecentWebhookDeliveryFailures } from "@/lib/webhook-failures";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +7,7 @@ export async function WebhookFailuresPanel() {
   const loaded = await loadRecentWebhookDeliveryFailures(10);
   if (!loaded.ok) return null;
 
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "short", timeStyle: "short" });
 
   return (
     <Card>

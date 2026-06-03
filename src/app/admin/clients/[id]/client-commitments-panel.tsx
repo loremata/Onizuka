@@ -1,5 +1,6 @@
 "use client";
 
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { useFormState, useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +40,7 @@ export function ClientCommitmentsPanel({
     (_p: CommitmentActionResult, fd: FormData) => createClientCommitment(clientId, _p, fd),
     null
   );
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "short" });
 
   return (
     <div className="space-y-4">

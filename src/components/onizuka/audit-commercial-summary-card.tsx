@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AuditCommercialSummary } from "@/lib/load-audit-commercial-summary";
@@ -8,7 +9,7 @@ type Props = {
 };
 
 export function AuditCommercialSummaryCard({ summary, title = "Audit digitale & CRM" }: Props) {
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "short" });
 
   if (!summary.audits.length && !summary.opportunities.length && !summary.tasks.length) {
     return null;

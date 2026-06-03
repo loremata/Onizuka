@@ -1,3 +1,4 @@
+import { ITALY_TZ } from "@/lib/datetime-it";
 import PDFDocument from "pdfkit";
 import type { FinanceEntryStatus, FinanceEntryType } from "@prisma/client";
 
@@ -86,7 +87,7 @@ export function buildFinanceEntryPdfBuffer(input: FinanceEntryPdfInput): Promise
 
     doc.moveDown(2);
     doc.fontSize(8).fillColor("#999999").text(
-      `Ref. ${input.entryId} · Generato ${new Date().toLocaleString("it-IT")} · Onizuka`
+      `Ref. ${input.entryId} · Generato ${new Date().toLocaleString("it-IT", { timeZone: ITALY_TZ })} · Onizuka`
     );
 
     doc.end();

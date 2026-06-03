@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { prisma } from "@/lib/prisma";
 import { loadInsightsStats } from "@/lib/insights-stats";
 import { buildInsightRecommendations } from "@/lib/insights-recommendations";
@@ -38,7 +39,7 @@ export function buildOpsWeeklyDigestText(
   priorities: { title: string; detail: string }[],
   baseUrl: string
 ): string {
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "full" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "full" });
   const lines = [
     `Onizuka — Riepilogo operativo`,
     dateFmt.format(new Date()),

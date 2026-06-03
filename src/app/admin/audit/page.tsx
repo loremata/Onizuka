@@ -1,3 +1,4 @@
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { Suspense } from "react";
 import { getServerSession } from "next-auth";
@@ -54,7 +55,7 @@ export default async function AdminAuditPage({
       actor: actorFilter,
     }),
   ]);
-  const dateFmt = new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short" });
+  const dateFmt = dateTimeFormatIt({ dateStyle: "short", timeStyle: "short" });
 
   if (!feed.ok) {
     return (
