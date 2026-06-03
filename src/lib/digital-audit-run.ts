@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { seedCommercialCatalog } from "@/lib/commercial-catalog-seed";
 import { notifyDigitalAuditCompleted } from "@/lib/audit-telegram-notify";
 import { uploadDigitalAuditReportsToDrive } from "@/lib/digital-audit-drive";
-import { pickAuditRecommendationFromSections } from "@/lib/audit-service-recommendations";
+import { pickAuditRecommendationFromSections, buildAuditFindings } from "@/lib/audit-service-recommendations";
 import { wireAuditCommercialCrm } from "@/lib/audit-commercial-wire";
 import type { AuditMatchKind } from "@/lib/audit-commercial-match";
 import { buildFirstAuditOutreachEmail } from "@/lib/audit-outreach-draft";
@@ -284,6 +284,7 @@ export async function runDigitalAuditForClient(params: {
       brandName: brand?.name,
       serviceName: service?.name,
       overallScore,
+      findings: buildAuditFindings(sections),
     });
     const draft = await prisma.outreachDraft.create({
       data: {

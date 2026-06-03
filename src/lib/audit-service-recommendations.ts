@@ -94,6 +94,32 @@ export function pickAuditRecommendationFromSections(
   return { sectionKey: weakest.sectionKey, ...base };
 }
 
+export type AuditFinding = { problem: string; improvement: string; detail?: string };
+
+/**
+ * Estrae le aree più deboli dell'audit (score < soglia) e le mappa in coppie
+ * problema → soluzione commerciale, per costruire un'email diretta e personalizzata.
+ */
+export function buildAuditFindings(
+  sections: { sectionKey: DigitalAuditSectionKey; score: number; issues?: string | null }[],
+  max = 3,
+  scoreThreshold = 65
+): AuditFinding[] {
+  return [...sections]
+    .filter((s) => s.score < scoreThreshold)
+    .sort((a, b) => a.score - b.score)
+    .slice(0, Math.max(1, max))
+    .map((s) => {
+      const rec = AUDIT_SECTION_RECOMMENDATIONS[s.sectionKey];
+      const firstIssue = s.issues?.trim().split(/\r?\n/)[0]?.trim();
+      return {
+        problem: rec.priorityProblem,
+        improvement: rec.serviceLabel,
+        detail: firstIssue && firstIssue.length > 0 ? firstIssue : undefined,
+      };
+    });
+}
+
 export function commercialPriorityFromAuditScore(score: number): "LOW" | "MEDIUM" | "HIGH" | "URGENT" {
   if (score < 35) return "URGENT";
   if (score < 50) return "HIGH";

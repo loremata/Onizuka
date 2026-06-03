@@ -4,6 +4,7 @@ import type { OutreachAbVariant } from "@/lib/outreach-ab";
 import { EntityClientLabel } from "@/components/onizuka/client-link";
 import { Button } from "@/components/ui/button";
 import { ApprovalQueueOutreachActions } from "./approval-queue-row-actions";
+import { ApprovalOutreachPreview } from "./approval-outreach-preview";
 
 const kindMeta = {
   outreach_email: { label: "Email commerciali", hint: "Reach · approva prima dell'invio" },
@@ -68,6 +69,16 @@ export function ApprovalQueueList({ items, smtpConfigured, reachAbDefault = "A" 
                       }).format(item.updatedAt)}
                     </span>
                   </p>
+                  {item.kind === "outreach_email" ? (
+                    <ApprovalOutreachPreview
+                      draftId={item.id}
+                      subject={item.title}
+                      body={item.body ?? ""}
+                      subjectAlt={item.subjectAlt}
+                      bodyAlt={item.bodyAlt}
+                      editable={item.status === "DRAFT" || item.status === "PENDING_APPROVAL"}
+                    />
+                  ) : null}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center">
                   {item.kind === "outreach_email" ? (

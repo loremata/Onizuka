@@ -18,6 +18,10 @@ export type ApprovalQueueItem = {
   updatedAt: Date;
   /** Solo outreach_email: A/B subject o body alternativo. */
   outreachHasAb?: boolean;
+  /** Solo outreach_email: corpo e varianti per anteprima/modifica inline. */
+  body?: string | null;
+  subjectAlt?: string | null;
+  bodyAlt?: string | null;
 };
 
 const OUTREACH_PENDING: OutreachDraftStatus[] = ["DRAFT", "PENDING_APPROVAL"];
@@ -82,6 +86,9 @@ export async function loadApprovalQueue(ownerUserId: string, limit = 50): Promis
       leadName: d.lead?.businessName?.trim() || d.lead?.title || null,
       updatedAt: d.updatedAt,
       outreachHasAb: hasOutreachAb(d),
+      body: d.body,
+      subjectAlt: d.subjectAlt,
+      bodyAlt: d.bodyAlt,
     });
   }
 

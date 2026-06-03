@@ -45,6 +45,38 @@ export async function createOutreachDraft(_prev: unknown, formData: FormData): P
   return null;
 }
 
+export async function updateOutreachDraft(
+  draftId: string,
+  data: { subject: string; body: string; subjectAlt?: string | null; bodyAlt?: string | null }
+): Promise<ActionResult> {
+  const session = await ensureAdmin();
+
+  const subject = data.subject?.trim();
+  const body = data.body?.trim();
+  if (!subject || !body) return { error: "Oggetto e corpo obbligatori." };
+
+  const res = await prisma.outreachDraft.updateMany({
+    where: {
+      id: draftId,
+      ownerUserId: session.user.id,
+      status: { in: ["DRAFT", "PENDING_APPROVAL"] },
+    },
+    data: {
+      subject,
+      body,
+      subjectAlt: data.subjectAlt?.trim() || null,
+      bodyAlt: data.bodyAlt?.trim() || null,
+    },
+  });
+  if (res.count === 0) {
+    return { error: "Bozza non modificabile (non trovata o già approvata/inviata)." };
+  }
+
+  revalidatePath("/admin/reach");
+  revalidatePath("/admin/approvals");
+  return null;
+}
+
 export async function submitOutreachForApproval(draftId: string): Promise<ActionResult> {
   const session = await ensureAdmin();
 

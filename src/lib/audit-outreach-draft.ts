@@ -1,4 +1,44 @@
 import { BRAND_PROPOSAL_TEMPLATES } from "@/lib/commercial-catalog-seed";
+import type { AuditFinding } from "@/lib/audit-service-recommendations";
+
+/** Email diretta orientata alla vendita: "abbiamo notato questi problemi → ecco come li risolviamo". */
+function buildStructuredSalesEmail(params: {
+  companyName: string;
+  findings: AuditFinding[];
+  overallScore?: number | null;
+}): { subject: string; body: string } {
+  const { companyName, findings } = params;
+  const n = findings.length;
+  const scoreText =
+    params.overallScore != null ? ` (indice di presenza online ${params.overallScore}/100)` : "";
+
+  const problemsBlock = findings
+    .map((f) => `• ${f.problem}${f.detail ? `: ${f.detail}` : ""}`)
+    .join("\n");
+  const solutionsBlock = findings.map((f) => `✓ ${f.improvement}`).join("\n");
+
+  const subject = `${companyName}: ${n} ${n === 1 ? "area" : "aree"} da migliorare sulla vostra presenza online`;
+
+  const body = `Buongiorno,
+
+ho analizzato la presenza online di ${companyName}${scoreText} e ho notato alcuni punti che oggi vi stanno facendo perdere contatti e clienti:
+
+${problemsBlock}
+
+La buona notizia è che sono tutti risolvibili in tempi rapidi. Ecco come possiamo intervenire concretamente:
+
+${solutionsBlock}
+
+Il risultato: più visibilità, più richieste di preventivo e una presenza digitale che lavora per voi ogni giorno, non un costo fine a sé stesso.
+
+Vi va se ci sentiamo 15 minuti? Vi mostro le priorità e una stima realistica di tempi e risultati, senza impegno.
+
+Cordiali saluti,
+Lorenzo Matarazzo
+Online Station`;
+
+  return { subject, body };
+}
 
 function applyTemplatePlaceholders(
   text: string,
@@ -20,8 +60,21 @@ export function buildFirstAuditOutreachEmail(params: {
   brandName?: string | null;
   serviceName?: string | null;
   overallScore?: number | null;
+  findings?: AuditFinding[];
 }): { subject: string; body: string } {
   const companyName = params.companyName.trim() || "la vostra azienda";
+
+  // Percorso principale: email personalizzata sui problemi reali emersi dall'audit.
+  const findings = (params.findings ?? []).filter((f) => f.problem?.trim()).slice(0, 3);
+  if (findings.length > 0) {
+    return buildStructuredSalesEmail({
+      companyName,
+      findings,
+      overallScore: params.overallScore,
+    });
+  }
+
+  // Fallback (nessuna criticità sopra soglia): template brand o testo generico.
   const problem = params.priorityProblem.trim() || "migliorare la presenza digitale";
   const offer =
     params.brandName && params.serviceName
