@@ -41,7 +41,7 @@ export function buildQuoteEmailText(params: {
     ``,
     `Visualizza online: ${params.viewUrl}`,
     ``,
-    `— Onizuka`,
+    `— Online Station`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -102,7 +102,7 @@ export async function sendQuoteEmail(quoteId: string, ownerUserId: string): Prom
 
   const sent = await sendEmailViaSmtp({
     to,
-    subject: `[Onizuka] Preventivo: ${quote.title}`,
+    subject: `[Online Station] Preventivo: ${quote.title}`,
     text,
     attachments: hasPdf
       ? [{ filename: pdf.filename, content: pdf.buffer, contentType: "application/pdf" }]
