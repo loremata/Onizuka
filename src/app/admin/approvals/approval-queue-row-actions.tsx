@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   approveOutreachDraft,
   submitOutreachForApproval,
+  archiveOutreachDraft,
 } from "@/app/admin/reach/actions";
 import { OutreachSendButton } from "@/app/admin/reach/outreach-mailto-button";
 import type { OutreachAbVariant } from "@/lib/outreach-ab";
@@ -26,17 +27,33 @@ export function ApprovalQueueOutreachActions({
 }: Props) {
   const [pending, start] = useTransition();
 
+  const archiveButton = (
+    <Button
+      type="button"
+      size="sm"
+      variant="ghost"
+      disabled={pending}
+      title="Archivia: toglie la bozza dalla coda senza inviarla"
+      onClick={() => start(async () => { await archiveOutreachDraft(draftId); })}
+    >
+      Archivia
+    </Button>
+  );
+
   if (status === "DRAFT") {
     return (
-      <Button
-        type="button"
-        size="sm"
-        variant="secondary"
-        disabled={pending}
-        onClick={() => start(async () => { await submitOutreachForApproval(draftId); })}
-      >
-        In approvazione
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          disabled={pending}
+          onClick={() => start(async () => { await submitOutreachForApproval(draftId); })}
+        >
+          In approvazione
+        </Button>
+        {archiveButton}
+      </div>
     );
   }
 
@@ -58,18 +75,22 @@ export function ApprovalQueueOutreachActions({
           hasAb={hasAb}
           defaultAbVariant={defaultAbVariant}
         />
+        {archiveButton}
       </div>
     );
   }
 
   if (status === "APPROVED") {
     return (
-      <OutreachSendButton
-        draftId={draftId}
-        smtpHint={smtpConfigured}
-        hasAb={hasAb}
-        defaultAbVariant={defaultAbVariant}
-      />
+      <div className="flex flex-wrap gap-2">
+        <OutreachSendButton
+          draftId={draftId}
+          smtpHint={smtpConfigured}
+          hasAb={hasAb}
+          defaultAbVariant={defaultAbVariant}
+        />
+        {archiveButton}
+      </div>
     );
   }
 

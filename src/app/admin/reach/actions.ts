@@ -77,6 +77,26 @@ export async function updateOutreachDraft(
   return null;
 }
 
+export async function archiveOutreachDraft(draftId: string): Promise<ActionResult> {
+  const session = await ensureAdmin();
+
+  const res = await prisma.outreachDraft.updateMany({
+    where: {
+      id: draftId,
+      ownerUserId: session.user.id,
+      status: { in: ["DRAFT", "PENDING_APPROVAL", "APPROVED"] },
+    },
+    data: { status: "CANCELLED" },
+  });
+  if (res.count === 0) {
+    return { error: "Bozza non archiviabile (non trovata o già inviata)." };
+  }
+
+  revalidatePath("/admin/reach");
+  revalidatePath("/admin/approvals");
+  return null;
+}
+
 export async function submitOutreachForApproval(draftId: string): Promise<ActionResult> {
   const session = await ensureAdmin();
 
