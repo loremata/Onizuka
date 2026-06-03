@@ -1,43 +1,49 @@
 import { BRAND_PROPOSAL_TEMPLATES } from "@/lib/commercial-catalog-seed";
 import type { AuditFinding } from "@/lib/audit-service-recommendations";
 
-/** Email diretta orientata alla vendita: "abbiamo notato questi problemi → ecco come li risolviamo". */
+/**
+ * Email diretta orientata alla vendita, linguaggio semplice e senza brand interni:
+ * abbiamo analizzato → queste lacune generano questi problemi → le risolviamo con queste soluzioni
+ * → CTA decisa verso consulenza gratuita (con report già pronto da condividere).
+ */
 function buildStructuredSalesEmail(params: {
   companyName: string;
   findings: AuditFinding[];
-  overallScore?: number | null;
 }): { subject: string; body: string } {
   const { companyName, findings } = params;
   const n = findings.length;
-  const scoreText =
-    params.overallScore != null ? ` (indice di presenza online ${params.overallScore}/100)` : "";
 
-  const problemsBlock = findings
-    .map((f) => `• ${f.problem}${f.detail ? `: ${f.detail}` : ""}`)
+  const gapsBlock = findings
+    .map((f) => `• ${capitalize(f.gap)}: ${f.consequence}.`)
     .join("\n");
-  const solutionsBlock = findings.map((f) => `✓ ${f.improvement}`).join("\n");
+  const solutionsBlock = findings.map((f) => `✓ ${capitalize(f.solution)}`).join("\n");
 
-  const subject = `${companyName}: ${n} ${n === 1 ? "area" : "aree"} da migliorare sulla vostra presenza online`;
+  const subject = `${companyName}: ${n} ${n === 1 ? "area" : "aree"} che oggi vi fanno perdere clienti`;
 
   const body = `Buongiorno,
 
-ho analizzato la presenza online di ${companyName}${scoreText} e ho notato alcuni punti che oggi vi stanno facendo perdere contatti e clienti:
+abbiamo analizzato la presenza online di ${companyName} e preparato un report dettagliato. Sono emersi alcuni punti che, così come sono oggi, vi fanno perdere clienti:
 
-${problemsBlock}
+${gapsBlock}
 
-La buona notizia è che sono tutti risolvibili in tempi rapidi. Ecco come possiamo intervenire concretamente:
+La buona notizia è che sono tutte situazioni che sappiamo risolvere. In concreto possiamo intervenire con:
 
 ${solutionsBlock}
 
-Il risultato: più visibilità, più richieste di preventivo e una presenza digitale che lavora per voi ogni giorno, non un costo fine a sé stesso.
+Abbiamo già pronto il report completo della vostra presenza online e saremmo felici di illustrarvelo in una consulenza gratuita, in call o di persona: vi mostriamo le priorità e i risultati che potete ottenere, dati alla mano.
 
-Vi va se ci sentiamo 15 minuti? Vi mostro le priorità e una stima realistica di tempi e risultati, senza impegno.
+Quando preferite tra questa e la prossima settimana? Indicatemi il giorno e l'orario che vi sono più comodi e organizzo io l'incontro.
 
 Cordiali saluti,
 Lorenzo Matarazzo
 Online Station`;
 
   return { subject, body };
+}
+
+function capitalize(s: string): string {
+  const t = s.trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
 }
 
 function applyTemplatePlaceholders(
@@ -65,13 +71,9 @@ export function buildFirstAuditOutreachEmail(params: {
   const companyName = params.companyName.trim() || "la vostra azienda";
 
   // Percorso principale: email personalizzata sui problemi reali emersi dall'audit.
-  const findings = (params.findings ?? []).filter((f) => f.problem?.trim()).slice(0, 3);
+  const findings = (params.findings ?? []).filter((f) => f.gap?.trim() && f.solution?.trim()).slice(0, 3);
   if (findings.length > 0) {
-    return buildStructuredSalesEmail({
-      companyName,
-      findings,
-      overallScore: params.overallScore,
-    });
+    return buildStructuredSalesEmail({ companyName, findings });
   }
 
   // Fallback (nessuna criticità sopra soglia): template brand o testo generico.

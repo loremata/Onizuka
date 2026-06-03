@@ -94,11 +94,71 @@ export function pickAuditRecommendationFromSections(
   return { sectionKey: weakest.sectionKey, ...base };
 }
 
-export type AuditFinding = { problem: string; improvement: string; detail?: string };
+export type AuditFinding = { gap: string; consequence: string; solution: string };
 
 /**
- * Estrae le aree più deboli dell'audit (score < soglia) e le mappa in coppie
- * problema → soluzione commerciale, per costruire un'email diretta e personalizzata.
+ * Copy lato cliente per ogni sezione audit: lacuna → conseguenza di business → soluzione generica.
+ * NESSUN nome di prodotto/brand interno (il prospect non li conosce): linguaggio semplice e diretto.
+ */
+export const AUDIT_SECTION_CLIENT_COPY: Record<
+  DigitalAuditSectionKey,
+  { gap: string; consequence: string; solution: string }
+> = {
+  WEBSITE: {
+    gap: "il sito web è assente o poco orientato a generare contatti",
+    consequence: "chi vi cerca online non trova un riferimento credibile e si rivolge ai concorrenti",
+    solution: "un sito professionale pensato per trasformare le visite in richieste",
+  },
+  SEO: {
+    gap: "siete poco visibili nelle ricerche su Google",
+    consequence: "perdete clienti che cercano i vostri servizi ma trovano prima gli altri",
+    solution: "un'attività di posizionamento per farvi trovare dai clienti giusti",
+  },
+  LOCAL: {
+    gap: "la scheda Google (Maps / Profilo dell'attività) non è ottimizzata",
+    consequence: "chi cerca nella vostra zona fatica a trovarvi e a contattarvi",
+    solution: "l'ottimizzazione della vostra presenza locale su Google",
+  },
+  REVIEWS: {
+    gap: "le recensioni online sono poche o poco gestite",
+    consequence: "i nuovi clienti si fidano meno e scelgono chi ha più riscontri positivi",
+    solution: "una strategia per raccogliere e gestire le recensioni",
+  },
+  SOCIAL: {
+    gap: "la presenza sui social è debole o incostante",
+    consequence: "il vostro marchio resta poco riconoscibile e perde occasioni di contatto",
+    solution: "un progetto personalizzato di gestione dei social",
+  },
+  ADV: {
+    gap: "non ci sono campagne pubblicitarie strutturate",
+    consequence: "la crescita dipende solo dal passaparola e non è prevedibile",
+    solution: "campagne pubblicitarie mirate per portare contatti qualificati",
+  },
+  UX: {
+    gap: "l'esperienza di navigazione del sito è migliorabile",
+    consequence: "molti visitatori abbandonano prima di contattarvi",
+    solution: "un intervento sull'usabilità per guidare l'utente all'azione",
+  },
+  CONVERSION: {
+    gap: "il sito riceve visite ma genera poche richieste",
+    consequence: "state pagando (in tempo o in pubblicità) traffico che non diventa cliente",
+    solution: "l'ottimizzazione dei percorsi che portano al contatto",
+  },
+  TRACKING: {
+    gap: "non c'è un tracciamento dei dati e dei risultati",
+    consequence: "le scelte di marketing vanno a intuito, senza sapere cosa funziona",
+    solution: "un sistema chiaro per misurare i risultati",
+  },
+  BRAND: {
+    gap: "l'immagine e il posizionamento non sono chiari",
+    consequence: "il messaggio non arriva e diventa difficile distinguervi dalla concorrenza",
+    solution: "un lavoro su identità e posizionamento del marchio",
+  },
+};
+
+/**
+ * Estrae le aree più deboli dell'audit (score < soglia) come terne
+ * lacuna → conseguenza → soluzione, per un'email diretta e senza tecnicismi.
  */
 export function buildAuditFindings(
   sections: { sectionKey: DigitalAuditSectionKey; score: number; issues?: string | null }[],
@@ -109,15 +169,7 @@ export function buildAuditFindings(
     .filter((s) => s.score < scoreThreshold)
     .sort((a, b) => a.score - b.score)
     .slice(0, Math.max(1, max))
-    .map((s) => {
-      const rec = AUDIT_SECTION_RECOMMENDATIONS[s.sectionKey];
-      const firstIssue = s.issues?.trim().split(/\r?\n/)[0]?.trim();
-      return {
-        problem: rec.priorityProblem,
-        improvement: rec.serviceLabel,
-        detail: firstIssue && firstIssue.length > 0 ? firstIssue : undefined,
-      };
-    });
+    .map((s) => AUDIT_SECTION_CLIENT_COPY[s.sectionKey]);
 }
 
 export function commercialPriorityFromAuditScore(score: number): "LOW" | "MEDIUM" | "HIGH" | "URGENT" {

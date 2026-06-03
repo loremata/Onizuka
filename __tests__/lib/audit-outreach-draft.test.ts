@@ -15,23 +15,32 @@ describe("buildFirstAuditOutreachEmail", () => {
     expect(body).toContain("42/100");
   });
 
-  it("builds a structured problem→solution email when findings are provided", () => {
+  it("builds a structured gap→consequence→solution email without internal brands", () => {
     const { subject, body } = buildFirstAuditOutreachEmail({
       companyName: "Pizzeria Roma",
       priorityProblem: "Sito assente",
       overallScore: 38,
       findings: [
-        { problem: "Sito assente o non orientato al business", improvement: "Sito web / presenza online", detail: "Nessun sito raggiungibile" },
-        { problem: "Google Business Profile da ottimizzare", improvement: "Local SEO / gestione GBP" },
+        {
+          gap: "il sito web è assente o poco orientato a generare contatti",
+          consequence: "chi vi cerca online non trova un riferimento credibile",
+          solution: "un sito professionale pensato per trasformare le visite in richieste",
+        },
+        {
+          gap: "la presenza sui social è debole o incostante",
+          consequence: "il vostro marchio resta poco riconoscibile",
+          solution: "un progetto personalizzato di gestione dei social",
+        },
       ],
     });
     expect(subject).toContain("Pizzeria Roma");
     expect(subject).toContain("2 aree");
-    expect(body).toContain("38/100");
-    expect(body).toContain("Sito assente o non orientato al business");
-    expect(body).toContain("Nessun sito raggiungibile");
-    expect(body).toContain("✓ Local SEO / gestione GBP");
+    expect(body).toContain("consulenza gratuita");
+    expect(body).toContain("report");
+    expect(body).toContain("progetto personalizzato di gestione dei social");
     expect(body).toContain("Online Station");
+    // nessun brand interno deve trapelare
+    expect(body).not.toMatch(/StudioPop|DoctorLead|LabSeven|Brandity/i);
   });
 
   it("falls back to generic copy without template", () => {
