@@ -311,12 +311,21 @@ export async function runDigitalAuditForClient(params: {
     }).catch(() => undefined);
   }
 
-  await ensureClientDriveStructure(client.id).catch(() => null);
+  // Drive: i service account non hanno quota su "Il mio Drive" (Gmail personale) → 403 in upload.
+  // I PDF audit restano su storage S3 (scaricabili dai pulsanti). Riattivabile con un Drive condiviso
+  // (Google Workspace) impostando ONIZUKA_DRIVE_AUDIT_UPLOAD=1.
+  const driveAuditEnabled = process.env.ONIZUKA_DRIVE_AUDIT_UPLOAD === "1";
 
-  const driveUrls = await uploadDigitalAuditReportsToDrive(audit.id).catch(() => ({
-    internalReportDriveUrl: null,
-    clientReportDriveUrl: null,
-  }));
+  if (driveAuditEnabled) {
+    await ensureClientDriveStructure(client.id).catch(() => null);
+  }
+
+  const driveUrls = driveAuditEnabled
+    ? await uploadDigitalAuditReportsToDrive(audit.id).catch(() => ({
+        internalReportDriveUrl: null,
+        clientReportDriveUrl: null,
+      }))
+    : { internalReportDriveUrl: null, clientReportDriveUrl: null };
 
   let opportunityId: string | undefined;
   let quoteId: string | undefined;
