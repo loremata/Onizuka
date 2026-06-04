@@ -94,7 +94,10 @@ export async function createClientDriveFolder(
     body: JSON.stringify(metadata),
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.warn(`[drive-debug] createClientDriveFolder HTTP ${res.status}: ${(await res.text()).slice(0, 400)}`);
+    return null;
+  }
   const json = (await res.json()) as { id?: string; webViewLink?: string };
   if (!json.id) return null;
 
@@ -180,7 +183,10 @@ export async function createDriveSubfolder(
     }),
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.warn(`[drive-debug] createDriveSubfolder HTTP ${res.status}: ${(await res.text()).slice(0, 400)}`);
+    return null;
+  }
   const json = (await res.json()) as { id?: string; webViewLink?: string };
   if (!json.id) return null;
   return {
@@ -229,7 +235,10 @@ export async function uploadDriveFile(params: {
     }
   );
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.warn(`[drive-debug] uploadDriveFile HTTP ${res.status}: ${(await res.text()).slice(0, 400)}`);
+    return null;
+  }
   const json = (await res.json()) as { id?: string; webViewLink?: string };
   if (!json.id) return null;
   return {
