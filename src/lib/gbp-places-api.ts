@@ -50,21 +50,12 @@ async function findPlaceFromText(query: string, apiKey: string): Promise<GbpPlac
   url.searchParams.set("key", apiKey);
 
   const res = await fetch(url.toString(), { next: { revalidate: 3600 } });
-  if (!res.ok) {
-    console.warn(`[places-debug] findPlace HTTP ${res.status} per query="${query}"`);
-    return null;
-  }
+  if (!res.ok) return null;
   const data = (await res.json()) as {
     status?: string;
-    error_message?: string;
     candidates?: { place_id?: string; name?: string; rating?: number; user_ratings_total?: number }[];
   };
-  if (data.status !== "OK" || !data.candidates?.[0]) {
-    console.warn(
-      `[places-debug] findPlace status=${data.status} error="${data.error_message ?? ""}" query="${query}" candidates=${data.candidates?.length ?? 0}`
-    );
-    return null;
-  }
+  if (data.status !== "OK" || !data.candidates?.[0]) return null;
   const c = data.candidates[0];
   if (c.place_id) {
     const detailed = await fetchPlaceDetails(c.place_id, apiKey);
@@ -84,10 +75,7 @@ export async function fetchGbpPlaceInsights(params: {
   city?: string | null;
 }): Promise<GbpPlaceInsights | null> {
   const apiKey = placesApiKey();
-  if (!apiKey) {
-    console.warn("[places-debug] GOOGLE_PLACES_API_KEY assente nel runtime");
-    return null;
-  }
+  if (!apiKey) return null;
 
   if (params.profileUrl && textContainsGbpUrl(params.profileUrl)) {
     const placeId = extractPlaceIdFromUrl(params.profileUrl);
