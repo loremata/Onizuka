@@ -48,6 +48,10 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     serverComponentsExternalPackages: ["pdfkit"],
+    // Includi logo/font Online Station nel bundle serverless (PDF audit/preventivi).
+    outputFileTracingIncludes: {
+      "/**": ["./public/fonts/**", "./public/brand/**"],
+    },
   },
 
   /** In dev disabilita cache webpack su disco (fix refresh / chunk 1682.js mancante). */
