@@ -226,11 +226,11 @@ export function buildAuditPdfBuffer(input: AuditPdfInput): Promise<Buffer> {
     const footY = doc.page.height - doc.page.margins.bottom - 38;
     doc.moveTo(pageLeft, footY).lineTo(pageLeft + contentWidth, footY).lineWidth(1).strokeColor(c.border).stroke();
     doc.font(F.semibold).fontSize(9).fillColor(c.primary).text(BRAND.name, pageLeft, footY + 8);
-    doc.font(F.regular).fontSize(8).fillColor(c.muted).text(
-      `${BRAND.footer.address}  ·  ${BRAND.footer.phone}  ·  ${BRAND.footer.email}  ·  ${BRAND.footer.website}  ·  ${BRAND.footer.vat}`,
+    doc.font(F.regular).fontSize(7).fillColor(c.muted).text(
+      `${BRAND.footer.address} · ${BRAND.footer.phone} · ${BRAND.footer.email} · ${BRAND.footer.website} · ${BRAND.footer.vat}`,
       pageLeft,
-      footY + 20,
-      { width: contentWidth }
+      footY + 21,
+      { width: contentWidth, lineBreak: false }
     );
     if (isInternal) {
       doc.font(F.regular).fontSize(7).fillColor(c.muted).text("Report generato da Onizuka", pageLeft, footY + 30, {
