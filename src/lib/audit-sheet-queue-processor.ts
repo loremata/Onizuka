@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { runDigitalAuditUnified } from "@/lib/audit-commercial-entry";
 import { processNonVatSheetQueueItem } from "@/lib/audit-sheet-domain-row";
 import { enrichAuditOutreach } from "@/lib/audit-sheet-queue-processor-enrich";
+import { writeAuditResultToSheet } from "@/lib/audit-sheet-writeback";
 
 export { enrichAuditOutreach } from "@/lib/audit-sheet-queue-processor-enrich";
 
@@ -40,8 +41,12 @@ export async function processAuditSheetQueueBatch(limit = 5): Promise<{
             errorDetail: nonVat.errorDetail?.slice(0, 2000) ?? null,
           },
         });
-        if (nonVat.status === "DONE") done++;
-        else if (nonVat.status === "SKIPPED") skipped++;
+        if (nonVat.status === "DONE") {
+          done++;
+          if (nonVat.auditId) {
+            await writeAuditResultToSheet(item.sheetRowKey, nonVat.auditId).catch(() => undefined);
+          }
+        } else if (nonVat.status === "SKIPPED") skipped++;
         else failed++;
         continue;
       }
@@ -75,6 +80,7 @@ export async function processAuditSheetQueueBatch(limit = 5): Promise<{
         },
       });
       done++;
+      await writeAuditResultToSheet(item.sheetRowKey, result.auditId).catch(() => undefined);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Errore sconosciuto";
       await prisma.auditSheetQueueItem.update({

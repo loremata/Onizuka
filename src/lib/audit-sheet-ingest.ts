@@ -25,7 +25,7 @@ const EMAIL_HEADERS = ["email", "mail", "e_mail"];
 const WEB_HEADERS = ["sito", "website", "url", "web", "dominio"];
 const CITY_HEADERS = ["citta", "city", "comune", "localita"];
 
-function normalizeHeader(h: string): string {
+export function normalizeHeader(h: string): string {
   return h
     .trim()
     .toLowerCase()
@@ -58,7 +58,7 @@ function parseCsvLine(line: string): string[] {
   return out;
 }
 
-function resolveColumnIndexes(headers: string[]) {
+export function resolveColumnIndexes(headers: string[]) {
   const vatIdx = headers.findIndex((h) =>
     VAT_HEADERS.some((k) => h.includes(k.replace(/_/g, "")) || h === k.replace(/_/g, ""))
   );
@@ -69,7 +69,7 @@ function resolveColumnIndexes(headers: string[]) {
   return { vatIdx, nameIdx, emailIdx, webIdx, cityIdx };
 }
 
-function parseRowFromColumns(
+export function parseRowFromColumns(
   cols: string[],
   rowIndex: number,
   indexes: ReturnType<typeof resolveColumnIndexes>
