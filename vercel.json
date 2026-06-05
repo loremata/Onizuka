@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/reach-sequences",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/audit-sheet-queue?limit=10",
+      "schedule": "0 7 * * *"
     }
   ]
 }
