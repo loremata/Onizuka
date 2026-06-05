@@ -223,8 +223,11 @@ export function buildAuditPdfBuffer(input: AuditPdfInput): Promise<Buffer> {
       );
     }
 
-    // --- Footer brand (nella fascia inferiore riservata, sotto al contenuto) ---
-    const footY = doc.page.height - 74;
+    // --- Footer brand (fascia inferiore) ---
+    // Azzera il margine inferiore mentre si disegna il footer, altrimenti pdfkit
+    // interpreta la scrittura nella fascia bassa come overflow e aggiunge pagine vuote.
+    doc.page.margins.bottom = 0;
+    const footY = doc.page.height - 72;
     doc.moveTo(pageLeft, footY).lineTo(pageLeft + contentWidth, footY).lineWidth(1).strokeColor(c.border).stroke();
     doc.font(F.semibold).fontSize(9).fillColor(c.primary).text(BRAND.name, pageLeft, footY + 9);
     doc.font(F.regular).fontSize(7.5).fillColor(c.muted).text(
@@ -233,12 +236,6 @@ export function buildAuditPdfBuffer(input: AuditPdfInput): Promise<Buffer> {
       footY + 22,
       { width: contentWidth, lineBreak: false }
     );
-    if (isInternal) {
-      doc.font(F.regular).fontSize(7).fillColor(c.muted).text("Report generato da Onizuka", pageLeft, footY + 33, {
-        width: contentWidth,
-        align: "right",
-      });
-    }
 
     doc.end();
   });
