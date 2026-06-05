@@ -25,6 +25,7 @@ import { ClientDigitalAuditButton } from "./client-digital-audit-button";
 import { ClientMilestonesPanel } from "./client-milestones-panel";
 import { ClientOnboardingPanel } from "./client-onboarding-panel";
 import { ClientCommitmentsPanel } from "./client-commitments-panel";
+import { ClientTagsAttributes } from "@/components/onizuka/client-tags-attributes";
 import { ensureDefaultOnboardingItems } from "@/lib/client-onboarding";
 import { GbpReviewsPanel } from "./gbp-reviews-panel";
 import { ClientRetailContractsCard } from "../client-retail-contracts-card";
@@ -95,6 +96,7 @@ export default async function ClientOverviewPage({
   const client = await prisma.client.findUnique({
     where: { id },
     include: {
+      attributes: { select: { key: true, value: true }, orderBy: { key: "asc" } },
       _count: {
         select: {
           users: true,
@@ -422,6 +424,16 @@ export default async function ClientOverviewPage({
               {serviceGaps.length > 5 ? "…" : ""}
             </p>
           ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Tag e attributi</CardTitle>
+          <CardDescription>Etichette e dati liberi per segmentare (filtrabili in Database / Segmenti).</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ClientTagsAttributes clientId={client.id} tags={client.tags} attributes={client.attributes} />
         </CardContent>
       </Card>
 

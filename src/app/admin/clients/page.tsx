@@ -55,9 +55,14 @@ export default async function AdminClientsPage({ searchParams }: Props) {
           <p className="onizuka-page-lead">Privati e aziende · servizi negozio e digitale/AI.</p>
           <WorkspaceSwitcher />
         </div>
-        <Button asChild>
-          <Link href="/admin/clients/new">Nuovo cliente</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href="/admin/crm/database">Database / Segmenti</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/admin/clients/new">Nuovo cliente</Link>
+          </Button>
+        </div>
       </div>
 
       <Card className="max-w-3xl">

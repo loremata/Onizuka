@@ -7,6 +7,9 @@ export type ClientListFilters = {
   q: string;
   kind: ClientKind | "";
   macro: ClientMacroCategory | "";
+  tag: string;
+  attrKey: string;
+  attrValue: string;
 };
 
 export function parseClientListFilters(
@@ -19,14 +22,28 @@ export function parseClientListFilters(
   const kind = kindRaw === "PRIVATE" || kindRaw === "BUSINESS" ? kindRaw : "";
   const macro =
     macroRaw === "RETAIL_STORE" || macroRaw === "DIGITAL_AI" || macroRaw === "MIXED" ? macroRaw : "";
-  return { q, kind, macro };
+  const tag = normalizeQueryParam(searchParams.tag).slice(0, 60);
+  const attrKey = normalizeQueryParam(searchParams.attrKey).slice(0, 60);
+  const attrValue = normalizeQueryParam(searchParams.attrValue).slice(0, 120);
+  return { q, kind, macro, tag, attrKey, attrValue };
 }
 
-/** Ricerca su campi scheda cliente + referenti collegati. */
+/** Ricerca su campi scheda cliente + referenti collegati + tag/attributi. */
 export function buildClientSearchWhere(f: ClientListFilters): Prisma.ClientWhereInput {
   const and: Prisma.ClientWhereInput[] = [];
   if (f.kind) and.push({ kind: f.kind });
   if (f.macro) and.push({ clientMacroCategory: f.macro });
+  if (f.tag) and.push({ tags: { has: f.tag } });
+  if (f.attrKey) {
+    and.push({
+      attributes: {
+        some: {
+          key: { equals: f.attrKey, mode: "insensitive" },
+          ...(f.attrValue ? { value: { contains: f.attrValue, mode: "insensitive" } } : {}),
+        },
+      },
+    });
+  }
 
   if (!f.q) return and.length ? { AND: and } : {};
 

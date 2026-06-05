@@ -485,6 +485,8 @@ model Client {
   kind               ClientKind?
   fiscalCode         String?
   clientMacroCategory ClientMacroCategory?
+  /// Tag liberi per segmentazione (es. "TIM", "no-rate", "sito-con-noi").
+  tags         String[]     @default([])
   notes        String?      @db.Text
   vatNumber    String?
   phone        String?
@@ -528,12 +530,29 @@ model Client {
   retailContracts    ClientRetailContract[]
   socialInboxComments SocialInboxComment[]
   personRoles        PersonClientRole[]
+  attributes         ClientAttribute[]
 
   @@index([status])
   @@index([kind])
   @@index([clientMacroCategory])
   @@index([vatNumber])
   @@index([fiscalCode])
+}
+
+/// Attributo chiave-valore libero del cliente, per segmentazione (es. carrier=TIM, rateizzazione=no).
+model ClientAttribute {
+  id        String   @id @default(cuid())
+  clientId  String
+  key       String
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, key])
+  @@index([clientId])
+  @@index([key])
 }
 
 enum RetailContractKind {
