@@ -195,23 +195,54 @@ export async function fetchAuditSheetCsv(): Promise<string> {
 export async function syncAuditSheetQueue(ownerUserId: string): Promise<{
   parsed: number;
   enqueued: number;
+  updated: number;
   skipped: number;
   rejected: { rowIndex: number; reason: string }[];
 }> {
   const { fetchAuditSheetForIngest } = await import("@/lib/google-sheets-audit");
   const { rows, rejected: parseRejected } = await fetchAuditSheetForIngest();
   let enqueued = 0;
+  let updated = 0;
   let skipped = 0;
+
+  const norm = (v?: string | null) => (v?.trim() || "");
 
   for (const row of rows) {
     const key = buildAuditSheetRowKey(row);
     const existing = await prisma.auditSheetQueueItem.findUnique({
       where: { ownerUserId_sheetRowKey: { ownerUserId, sheetRowKey: key } },
     });
+
     if (existing) {
-      skipped++;
+      // Rileva modifiche manuali sul foglio: se un campo è cambiato, ri-accoda per re-audit.
+      const changed =
+        norm(existing.vatNumber) !== norm(row.vatNumber) ||
+        norm(existing.businessName) !== norm(row.businessName) ||
+        norm(existing.contactEmail) !== norm(row.contactEmail) ||
+        norm(existing.website) !== norm(row.website) ||
+        norm(existing.city) !== norm(row.city);
+
+      if (changed) {
+        await prisma.auditSheetQueueItem.update({
+          where: { id: existing.id },
+          data: {
+            vatNumber: row.vatNumber ?? null,
+            businessName: row.businessName,
+            contactEmail: row.contactEmail,
+            website: row.website,
+            city: row.city,
+            status: "PENDING",
+            processedAt: null,
+            errorDetail: null,
+          },
+        });
+        updated++;
+      } else {
+        skipped++;
+      }
       continue;
     }
+
     await prisma.auditSheetQueueItem.create({
       data: {
         ownerUserId,
@@ -230,6 +261,7 @@ export async function syncAuditSheetQueue(ownerUserId: string): Promise<{
   return {
     parsed: rows.length,
     enqueued,
+    updated,
     skipped,
     rejected: parseRejected,
   };
