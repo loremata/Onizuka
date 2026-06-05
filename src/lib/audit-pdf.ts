@@ -104,7 +104,8 @@ export function buildAuditPdfBuffer(input: AuditPdfInput): Promise<Buffer> {
   const c = BRAND.colors;
 
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 50, size: "A4" });
+    // bottom margin ampio: riserva la fascia inferiore al footer (il contenuto si ferma sopra).
+    const doc = new PDFDocument({ margins: { top: 50, bottom: 95, left: 50, right: 50 }, size: "A4" });
     const chunks: Buffer[] = [];
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
@@ -222,18 +223,18 @@ export function buildAuditPdfBuffer(input: AuditPdfInput): Promise<Buffer> {
       );
     }
 
-    // --- Footer brand ---
-    const footY = doc.page.height - doc.page.margins.bottom - 38;
+    // --- Footer brand (nella fascia inferiore riservata, sotto al contenuto) ---
+    const footY = doc.page.height - 74;
     doc.moveTo(pageLeft, footY).lineTo(pageLeft + contentWidth, footY).lineWidth(1).strokeColor(c.border).stroke();
-    doc.font(F.semibold).fontSize(9).fillColor(c.primary).text(BRAND.name, pageLeft, footY + 8);
-    doc.font(F.regular).fontSize(7).fillColor(c.muted).text(
-      `${BRAND.footer.address} · ${BRAND.footer.phone} · ${BRAND.footer.email} · ${BRAND.footer.website} · ${BRAND.footer.vat}`,
+    doc.font(F.semibold).fontSize(9).fillColor(c.primary).text(BRAND.name, pageLeft, footY + 9);
+    doc.font(F.regular).fontSize(7.5).fillColor(c.muted).text(
+      `${BRAND.footer.address} · ${BRAND.footer.phone} · ${BRAND.footer.email} · ${BRAND.footer.website}`,
       pageLeft,
-      footY + 21,
+      footY + 22,
       { width: contentWidth, lineBreak: false }
     );
     if (isInternal) {
-      doc.font(F.regular).fontSize(7).fillColor(c.muted).text("Report generato da Onizuka", pageLeft, footY + 30, {
+      doc.font(F.regular).fontSize(7).fillColor(c.muted).text("Report generato da Onizuka", pageLeft, footY + 33, {
         width: contentWidth,
         align: "right",
       });
