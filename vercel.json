@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/cron/audit-sheet-queue?limit=10",
-      "schedule": "0 7 * * *"
+      "schedule": "0 6 * * *"
     }
   ]
 }

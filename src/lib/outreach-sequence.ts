@@ -10,7 +10,7 @@ export type SequenceStepTemplate = {
   bodyAlt?: string;
 };
 
-export const DEFAULT_AUDIT_SEQUENCE_DELAYS = [0, 3, 7] as const;
+export const DEFAULT_AUDIT_SEQUENCE_DELAYS = [0, 3, 7, 14, 30] as const;
 
 function addDays(from: Date, days: number): Date {
   const d = new Date(from);
@@ -35,22 +35,52 @@ export function buildAuditSequenceSteps(params: {
 
 ti scrivo un breve follow-up sul messaggio di qualche giorno fa.
 
-Resta l'opportunità su ${problem.toLowerCase()} — se preferisci un confronto rapido, dimmi pure quando sei disponibile.
+Resta valida l'opportunità su ${problem.toLowerCase()}: se ti va, in 15 minuti ti mostro le priorità e cosa cambierebbe in pratica per ${params.companyName}.
+
+Dimmi pure un paio di slot e mi organizzo io.
 
 Cordiali saluti,
-Lorenzo Matarazzo`,
+Lorenzo Matarazzo · Online Station`,
     },
     {
       delayDays: 7,
-      subject: `Ultimo aggiornamento — ${params.companyName}`,
+      subject: `Un'idea concreta per ${params.companyName}`,
       body: `Buongiorno,
 
-non voglio disturbarti: chiudo il filo con un ultimo messaggio.
+riprendo il filo con uno spunto pratico: intervenendo su ${problem.toLowerCase()} si possono recuperare contatti che oggi vanno persi.
 
-Se in futuro vorrete approfondire ${problem.toLowerCase()}, resto a disposizione per una call senza impegno.
+Abbiamo preparato un'analisi dettagliata della vostra presenza online: se vuoi te la giro e ne parliamo insieme, senza impegno.
+
+Quando preferisci?
 
 Cordiali saluti,
-Lorenzo Matarazzo`,
+Lorenzo Matarazzo · Online Station`,
+    },
+    {
+      delayDays: 14,
+      subject: `${params.companyName}: i risultati ottenibili`,
+      body: `Buongiorno,
+
+molte attività come la vostra, sistemando ${problem.toLowerCase()}, hanno aumentato richieste e contatti in poche settimane.
+
+Mi piacerebbe mostrarvi, dati alla mano, cosa si può ottenere nel vostro caso specifico. Bastano 15 minuti, anche al telefono.
+
+Vi va questa settimana o la prossima?
+
+Cordiali saluti,
+Lorenzo Matarazzo · Online Station`,
+    },
+    {
+      delayDays: 30,
+      subject: `Chiudo qui, ma resto a disposizione — ${params.companyName}`,
+      body: `Buongiorno,
+
+questo è il mio ultimo messaggio, per non risultare insistente.
+
+Se anche solo in futuro vorrete migliorare ${problem.toLowerCase()}, basta un vostro "sì" e organizzo subito una consulenza gratuita con il report già pronto.
+
+Vi lascio il mio contatto diretto. Grazie e a presto,
+Lorenzo Matarazzo · Online Station`,
     },
   ];
 }
