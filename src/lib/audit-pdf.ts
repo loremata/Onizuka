@@ -145,6 +145,7 @@ export function buildAuditPdfBuffer(input: AuditPdfInput): Promise<Buffer> {
     doc.moveTo(pageLeft, ruleY).lineTo(pageLeft + contentWidth, ruleY).lineWidth(2).strokeColor(c.accent).stroke();
 
     doc.y = ruleY + 18;
+    doc.x = pageLeft;
 
     // --- Titolo + anagrafica ---
     doc.font(F.bold).fontSize(20).fillColor(c.primary).text("Audit della presenza online");
@@ -178,6 +179,7 @@ export function buildAuditPdfBuffer(input: AuditPdfInput): Promise<Buffer> {
       });
     }
     doc.y = boxY + boxH + 18;
+    doc.x = pageLeft;
 
     // --- Sezioni ---
     doc.font(F.bold).fontSize(13).fillColor(c.primary).text(isInternal ? "Analisi per sezione" : "Aree di miglioramento");
