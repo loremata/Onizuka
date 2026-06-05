@@ -11,6 +11,7 @@ import { syncAuditSheetQueue } from "@/lib/audit-sheet-ingest";
 import { processAuditSheetQueueBatch } from "@/lib/audit-sheet-queue-processor";
 import { ensureDigitalAuditPublicReportToken } from "@/lib/public-report-token";
 import { normalizeVatNumber } from "@/lib/fiscal-normalize";
+import { prisma } from "@/lib/prisma";
 
 export type DigitalAuditActionResult = { error: string } | { auditId: string } | null;
 
@@ -82,6 +83,16 @@ export async function startDigitalAuditForClientId(
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Audit fallito" };
   }
+}
+
+export async function deleteDigitalAudit(auditId: string): Promise<{ error: string } | null> {
+  const session = await ensureAdmin();
+  const res = await prisma.digitalAudit.deleteMany({
+    where: { id: auditId, ownerUserId: session.user.id },
+  });
+  if (res.count === 0) return { error: "Audit non trovato." };
+  revalidatePath("/admin/audit/digital");
+  return null;
 }
 
 export async function syncAuditSheetFromGoogle(): Promise<

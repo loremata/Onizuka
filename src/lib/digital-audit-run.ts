@@ -275,6 +275,14 @@ export async function runDigitalAuditForClient(params: {
     },
   });
 
+  // Un solo audit per azienda: il nuovo audit sovrascrive i precedenti dello stesso cliente.
+  // (le sezioni vanno in cascade-delete; bozze/sequenze outreach restano con riferimento azzerato).
+  await prisma.digitalAudit
+    .deleteMany({
+      where: { ownerUserId: params.ownerUserId, clientId: client.id, id: { not: audit.id } },
+    })
+    .catch(() => undefined);
+
   let outreachDraftId: string | undefined;
   if (params.createOutreachDraft) {
     const emailDraft = buildFirstAuditOutreachEmail({

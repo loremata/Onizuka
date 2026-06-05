@@ -11,6 +11,7 @@ import { DbUnavailableBanner } from "@/components/onizuka/db-unavailable-banner"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DigitalAuditStartForm } from "./digital-audit-start-form";
+import { AuditDeleteButton } from "./audit-delete-button";
 import { AuditSheetQueuePanel } from "@/components/onizuka/audit-sheet-queue-panel";
 import { resolveAuditSheetCsvUrl } from "@/lib/audit-sheet-ingest";
 import { isGoogleSheetsAuditApiConfigured } from "@/lib/google-sheets-audit";
@@ -115,7 +116,10 @@ export default async function DigitalAuditListPage() {
                       </p>
                     ) : null}
                   </div>
-                  <time className="text-xs text-muted-foreground">{dateFmt.format(a.createdAt)}</time>
+                  <div className="flex items-center gap-3 sm:flex-col sm:items-end">
+                    <time className="text-xs text-muted-foreground">{dateFmt.format(a.createdAt)}</time>
+                    <AuditDeleteButton auditId={a.id} label={a.businessName ?? a.vatNumber ?? "Audit"} />
+                  </div>
                 </li>
               ))}
             </ul>
