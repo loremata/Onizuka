@@ -16,6 +16,7 @@ import { platformLabel } from "@/lib/platform-label";
 import { buildClientTimeline, timelineKindLabel } from "@/lib/client-timeline";
 import { scoreClientForAudit } from "@/lib/audit-client-score";
 import { computeClientHealthScore } from "@/lib/client-health-score";
+import { computeCustomerScore, CUSTOMER_BAND_LABEL } from "@/lib/client-customer-scoring";
 import { loadServiceGraphSuggestions } from "@/lib/service-graph-suggestions";
 import { seedCommercialCatalog } from "@/lib/commercial-catalog-seed";
 import { loadClientAssetCommercialSummary } from "@/lib/client-asset-commercial";
@@ -263,6 +264,33 @@ export default async function ClientOverviewPage({
   });
   const healthBandLabel =
     healthScore.band === "healthy" ? "Solido" : healthScore.band === "watch" ? "Da monitorare" : "A rischio";
+
+  // Customer scoring composito (6 dimensioni) — affianca health/audit score.
+  const activeRetailCount = await prisma.clientRetailContract.count({
+    where: { clientId: id, status: "ACTIVE" },
+  });
+  const wonValueEur = oppForScore
+    .filter((o) => o.status === "WON")
+    .reduce((sum, o) => sum + (o.estimatedValue ? Number(o.estimatedValue.toString()) : 0), 0);
+  const activeCategoryCount = new Set(serviceRows.filter((r) => r.active).map((r) => r.category)).size;
+  const monthsSinceActivity = Math.max(
+    0,
+    Math.floor((now.getTime() - client.updatedAt.getTime()) / (1000 * 60 * 60 * 24 * 30)),
+  );
+  const customerScore = computeCustomerScore({
+    status: client.status,
+    kind: client.kind,
+    macroCategory: client.clientMacroCategory,
+    hasVat: Boolean(client.vatNumber?.trim()),
+    wonValueEur,
+    activeRecurringCount: activeRetailCount,
+    activeCategoryCount,
+    monthsSinceActivity,
+    overdueFinance,
+    openTickets,
+    contactsCount: client._count.contacts,
+  });
+
   const opportunitiesRecent = client.opportunities.slice(0, 12);
 
   const timeline = buildClientTimeline(client.id, {
@@ -329,6 +357,26 @@ export default async function ClientOverviewPage({
       ) : null}
 
       <AuditCommercialSummaryCard summary={auditCommercialSummary} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Scoring commerciale</CardTitle>
+          <CardDescription>
+            Valore e priorità del cliente — 6 dimensioni (RFM + ricorrenti + ICP + relazione).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-sm">
+          <p className="text-3xl font-bold">
+            {customerScore.score}/100{" "}
+            <span className="text-base font-normal text-muted-foreground">({CUSTOMER_BAND_LABEL[customerScore.band]})</span>
+          </p>
+          <ul className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+            {customerScore.factors.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
