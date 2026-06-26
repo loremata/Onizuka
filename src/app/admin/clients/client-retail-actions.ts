@@ -75,6 +75,47 @@ export async function createClientRetailContract(clientId: string, formData: For
   return null;
 }
 
+/** Modifica importo e dati commerciali del contratto, poi ri-sincronizza l'MRR Finance. */
+export async function updateClientRetailContract(contractId: string, formData: FormData) {
+  const session = await requireAdminArea();
+  const existing = await prisma.clientRetailContract.findFirst({
+    where: { id: contractId, ownerUserId: session.user.id },
+    select: { id: true, clientId: true, signedAt: true },
+  });
+  if (!existing) return { error: "Contratto non trovato." };
+
+  const amountRaw = (formData.get("monthlyEur") as string)?.trim().replace(",", ".");
+  const amount = Number(amountRaw);
+  if (!Number.isFinite(amount) || amount <= 0) return { error: "Importo mensile non valido." };
+
+  const renewalRaw = (formData.get("renewalDate") as string)?.trim();
+  const renewalDate = renewalRaw ? new Date(renewalRaw) : null;
+  if (renewalRaw && renewalDate && Number.isNaN(renewalDate.getTime())) {
+    return { error: "Data rinnovo non valida." };
+  }
+
+  const operator = (formData.get("operator") as string)?.trim() || null;
+  const offerName = (formData.get("offerName") as string)?.trim() || null;
+  const paymentMethod = (formData.get("paymentMethod") as string)?.trim() || null;
+  const switchRaw = (formData.get("switchAfterMonths") as string)?.trim();
+  const switchAfterMonths = switchRaw && SWITCH_OPTIONS.includes(Number(switchRaw)) ? Number(switchRaw) : null;
+  const switchReminderAt =
+    switchAfterMonths && existing.signedAt ? addMonths(existing.signedAt, switchAfterMonths) : null;
+
+  const updated = await prisma.clientRetailContract.update({
+    where: { id: contractId },
+    data: { monthlyEur: amount, renewalDate, operator, offerName, paymentMethod, switchAfterMonths, switchReminderAt },
+  });
+
+  // Fonte di verità: il canone vive sul contratto, la FinanceEntry MRR è derivata.
+  await syncFinanceEntryForRetailContract(updated);
+
+  revalidatePath(`/admin/clients/${existing.clientId}`);
+  revalidatePath("/admin/finance");
+  revalidatePath("/admin/insights/forecast");
+  return null;
+}
+
 export async function updateRetailContractStatus(contractId: string, status: RetailContractStatus) {
   const session = await requireAdminArea();
   const row = await prisma.clientRetailContract.findFirst({

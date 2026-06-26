@@ -5,9 +5,10 @@ import { prisma } from "@/lib/prisma";
 export async function syncFinanceEntryForRetailContract(contract: ClientRetailContract): Promise<string | null> {
   if (contract.status !== "ACTIVE") {
     if (contract.financeEntryId) {
+      // Contratto non attivo: l'MRR smette di ricorrere e non deve più comparire nei rinnovi.
       await prisma.financeEntry.updateMany({
         where: { id: contract.financeEntryId },
-        data: { recurringMonthly: false },
+        data: { recurringMonthly: false, renewalDate: null },
       });
     }
     return contract.financeEntryId;

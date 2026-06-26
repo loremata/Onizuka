@@ -43,6 +43,10 @@ export async function createClientContact(
     await prisma.clientContact.create({
       data: { clientId, name, role, email, phone, isPrimary },
     });
+    // Canonico recapiti: il referente primario aggiorna i recapiti della scheda cliente.
+    if (isPrimary && email) {
+      await prisma.client.update({ where: { id: clientId }, data: { contactEmail: email, phone } });
+    }
     await syncPersonFromClientContact({
       ownerUserId: session.user.id,
       clientId,
@@ -94,6 +98,10 @@ export async function updateClientContact(
       where: { id: contactId },
       data: { name, role, email, phone, isPrimary },
     });
+    // Canonico recapiti: il referente primario aggiorna i recapiti della scheda cliente.
+    if (isPrimary && email) {
+      await prisma.client.update({ where: { id: clientId }, data: { contactEmail: email, phone } });
+    }
     await syncPersonFromClientContact({
       ownerUserId: session.user.id,
       clientId,
