@@ -37,12 +37,23 @@ export async function ClientRetailContractsCard({
 
   const fmt = dateTimeFormatIt({ dateStyle: "short" });
 
+  // Spesa mensile gestita dal cliente = somma canoni dei contratti ATTIVI.
+  const managedSpend = contracts
+    .filter((c) => c.status === "ACTIVE")
+    .reduce((sum, c) => sum + Number(c.monthlyEur.toString()), 0);
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Contratti retail</CardTitle>
         <CardDescription>
           Telefonia, energia, Sky — sincronizza automaticamente una voce <strong>MRR</strong> in Finance.
+          {managedSpend > 0 ? (
+            <>
+              {" "}Spesa gestita:{" "}
+              <strong>€ {managedSpend.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mese</strong>.
+            </>
+          ) : null}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
