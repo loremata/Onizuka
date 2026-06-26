@@ -11,5 +11,8 @@ export function assertOpportunityParty(input: OpportunityPartyInput): string | n
   if (!hasClient && !hasLead) {
     return "Seleziona almeno un cliente o un lead per l'opportunità.";
   }
+  if (hasClient && hasLead) {
+    return "Un'opportunità è collegata a un cliente OPPURE a un lead, non entrambi.";
+  }
   return null;
 }

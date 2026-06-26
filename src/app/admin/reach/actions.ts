@@ -295,7 +295,7 @@ export async function markSequenceReplied(sequenceId: string): Promise<ActionRes
       data: {
         ownerUserId: session.user.id,
         clientId: seq.clientId ?? undefined,
-        leadId: seq.leadId ?? undefined,
+        leadId: seq.clientId ? undefined : (seq.leadId ?? undefined),
         digitalAuditId: seq.digitalAuditId ?? undefined,
         title: `Risposta outreach · ${partyName}`,
         status: "OPEN",

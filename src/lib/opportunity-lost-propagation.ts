@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { leadLifecycleForStage } from "@/lib/lead-lifecycle";
 
 export type OpportunityLostResult = {
   clientId: string | null;
@@ -59,7 +60,7 @@ export async function propagateOpportunityLost(
       if (!stage || PRE_WIN_STAGES.has(stage)) {
         await prisma.lead.update({
           where: { id: opp.leadId },
-          data: { commercialProspectStage: "NURTURING" },
+          data: leadLifecycleForStage("NURTURING"),
         });
         leadNurturing = true;
       }

@@ -121,8 +121,8 @@ export async function ensureOpportunityFromDigitalAudit(params: {
         priority,
         probability: probabilityFromScore(score),
         nextAction,
-        leadId: leadId ?? byAudit.leadId,
         clientId: clientId ?? byAudit.clientId,
+        leadId: (clientId ?? byAudit.clientId) ? null : (leadId ?? byAudit.leadId),
       },
     });
     const quote = await ensureDraftQuoteForOpportunity({
@@ -161,8 +161,8 @@ export async function ensureOpportunityFromDigitalAudit(params: {
         priority,
         probability: probabilityFromScore(score),
         nextAction,
-        leadId: leadId ?? openSameService.leadId,
         clientId: clientId ?? openSameService.clientId,
+        leadId: (clientId ?? openSameService.clientId) ? null : (leadId ?? openSameService.leadId),
       },
     });
     const quote = await ensureDraftQuoteForOpportunity({
@@ -182,7 +182,8 @@ export async function ensureOpportunityFromDigitalAudit(params: {
   const opportunity = await prisma.opportunity.create({
     data: {
       clientId: clientId ?? null,
-      leadId: leadId ?? null,
+      // Esclusione mutua: se c'è il cliente, il lead non si imposta.
+      leadId: clientId ? null : (leadId ?? null),
       ownerUserId: params.ownerUserId,
       title: `Audit · ${brandName} · ${company}`,
       description,

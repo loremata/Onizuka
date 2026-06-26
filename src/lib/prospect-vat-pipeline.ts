@@ -6,6 +6,7 @@ import { runDigitalAuditForClient } from "@/lib/digital-audit-run";
 import { prepareAuditCommercialTarget } from "@/lib/audit-commercial-match";
 import { logAdminAction } from "@/lib/admin-audit-log";
 import { findClientByFiscalIdentity } from "@/lib/client-fiscal-identity";
+import { leadLifecycleForStage } from "@/lib/lead-lifecycle";
 
 export type ProspectVatPipelineResult = {
   clientId: string;
@@ -121,7 +122,7 @@ export async function runProspectDigitalAiByVat(params: {
   const lead = await prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
   await prisma.lead.update({
     where: { id: lead.id },
-    data: { commercialProspectStage: "AUDIT_IN_PROGRESS" },
+    data: leadLifecycleForStage("AUDIT_IN_PROGRESS"),
   });
 
   const auditResult = await runDigitalAuditForClient({
@@ -160,7 +161,7 @@ export async function runProspectDigitalAiByVat(params: {
   await prisma.lead.update({
     where: { id: lead.id },
     data: {
-      commercialProspectStage: stage,
+      ...leadLifecycleForStage(stage),
       notes: [
         lead.notes?.trim(),
         `Audit ${auditResult.auditId} · ${new Date().toISOString().slice(0, 10)}`,

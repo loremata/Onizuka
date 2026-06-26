@@ -1,5 +1,5 @@
-import type { CommercialProspectStage } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { leadLifecycleForStage } from "@/lib/lead-lifecycle";
 import { findClientByFiscalIdentity } from "@/lib/client-fiscal-identity";
 import { normalizeFiscalCode, normalizeVatNumber } from "@/lib/fiscal-normalize";
 import { ensureBusinessClientByVat } from "@/lib/prospect-vat-pipeline";
@@ -332,7 +332,7 @@ export async function prepareAuditCommercialTarget(
         createdClient = ensured.created;
         await prisma.lead.update({
           where: { id: lead.id },
-          data: { commercialProspectStage: "AUDIT_IN_PROGRESS" as CommercialProspectStage },
+          data: leadLifecycleForStage("AUDIT_IN_PROGRESS"),
         });
       }
       return {

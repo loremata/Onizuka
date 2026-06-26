@@ -18,6 +18,7 @@ import {
 } from "@/lib/client-fiscal-identity";
 import { formatFiscalUniqueViolation } from "@/lib/fiscal-unique-error";
 import { lifecycleForRelationshipState } from "@/lib/client-lifecycle";
+import { terminalStageForStatus } from "@/lib/lead-lifecycle";
 import { inferClientKind } from "@/lib/client-kind";
 import { normalizeFiscalCode, normalizeFiscalIdentity, normalizeVatNumber } from "@/lib/fiscal-normalize";
 import { runLeadCreatedAutomationRules } from "@/lib/automation-rules-run";
@@ -304,7 +305,7 @@ export async function convertLeadToClient(
       });
       await tx.opportunity.updateMany({
         where: { leadId },
-        data: { clientId: client.id },
+        data: { clientId: client.id, leadId: null },
       });
       return client;
     });
@@ -383,12 +384,13 @@ export async function updateLeadStatus(
   });
   if (!existing) return { error: "Lead non trovato." };
   if (existing.status === status) return null;
+  const terminalStage = terminalStageForStatus(status);
 
   try {
     await prisma.lead.update({
       where: { id: leadId },
-      // Lead perso: allinea anche lo stage commerciale e ferma i follow-up pendenti.
-      data: { status, ...(status === "LOST" ? { commercialProspectStage: "LOST" } : {}) },
+      // Coerenza stato↔stage: stati terminali (CONVERTED→WON, LOST→LOST) allineano lo stage.
+      data: { status, ...(terminalStage ? { commercialProspectStage: terminalStage } : {}) },
     });
     if (status === "LOST") {
       await prisma.leadFollowup.updateMany({

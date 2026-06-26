@@ -86,7 +86,7 @@ export async function propagateOpportunityWon(opportunityId: string): Promise<Op
       if (opp.leadId) {
         await prisma.opportunity.updateMany({
           where: { leadId: opp.leadId, clientId: null },
-          data: { clientId },
+          data: { clientId, leadId: null },
         });
       }
     }
