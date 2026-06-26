@@ -248,15 +248,6 @@ async function ensureDraftQuoteForOpportunity(params: {
   return { id: quote.id };
 }
 
-/** Collega opportunity esistenti al client dopo conversione lead. */
-export async function syncOpportunitiesOnLeadConversion(leadId: string, clientId: string): Promise<number> {
-  const result = await prisma.opportunity.updateMany({
-    where: { leadId },
-    data: { clientId },
-  });
-  return result.count;
-}
-
 /** @deprecated Usa ensureOpportunityFromDigitalAudit */
 export async function ensureDraftQuoteFromDigitalAudit(params: {
   ownerUserId: string;
