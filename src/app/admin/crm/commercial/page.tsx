@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
+import { AnalyticsHubTabs } from "@/components/onizuka/analytics-hub-tabs";
 import { loadCommercialDashboard } from "@/lib/commercial-dashboard";
 import { parseCommercialDashboardFilters } from "@/lib/commercial-dashboard-filters";
 import { DbUnavailableBanner } from "@/components/onizuka/db-unavailable-banner";
@@ -35,6 +36,7 @@ export default async function CommercialDashboardPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-8">
+      <AnalyticsHubTabs />
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard commerciale</h1>

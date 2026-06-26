@@ -75,11 +75,10 @@ export const ADMIN_TOOL_NAV_GROUPS: AdminToolNavGroup[] = [
     id: "ai",
     label: "Intelligence & AI",
     items: [
-      { href: "/admin/insights", label: "Insights" },
-      { href: "/admin/intelligence", label: "Intelligence (NBA)" },
-      { href: "/admin/crm/health-radar", label: "Salute portafoglio" },
+      // Hub Analitiche: Insights apre la dashboard a schede (Forecast, Revenue at risk,
+      // Commerciale, Salute portafoglio, NBA, Economics, Regia operativa).
+      { href: "/admin/insights", label: "Insights (hub analitiche)" },
       { href: "/admin/crm/dormant", label: "Dormienti" },
-      { href: "/admin/insights/revenue-at-risk", label: "Revenue at risk" },
       { href: "/admin/memory", label: "Memoria" },
       { href: "/admin/chat", label: "Chat assistente" },
     ],

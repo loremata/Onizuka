@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
+import { AnalyticsHubTabs } from "@/components/onizuka/analytics-hub-tabs";
 import { listIntelligenceRecommendations } from "@/lib/intelligence-nba";
 import { loadIntelligenceTrends } from "@/lib/intelligence-trends";
 import { IntelligencePanel } from "@/components/onizuka/intelligence-panel";
@@ -21,6 +22,7 @@ export default async function IntelligencePage() {
 
   return (
     <div className="space-y-6">
+      <AnalyticsHubTabs />
       <div className="flex flex-wrap items-center gap-4">
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin">← Command Center</Link>

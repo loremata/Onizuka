@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireFullAdmin } from "@/lib/admin-session";
 import { loadFinanceByBrand } from "@/lib/finance-by-brand";
 import { AdminPageHeader } from "@/components/onizuka/admin-page-header";
+import { AnalyticsHubTabs } from "@/components/onizuka/analytics-hub-tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +15,7 @@ export default async function EconomicsPage() {
 
   return (
     <div className="space-y-8">
+      <AnalyticsHubTabs />
       <AdminPageHeader
         title="Economics"
         lead="Ricavi, costi e margini per brand ecosistema · mese corrente."

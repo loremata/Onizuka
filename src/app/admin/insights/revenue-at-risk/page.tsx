@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
+import { AnalyticsHubTabs } from "@/components/onizuka/analytics-hub-tabs";
 import { getRevenueAtRisk } from "@/lib/revenue-at-risk";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,7 @@ export default async function RevenueAtRiskPage() {
 
   return (
     <div className="space-y-6">
+      <AnalyticsHubTabs />
       <Button asChild variant="ghost" size="sm">
         <Link href="/admin/insights">← Insights</Link>
       </Button>

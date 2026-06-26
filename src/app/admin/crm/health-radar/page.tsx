@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
+import { AnalyticsHubTabs } from "@/components/onizuka/analytics-hub-tabs";
 import { loadClientHealthRadar } from "@/lib/client-health-radar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +11,7 @@ export default async function ClientHealthRadarPage() {
 
   return (
     <div className="space-y-6">
+      <AnalyticsHubTabs />
       <Button asChild variant="ghost" size="sm">
         <Link href="/admin/clients">← Clienti</Link>
       </Button>

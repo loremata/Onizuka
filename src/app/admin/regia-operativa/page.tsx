@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
+import { AnalyticsHubTabs } from "@/components/onizuka/analytics-hub-tabs";
 import { getRegiaDailySheet, parseRegiaDay } from "@/lib/regia-daily-sheet";
 import { computeRegiaKpis } from "@/lib/regia-kpi";
 import { RegiaOperativaClient } from "@/components/onizuka/regia-operativa-client";
@@ -17,6 +18,7 @@ export default async function RegiaOperativaPage() {
 
   return (
     <div className="space-y-6">
+      <AnalyticsHubTabs />
       <div className="flex flex-wrap items-center gap-4">
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin">← Command Center</Link>

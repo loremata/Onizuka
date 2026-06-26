@@ -1,6 +1,7 @@
 import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
+import { AnalyticsHubTabs } from "@/components/onizuka/analytics-hub-tabs";
 import { loadOwnerRecurringMrrEur } from "@/lib/finance-mrr";
 import { loadUpcomingFinanceRenewals } from "@/lib/finance-renewals";
 import { syncFinanceOverdueStatuses } from "@/lib/finance-overdue";
@@ -60,6 +61,7 @@ export default async function AdminInsightsForecastPage() {
 
   return (
     <div className="space-y-8">
+      <AnalyticsHubTabs />
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Forecast commerciale</h1>
