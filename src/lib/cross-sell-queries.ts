@@ -151,6 +151,21 @@ export async function runCrossSellQuery(
   const elevenMonthsAgo = new Date();
   elevenMonthsAgo.setMonth(elevenMonthsAgo.getMonth() - 11);
 
+  // Pre-carico in UNA query i clienti con "website" attivo da ~12 mesi (prima: una findFirst per cliente = N+1).
+  let website12mClientIds: Set<string> | null = null;
+  if (queryId === "website-12-months") {
+    const rows = await prisma.clientCommercialService.findMany({
+      where: {
+        clientId: { in: clients.map((c) => c.id) },
+        active: true,
+        commercialService: { slug: "website" },
+        since: { lte: twelveMonthsAgo, gte: elevenMonthsAgo },
+      },
+      select: { clientId: true },
+    });
+    website12mClientIds = new Set(rows.map((r) => r.clientId));
+  }
+
   for (const c of clients) {
     const slugs = slugMap.get(c.id) ?? new Set<string>();
     let match = false;
@@ -171,20 +186,10 @@ export async function runCrossSellQuery(
         match = hasSlug(slugs, "website") && !hasSlug(slugs, "maintenance");
         detail = "Sito senza manutenzione";
         break;
-      case "website-12-months": {
-        const websiteSince = await prisma.clientCommercialService.findFirst({
-          where: {
-            clientId: c.id,
-            active: true,
-            commercialService: { slug: "website" },
-            since: { lte: twelveMonthsAgo, gte: elevenMonthsAgo },
-          },
-          select: { since: true },
-        });
-        match = !!websiteSince;
+      case "website-12-months":
+        match = website12mClientIds?.has(c.id) ?? false;
         detail = "Sito attivo da ~12 mesi";
         break;
-      }
       case "tim-fiber-without-tim-vision":
         match = hasSlug(slugs, "fiber") && !hasSlug(slugs, "tim-vision");
         detail = "Fibra senza TIM Vision";

@@ -4,14 +4,14 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { requireAdminArea } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
-import { seedCommercialCatalog } from "@/lib/commercial-catalog-seed";
+import { ensureCommercialCatalogSeeded } from "@/lib/commercial-catalog-seed";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default async function EcosystemBrandsPage() {
   const session = await requireAdminArea();
 
-  await seedCommercialCatalog();
+  await ensureCommercialCatalogSeeded();
 
   const brands = await prisma.ecosystemBrand.findMany({
     orderBy: { sortOrder: "asc" },

@@ -13,18 +13,20 @@ export async function loadClientAssetCommercialSummary(
   clientId: string,
   ownerUserId: string
 ): Promise<AssetCommercialRow[]> {
-  const assets = await prisma.asset.findMany({
-    where: { clientId },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true, platform: true },
-  });
+  // Query indipendenti (le opportunità filtrano per clientId/ownerUserId, non per i valori asset) → parallele.
+  const [assets, opportunities] = await Promise.all([
+    prisma.asset.findMany({
+      where: { clientId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, platform: true },
+    }),
+    prisma.opportunity.findMany({
+      where: { clientId, ownerUserId, assetId: { not: null } },
+      select: { assetId: true, status: true, estimatedValue: true },
+    }),
+  ]);
 
   if (assets.length === 0) return [];
-
-  const opportunities = await prisma.opportunity.findMany({
-    where: { clientId, ownerUserId, assetId: { not: null } },
-    select: { assetId: true, status: true, estimatedValue: true },
-  });
 
   const byAsset = new Map<string, { open: number; openSum: number; wonSum: number }>();
   for (const a of assets) {

@@ -83,16 +83,39 @@ async function loadUpsellCandidateClientIds(ownerUserId?: string): Promise<strin
 }
 
 async function scoreClientsForGaps(clientIds: string[]): Promise<ClientUpsellRow[]> {
+  if (clientIds.length === 0) return [];
+
+  // Batch: 3 query totali invece di N+1 (prima: per ogni cliente findFirst + catalogo ri-scaricato).
+  const [clients, catalog, activeLinks] = await Promise.all([
+    prisma.client.findMany({
+      where: { id: { in: clientIds } },
+      select: { id: true, companyName: true },
+    }),
+    prisma.commercialService.findMany({ select: { id: true } }),
+    prisma.clientCommercialService.findMany({
+      where: { clientId: { in: clientIds }, active: true },
+      select: { clientId: true, commercialServiceId: true },
+    }),
+  ]);
+
+  const catalogIds = new Set(catalog.map((c) => c.id));
+  const activeByClient = new Map<string, Set<string>>();
+  for (const link of activeLinks) {
+    if (!catalogIds.has(link.commercialServiceId)) continue;
+    let set = activeByClient.get(link.clientId);
+    if (!set) {
+      set = new Set<string>();
+      activeByClient.set(link.clientId, set);
+    }
+    set.add(link.commercialServiceId);
+  }
+
   const scored: ClientUpsellRow[] = [];
-  for (const clientId of clientIds) {
-    const client = await prisma.client.findFirst({
-      where: { id: clientId },
-      select: { companyName: true },
-    });
-    if (!client) continue;
-    const gaps = await loadClientServiceGaps(clientId);
-    if (gaps.length >= GAP_THRESHOLD) {
-      scored.push({ clientId, companyName: client.companyName, missingCount: gaps.length });
+  for (const client of clients) {
+    const activeCount = activeByClient.get(client.id)?.size ?? 0;
+    const missingCount = catalogIds.size - activeCount;
+    if (missingCount >= GAP_THRESHOLD) {
+      scored.push({ clientId: client.id, companyName: client.companyName, missingCount });
     }
   }
   return scored.sort((a, b) => b.missingCount - a.missingCount);

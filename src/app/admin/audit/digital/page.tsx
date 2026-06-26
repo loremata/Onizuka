@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { requireAdminArea } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
-import { seedCommercialCatalog } from "@/lib/commercial-catalog-seed";
+import { ensureCommercialCatalogSeeded } from "@/lib/commercial-catalog-seed";
 import { digitalAuditStatusLabel } from "@/lib/digital-audit-labels";
 import { DbUnavailableBanner } from "@/components/onizuka/db-unavailable-banner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +21,7 @@ export default async function DigitalAuditListPage() {
   const session = await requireAdminArea();
 
   try {
-    await seedCommercialCatalog();
+    await ensureCommercialCatalogSeeded();
   } catch {
     return (
       <div className="space-y-8">

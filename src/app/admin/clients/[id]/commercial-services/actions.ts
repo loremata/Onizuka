@@ -6,7 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { requireAdminArea } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
-import { seedCommercialCatalog } from "@/lib/commercial-catalog-seed";
+import { ensureCommercialCatalogSeeded } from "@/lib/commercial-catalog-seed";
 
 export type ClientServiceActionResult = { error: string } | null;
 
@@ -21,7 +21,7 @@ export async function syncClientCommercialServices(
   formData: FormData
 ): Promise<ClientServiceActionResult> {
   await ensureAdmin();
-  await seedCommercialCatalog();
+  await ensureCommercialCatalogSeeded();
 
   const catalog = await prisma.commercialService.findMany({ select: { id: true, slug: true } });
 

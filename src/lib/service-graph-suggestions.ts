@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { seedCommercialCatalog } from "@/lib/commercial-catalog-seed";
+import { ensureCommercialCatalogSeeded } from "@/lib/commercial-catalog-seed";
 
 export type ServiceGraphSuggestion = {
   serviceId: string;
@@ -13,7 +13,7 @@ export async function loadServiceGraphSuggestions(
   clientId: string,
   limit = 5
 ): Promise<ServiceGraphSuggestion[]> {
-  await seedCommercialCatalog();
+  await ensureCommercialCatalogSeeded();
 
   const [active, catalog] = await Promise.all([
     prisma.clientCommercialService.findMany({

@@ -14,6 +14,7 @@ Completare **Onizuka** come BOS interno (non pubblico, non SaaS, non vendibile).
 
 ## 18.0 — Regole permanenti
 
+- [x] **Performance**: ogni nuova pagina/loader segue [PERFORMANCE.md](./PERFORMANCE.md) — no seed sul render, query indipendenti in `Promise.all`, niente N+1 (await nei loop)
 - [x] UI mostra solo **Onizuka** (no StationHQ in `src/`)
 - [x] Brand in `ECOSYSTEM_BRANDS` (8 brand)
 - [x] `Client.kind` Privato / Azienda + codice fiscale

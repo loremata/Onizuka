@@ -1,6 +1,6 @@
 import type { Client, DigitalAuditSectionKey } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { seedCommercialCatalog } from "@/lib/commercial-catalog-seed";
+import { ensureCommercialCatalogSeeded } from "@/lib/commercial-catalog-seed";
 import { notifyDigitalAuditCompleted } from "@/lib/audit-telegram-notify";
 import { uploadDigitalAuditReportsToDrive } from "@/lib/digital-audit-drive";
 import { pickAuditRecommendationFromSections, buildAuditFindings } from "@/lib/audit-service-recommendations";
@@ -180,7 +180,7 @@ export async function runDigitalAuditForClient(params: {
   matchWarnings?: string[];
   wireCommercialCrm?: boolean;
 }): Promise<{ auditId: string; outreachDraftId?: string; opportunityId?: string; quoteId?: string }> {
-  await seedCommercialCatalog();
+  await ensureCommercialCatalogSeeded();
 
   let leadId = params.leadId;
   let matchKind = params.matchKind;
