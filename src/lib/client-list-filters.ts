@@ -1,7 +1,8 @@
-import type { ClientKind, ClientMacroCategory, Prisma } from "@prisma/client";
+import type { ClientKind, ClientMacroCategory, Prisma, RetailContractKind } from "@prisma/client";
 import { normalizeQueryParam } from "@/lib/opportunity-list-filters";
 
 const Q_MAX = 200;
+const RETAIL_KINDS: RetailContractKind[] = ["MOBILE", "FIBER", "ENERGY", "GAS", "SKY", "TELEPASS", "OTHER"];
 
 export type ClientListFilters = {
   q: string;
@@ -10,6 +11,10 @@ export type ClientListFilters = {
   tag: string;
   attrKey: string;
   attrValue: string;
+  /** Filtri marketing retail (targeting promo). */
+  operator: string;
+  hasKinds: RetailContractKind[]; // contratti ATTIVI di questi tipi (AND)
+  minSpend: number | null; // spesa mensile gestita minima (€)
 };
 
 export function parseClientListFilters(
@@ -25,7 +30,17 @@ export function parseClientListFilters(
   const tag = normalizeQueryParam(searchParams.tag).slice(0, 60);
   const attrKey = normalizeQueryParam(searchParams.attrKey).slice(0, 60);
   const attrValue = normalizeQueryParam(searchParams.attrValue).slice(0, 120);
-  return { q, kind, macro, tag, attrKey, attrValue };
+
+  const operator = normalizeQueryParam(searchParams.operator).slice(0, 60);
+  const rawHas = searchParams.has;
+  const hasValues = Array.isArray(rawHas) ? rawHas : rawHas ? [rawHas] : [];
+  const hasKinds = hasValues.filter((v): v is RetailContractKind =>
+    RETAIL_KINDS.includes(v as RetailContractKind),
+  );
+  const minSpendRaw = Number(normalizeQueryParam(searchParams.minSpend).replace(",", "."));
+  const minSpend = Number.isFinite(minSpendRaw) && minSpendRaw > 0 ? minSpendRaw : null;
+
+  return { q, kind, macro, tag, attrKey, attrValue, operator, hasKinds, minSpend };
 }
 
 /** Ricerca su campi scheda cliente + referenti collegati + tag/attributi. */
@@ -34,6 +49,13 @@ export function buildClientSearchWhere(f: ClientListFilters): Prisma.ClientWhere
   if (f.kind) and.push({ kind: f.kind });
   if (f.macro) and.push({ clientMacroCategory: f.macro });
   if (f.tag) and.push({ tags: { has: f.tag } });
+  // Targeting retail: operatore + presenza di contratti ATTIVI per tipo (AND).
+  if (f.operator) {
+    and.push({ retailContracts: { some: { status: "ACTIVE", operator: { equals: f.operator, mode: "insensitive" } } } });
+  }
+  for (const k of f.hasKinds) {
+    and.push({ retailContracts: { some: { status: "ACTIVE", kind: k } } });
+  }
   if (f.attrKey) {
     and.push({
       attributes: {

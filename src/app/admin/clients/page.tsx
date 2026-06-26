@@ -40,11 +40,38 @@ export default async function AdminClientsPage({ searchParams }: Props) {
     );
   }
 
-  const clients = loaded.data;
+  const allClients = loaded.data;
+
+  // Spesa mensile gestita per cliente (somma canoni contratti ATTIVI) + filtro spesa minima.
+  const spendRows = allClients.length
+    ? await prisma.clientRetailContract.groupBy({
+        by: ["clientId"],
+        where: { clientId: { in: allClients.map((c) => c.id) }, status: "ACTIVE" },
+        _sum: { monthlyEur: true },
+      })
+    : [];
+  const spendByClient = new Map<string, number>(
+    spendRows.map((r) => [r.clientId, r._sum.monthlyEur ? Number(r._sum.monthlyEur.toString()) : 0]),
+  );
+  const clients = filters.minSpend
+    ? allClients.filter((c) => (spendByClient.get(c.id) ?? 0) >= filters.minSpend!)
+    : allClients;
+
+  const retailFilterActive =
+    Boolean(filters.operator) || filters.hasKinds.length > 0 || filters.minSpend != null;
+
+  const HAS_KINDS: { value: string; label: string }[] = [
+    { value: "MOBILE", label: "Mobile" },
+    { value: "FIBER", label: "Fibra" },
+    { value: "ENERGY", label: "Luce" },
+    { value: "GAS", label: "Gas" },
+    { value: "SKY", label: "Sky" },
+    { value: "TELEPASS", label: "Telepass" },
+  ];
 
   const emptyMessage =
-    filters.q && clients.length === 0
-      ? "Nessun cliente corrisponde alla ricerca. Prova altre parole chiave o azzera i filtri."
+    (filters.q || retailFilterActive) && clients.length === 0
+      ? "Nessun cliente corrisponde ai filtri. Prova a modificarli o azzerali."
       : "Nessun cliente ancora. Creane uno per iniziare.";
 
   return (
@@ -65,11 +92,11 @@ export default async function AdminClientsPage({ searchParams }: Props) {
         </div>
       </div>
 
-      <Card className="max-w-3xl">
+      <Card className="max-w-5xl">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Ricerca</CardTitle>
+          <CardTitle className="text-base">Ricerca & targeting</CardTitle>
           <CardDescription>
-            Filtra per ragione sociale, slug, email, città, P.IVA, telefono, sito, indirizzo, note o referenti.
+            Testo, tipo, macro — e targeting promo: operatore, servizi attivi e spesa mensile gestita.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -118,6 +145,51 @@ export default async function AdminClientsPage({ searchParams }: Props) {
                 <option value="MIXED">Misto</option>
               </select>
             </div>
+            <div className="flex min-w-[150px] flex-col gap-1">
+              <label htmlFor="operator" className="text-xs font-medium text-muted-foreground">
+                Operatore
+              </label>
+              <input
+                id="operator"
+                name="operator"
+                type="text"
+                defaultValue={filters.operator}
+                placeholder="Es. Fastweb"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="flex min-w-[120px] flex-col gap-1">
+              <label htmlFor="minSpend" className="text-xs font-medium text-muted-foreground">
+                Spesa ≥ (€/mese)
+              </label>
+              <input
+                id="minSpend"
+                name="minSpend"
+                type="number"
+                min="0"
+                step="0.01"
+                defaultValue={filters.minSpend ?? ""}
+                placeholder="39"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="flex w-full flex-col gap-1">
+              <span className="text-xs font-medium text-muted-foreground">Ha attivi con noi (tutti)</span>
+              <div className="flex flex-wrap gap-3">
+                {HAS_KINDS.map((k) => (
+                  <label key={k.value} className="flex items-center gap-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      name="has"
+                      value={k.value}
+                      defaultChecked={filters.hasKinds.includes(k.value as (typeof filters.hasKinds)[number])}
+                      className="rounded"
+                    />
+                    {k.label}
+                  </label>
+                ))}
+              </div>
+            </div>
             <div className="flex flex-wrap gap-2">
               <Button type="submit">Applica</Button>
               <Button asChild type="button" variant="outline">
@@ -134,7 +206,9 @@ export default async function AdminClientsPage({ searchParams }: Props) {
           <CardDescription>
             Crea, modifica o elimina clienti. Eliminando un cliente vengono rimossi tutti i suoi post e webhook; gli
             account utente vengono scollegati.
-            {filters.q ? ` Filtro attivo: ${clients.length} risultat${clients.length === 1 ? "o" : "i"}.` : ""}
+            {filters.q || retailFilterActive
+              ? ` Filtro attivo: ${clients.length} risultat${clients.length === 1 ? "o" : "i"}.`
+              : ""}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -150,6 +224,7 @@ export default async function AdminClientsPage({ searchParams }: Props) {
                     <th className="pb-3 font-medium">Ragione sociale</th>
                     <th className="pb-3 font-medium">Slug</th>
                     <th className="pb-3 font-medium">Email di contatto</th>
+                    <th className="pb-3 font-medium text-right">Spesa/mese</th>
                     <th className="pb-3 font-medium">Utenti</th>
                     <th className="pb-3 font-medium">Post</th>
                     <th className="pb-3 font-medium text-right">Azioni</th>
@@ -168,6 +243,11 @@ export default async function AdminClientsPage({ searchParams }: Props) {
                       <td className="py-3">{c.companyName}</td>
                       <td className="py-3 font-mono text-muted-foreground">{c.slug}</td>
                       <td className="py-3">{c.contactEmail}</td>
+                      <td className="py-3 text-right tabular-nums">
+                        {spendByClient.get(c.id)
+                          ? `€ ${spendByClient.get(c.id)!.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : "—"}
+                      </td>
                       <td className="py-3">{c._count.users}</td>
                       <td className="py-3">{c._count.posts}</td>
                       <td className="py-3 text-right">
