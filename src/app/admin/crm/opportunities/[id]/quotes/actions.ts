@@ -13,6 +13,7 @@ import {
   clearQuoteNoResponseReminder,
   scheduleQuoteNoResponseReminder,
 } from "@/lib/quote-no-response";
+import { propagateOpportunityWon } from "@/lib/opportunity-won-propagation";
 import type { QuoteStatus } from "@prisma/client";
 
 type ActionResult = { error: string } | null;
@@ -151,7 +152,7 @@ export async function updateQuoteStatus(quoteId: string, status: QuoteStatus): P
 
   const quote = await prisma.opportunityQuote.findUnique({
     where: { id: quoteId },
-    include: { opportunity: { select: { clientId: true, title: true } } },
+    include: { opportunity: { select: { id: true, clientId: true, title: true, status: true } } },
   });
   if (quote) {
     void logAdminAction({
@@ -162,14 +163,23 @@ export async function updateQuoteStatus(quoteId: string, status: QuoteStatus): P
       summary: `Stato preventivo «${quote.title}» → ${status}`,
       metadata: { opportunityId: quote.opportunityId },
     });
-    if (status === "ACCEPTED" && quote.opportunity.clientId) {
-      void notifyClientUsers({
-        clientId: quote.opportunity.clientId,
-        kind: "quote_accepted",
-        title: `Preventivo accettato · ${quote.title}`,
-        body: `Opportunità: ${quote.opportunity.title}`,
-        href: "/app",
-      }).catch(() => {});
+    if (status === "ACCEPTED") {
+      // Preventivo accettato = opportunità vinta → vince e propaga (cliente, servizio, lead).
+      if (quote.opportunity.status !== "WON" && quote.opportunity.status !== "LOST") {
+        await prisma.opportunity.update({ where: { id: quote.opportunity.id }, data: { status: "WON" } });
+      }
+      await propagateOpportunityWon(quote.opportunity.id);
+      if (quote.opportunity.clientId) {
+        void notifyClientUsers({
+          clientId: quote.opportunity.clientId,
+          kind: "quote_accepted",
+          title: `Preventivo accettato · ${quote.title}`,
+          body: `Opportunità: ${quote.opportunity.title}`,
+          href: "/app",
+        }).catch(() => {});
+      }
+      revalidatePath("/admin/crm/opportunities");
+      if (quote.opportunity.clientId) revalidatePath(`/admin/clients/${quote.opportunity.clientId}`);
     }
     revalidatePath(`/admin/crm/opportunities/${quote.opportunityId}/quotes/${quoteId}`);
     revalidatePath("/admin/audit");

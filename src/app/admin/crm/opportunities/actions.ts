@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { notifyAdminUsers } from "@/lib/user-notifications";
 import { opportunityPriorityOptions, opportunityStatusOptions } from "@/lib/crm-opportunity";
 import { assertOpportunityParty } from "@/lib/opportunity-party";
+import { propagateOpportunityWon } from "@/lib/opportunity-won-propagation";
 
 export type OpportunityActionResult = { error: string } | { ok: true } | null;
 
@@ -60,6 +61,8 @@ async function commitOpportunityStatusChange(
     });
 
     if (status === "WON") {
+      // Propagazione: promuove il cliente, attiva il servizio, converte il lead.
+      await propagateOpportunityWon(opportunityId);
       void notifyAdminUsers({
         kind: "opportunity_won",
         title: `Opportunità vinta: ${existing.title}`,

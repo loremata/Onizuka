@@ -18,6 +18,7 @@ import { runQuoteNoResponseReminders } from "@/lib/quote-no-response";
 import { refreshIntelligenceForAllAdmins } from "@/lib/intelligence-refresh-cron";
 import { runOpportunitySlaReminders } from "@/lib/opportunity-sla-cron";
 import { runMeetingFollowthroughReminders } from "@/lib/meeting-followthrough-cron";
+import { runRetailSwitchTaskGeneration } from "@/lib/retail-switch-task-cron";
 import { prisma } from "@/lib/prisma";
 
 function authorizeCron(request: NextRequest): boolean {
@@ -121,6 +122,11 @@ export async function GET(request: NextRequest) {
     meetingFollowthrough = await runMeetingFollowthroughReminders();
   }
 
+  let retailSwitch = { owners: 0, created: 0, existing: 0 };
+  if (process.env.RETAIL_SWITCH_CRON !== "0") {
+    retailSwitch = await runRetailSwitchTaskGeneration();
+  }
+
   const ticketSla = await runTicketSlaBreachCheck();
 
   let automationQueue = { processed: 0, done: 0, failed: 0 };
@@ -141,6 +147,7 @@ export async function GET(request: NextRequest) {
     intelligenceRefresh,
     opportunitySla,
     meetingFollowthrough,
+    retailSwitch,
     dedupeNightly,
     ticketSla,
     automationQueue,
