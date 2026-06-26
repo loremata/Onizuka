@@ -525,6 +525,7 @@ model Client {
   memoryItems  MemoryItem[]
   opportunities Opportunity[]
   convertedFromLead Lead? @relation("LeadConversion")
+  leadDossier  Lead[] @relation("ClientLeadDossier")
   assets       Asset[]
   contacts     ClientContact[]
   tickets         ClientTicket[]
@@ -987,6 +988,9 @@ model Lead {
   notes               String?    @db.Text
   ownerUserId         String
   convertedClientId   String?    @unique
+  /// Satellite: Client proprietario del fascicolo funnel. L'identità unica è il Client;
+  /// il Lead è il suo dossier (stage, audit, outreach). Null per lead manuali pre-cliente.
+  clientId            String?
   website             String?
   city                String?
   /// Google Places place_id (segnale forte, non sostituto P.IVA).
@@ -997,6 +1001,7 @@ model Lead {
   owner            User      @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
   referrer         Referrer? @relation(fields: [referrerId], references: [id], onDelete: SetNull)
   convertedClient  Client?   @relation("LeadConversion", fields: [convertedClientId], references: [id], onDelete: SetNull)
+  dossierClient    Client?   @relation("ClientLeadDossier", fields: [clientId], references: [id], onDelete: SetNull)
   outreachDrafts   OutreachDraft[]
   outreachSequences OutreachSequence[]
   followups         LeadFollowup[]
@@ -1008,6 +1013,7 @@ model Lead {
   @@index([referrerId])
   @@index([googlePlaceId])
   @@index([ownerUserId, googlePlaceId])
+  @@index([clientId])
 }
 
 /// Follow-up programmato su lead (walk-in, enrichment).

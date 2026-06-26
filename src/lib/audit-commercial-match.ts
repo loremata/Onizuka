@@ -166,16 +166,27 @@ async function findOrCreateLeadForClient(params: {
   const linked = await prisma.lead.findFirst({
     where: {
       ownerUserId: params.ownerUserId,
-      OR: [{ convertedClientId: params.clientId }, ...(params.vat ? [{ vatNumber: params.vat }] : [])],
+      OR: [
+        { clientId: params.clientId },
+        { convertedClientId: params.clientId },
+        ...(params.vat ? [{ vatNumber: params.vat }] : []),
+      ],
     },
     orderBy: { updatedAt: "desc" },
-    select: { id: true },
+    select: { id: true, clientId: true },
   });
-  if (linked) return { leadId: linked.id, created: false };
+  if (linked) {
+    // Satellite: assicura il link al Client se mancante (lead pre-esistente da P.IVA).
+    if (!linked.clientId) {
+      await prisma.lead.update({ where: { id: linked.id }, data: { clientId: params.clientId } });
+    }
+    return { leadId: linked.id, created: false };
+  }
 
   const lead = await prisma.lead.create({
     data: {
       ownerUserId: params.ownerUserId,
+      clientId: params.clientId,
       title: `Prospect audit · ${params.businessName}`,
       businessName: params.businessName,
       vatNumber: params.vat ?? undefined,

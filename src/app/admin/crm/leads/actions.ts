@@ -298,6 +298,7 @@ export async function convertLeadToClient(
         data: {
           status: "CONVERTED",
           convertedClientId: client.id,
+          clientId: client.id,
           commercialProspectStage: "WON",
         },
       });
