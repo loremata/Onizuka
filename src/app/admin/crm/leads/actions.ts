@@ -387,8 +387,15 @@ export async function updateLeadStatus(
   try {
     await prisma.lead.update({
       where: { id: leadId },
-      data: { status },
+      // Lead perso: allinea anche lo stage commerciale e ferma i follow-up pendenti.
+      data: { status, ...(status === "LOST" ? { commercialProspectStage: "LOST" } : {}) },
     });
+    if (status === "LOST") {
+      await prisma.leadFollowup.updateMany({
+        where: { leadId, outcome: "pending" },
+        data: { outcome: "cancelled" },
+      });
+    }
   } catch (e) {
     console.error(e);
     return { error: "Aggiornamento stato non riuscito." };

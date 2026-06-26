@@ -13,6 +13,7 @@ import { notifyAdminUsers } from "@/lib/user-notifications";
 import { opportunityPriorityOptions, opportunityStatusOptions } from "@/lib/crm-opportunity";
 import { assertOpportunityParty } from "@/lib/opportunity-party";
 import { propagateOpportunityWon } from "@/lib/opportunity-won-propagation";
+import { propagateOpportunityLost } from "@/lib/opportunity-lost-propagation";
 
 export type OpportunityActionResult = { error: string } | { ok: true } | null;
 
@@ -68,6 +69,9 @@ async function commitOpportunityStatusChange(
         title: `Opportunità vinta: ${existing.title}`,
         href: `/admin/crm/opportunities/${opportunityId}/edit`,
       }).catch(() => {});
+    } else if (status === "LOST") {
+      // Asse LOST: rimette il prospect in nurturing e crea il task di ri-proposta.
+      await propagateOpportunityLost(opportunityId);
     }
   } catch (e) {
     console.error(e);

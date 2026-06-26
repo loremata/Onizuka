@@ -14,6 +14,7 @@ import {
   scheduleQuoteNoResponseReminder,
 } from "@/lib/quote-no-response";
 import { propagateOpportunityWon } from "@/lib/opportunity-won-propagation";
+import { propagateOpportunityLost } from "@/lib/opportunity-lost-propagation";
 import type { QuoteStatus } from "@prisma/client";
 
 type ActionResult = { error: string } | null;
@@ -178,6 +179,14 @@ export async function updateQuoteStatus(quoteId: string, status: QuoteStatus): P
           href: "/app",
         }).catch(() => {});
       }
+      revalidatePath("/admin/crm/opportunities");
+      if (quote.opportunity.clientId) revalidatePath(`/admin/clients/${quote.opportunity.clientId}`);
+    } else if (status === "REJECTED") {
+      // Rifiuto = opportunità persa → chiude e rimette il prospect in nurturing.
+      if (quote.opportunity.status !== "WON" && quote.opportunity.status !== "LOST") {
+        await prisma.opportunity.update({ where: { id: quote.opportunity.id }, data: { status: "LOST" } });
+      }
+      await propagateOpportunityLost(quote.opportunity.id, "preventivo rifiutato");
       revalidatePath("/admin/crm/opportunities");
       if (quote.opportunity.clientId) revalidatePath(`/admin/clients/${quote.opportunity.clientId}`);
     }

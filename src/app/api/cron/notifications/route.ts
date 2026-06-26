@@ -19,6 +19,7 @@ import { refreshIntelligenceForAllAdmins } from "@/lib/intelligence-refresh-cron
 import { runOpportunitySlaReminders } from "@/lib/opportunity-sla-cron";
 import { runMeetingFollowthroughReminders } from "@/lib/meeting-followthrough-cron";
 import { runRetailSwitchTaskGeneration } from "@/lib/retail-switch-task-cron";
+import { runRiskSignalTasks } from "@/lib/risk-signal-cron";
 import { prisma } from "@/lib/prisma";
 
 function authorizeCron(request: NextRequest): boolean {
@@ -129,6 +130,11 @@ export async function GET(request: NextRequest) {
 
   const ticketSla = await runTicketSlaBreachCheck();
 
+  let riskSignals = { overdueTasks: 0, churned: 0, slaTasks: 0 };
+  if (process.env.RISK_SIGNAL_CRON !== "0") {
+    riskSignals = await runRiskSignalTasks();
+  }
+
   let automationQueue = { processed: 0, done: 0, failed: 0 };
   if (process.env.AUTOMATION_QUEUE_CRON !== "0") {
     automationQueue = await processAutomationFlowQueue(25);
@@ -148,6 +154,7 @@ export async function GET(request: NextRequest) {
     opportunitySla,
     meetingFollowthrough,
     retailSwitch,
+    riskSignals,
     dedupeNightly,
     ticketSla,
     automationQueue,
