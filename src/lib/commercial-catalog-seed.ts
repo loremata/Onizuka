@@ -212,3 +212,15 @@ export async function seedCommercialCatalog(): Promise<{ brands: number; service
     services: COMMERCIAL_SERVICES.length,
   };
 }
+
+/**
+ * Versione per l'hot-path (render scheda): NON ri-semina a ogni caricamento.
+ * Fa un solo `count` economico e popola solo se il catalogo è incompleto/vuoto.
+ * Evita le ~34 scritture sequenziali che rallentavano ogni apertura di scheda.
+ */
+export async function ensureCommercialCatalogSeeded(): Promise<{ seeded: boolean }> {
+  const count = await prisma.commercialService.count();
+  if (count >= COMMERCIAL_SERVICES.length) return { seeded: false };
+  await seedCommercialCatalog();
+  return { seeded: true };
+}

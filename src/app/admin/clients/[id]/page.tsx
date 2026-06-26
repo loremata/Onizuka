@@ -20,7 +20,7 @@ import { scoreClientForAudit } from "@/lib/audit-client-score";
 import { computeClientHealthScore } from "@/lib/client-health-score";
 import { computeCustomerScore, CUSTOMER_BAND_LABEL } from "@/lib/client-customer-scoring";
 import { loadServiceGraphSuggestions } from "@/lib/service-graph-suggestions";
-import { seedCommercialCatalog } from "@/lib/commercial-catalog-seed";
+import { ensureCommercialCatalogSeeded } from "@/lib/commercial-catalog-seed";
 import { loadClientAssetCommercialSummary } from "@/lib/client-asset-commercial";
 import { loadClientServiceGaps } from "@/lib/client-commercial-gaps";
 import { ClientServicesForm } from "./commercial-services/client-services-form";
@@ -59,44 +59,49 @@ export default async function ClientOverviewPage({
   const { id } = await params;
   const sp = await searchParams;
   const gbpAssetId = typeof sp.gbpAsset === "string" ? sp.gbpAsset : undefined;
-  const assetCommercial = await loadClientAssetCommercialSummary(id, session.user.id);
-  await ensureDefaultOnboardingItems(id, session.user.id);
-  const clientOnboarding = await prisma.clientOnboardingItem.findMany({
-    where: { clientId: id },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    select: {
-      id: true,
-      label: true,
-      status: true,
-      dueDate: true,
-      completedAt: true,
-    },
-  });
-  const clientCommitments = await prisma.clientCommitment.findMany({
-    where: { clientId: id },
-    orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
-    select: {
-      id: true,
-      title: true,
-      ownerName: true,
-      note: true,
-      dueDate: true,
-      status: true,
-    },
-  });
-  const clientMilestones = await prisma.clientMilestone.findMany({
-    where: { clientId: id },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      targetDate: true,
-      completedAt: true,
-      visibleToClient: true,
-    },
-  });
-  const client = await prisma.client.findUnique({
+  // Query iniziali indipendenti: eseguite in parallelo (prima erano 6 await in cascata).
+  // L'onboarding va popolato (ensure) PRIMA della sua findMany → catena dedicata.
+  const onboardingPromise = ensureDefaultOnboardingItems(id, session.user.id).then(() =>
+    prisma.clientOnboardingItem.findMany({
+      where: { clientId: id },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: {
+        id: true,
+        label: true,
+        status: true,
+        dueDate: true,
+        completedAt: true,
+      },
+    }),
+  );
+  const [assetCommercial, clientOnboarding, clientCommitments, clientMilestones, client] = await Promise.all([
+    loadClientAssetCommercialSummary(id, session.user.id),
+    onboardingPromise,
+    prisma.clientCommitment.findMany({
+      where: { clientId: id },
+      orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
+      select: {
+        id: true,
+        title: true,
+        ownerName: true,
+        note: true,
+        dueDate: true,
+        status: true,
+      },
+    }),
+    prisma.clientMilestone.findMany({
+      where: { clientId: id },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        targetDate: true,
+        completedAt: true,
+        visibleToClient: true,
+      },
+    }),
+    prisma.client.findUnique({
     where: { id },
     include: {
       attributes: { select: { key: true, value: true }, orderBy: { key: "asc" } },
@@ -163,11 +168,13 @@ export default async function ClientOverviewPage({
         select: { id: true, captionText: true, status: true, updatedAt: true },
       },
     },
-  });
+    }),
+  ]);
 
   if (!client) notFound();
 
-  await seedCommercialCatalog();
+  // Catalogo: solo un count economico; semina solo se mancante (non più 34 scritture/load).
+  await ensureCommercialCatalogSeeded();
   const now = new Date();
   const [
     catalog,
@@ -184,6 +191,7 @@ export default async function ClientOverviewPage({
     recentTickets,
     client360Profile,
     auditCommercialSummary,
+    activeRetailCount,
   ] = await Promise.all([
       prisma.commercialService.findMany({
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -233,6 +241,7 @@ export default async function ClientOverviewPage({
       }),
       loadClient360Profile(id, session.user.id),
       loadAuditCommercialSummaryForClient(id, session.user.id),
+      prisma.clientRetailContract.count({ where: { clientId: id, status: "ACTIVE" } }),
     ]);
   const linkByServiceId = new Map(clientLinks.map((l) => [l.commercialServiceId, l]));
   const serviceRows = catalog.map((s) => {
@@ -268,9 +277,7 @@ export default async function ClientOverviewPage({
     healthScore.band === "healthy" ? "Solido" : healthScore.band === "watch" ? "Da monitorare" : "A rischio";
 
   // Customer scoring composito (6 dimensioni) — affianca health/audit score.
-  const activeRetailCount = await prisma.clientRetailContract.count({
-    where: { clientId: id, status: "ACTIVE" },
-  });
+  // activeRetailCount è caricato nel Promise.all sopra.
   const wonValueEur = oppForScore
     .filter((o) => o.status === "WON")
     .reduce((sum, o) => sum + (o.estimatedValue ? Number(o.estimatedValue.toString()) : 0), 0);
