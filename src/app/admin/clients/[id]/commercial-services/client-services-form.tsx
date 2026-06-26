@@ -4,6 +4,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { syncClientCommercialServices, type ClientServiceActionResult } from "./actions";
+import { COMMERCIAL_SERVICE_REASONS } from "@/lib/commercial-service-reasons";
 
 type ServiceRow = {
   slug: string;
@@ -12,6 +13,7 @@ type ServiceRow = {
   brandName: string | null;
   active: boolean;
   notes: string;
+  inactiveReason: string;
 };
 
 function SubmitButton() {
@@ -41,11 +43,22 @@ export function ClientServicesForm({ clientId, services }: { clientId: string; s
               {s.category}
               {s.brandName ? ` · ${s.brandName}` : ""}
             </span>
+            <select
+              name={`reason_${s.slug}`}
+              defaultValue={s.inactiveReason}
+              className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+              title="Se non attivo con noi: motivo (per targeting promo)"
+            >
+              <option value="">Motivo se non attivo…</option>
+              {COMMERCIAL_SERVICE_REASONS.map((r) => (
+                <option key={r.code} value={r.code}>{r.label}</option>
+              ))}
+            </select>
             <Input
               name={`notes_${s.slug}`}
               defaultValue={s.notes}
               placeholder="Note"
-              className="max-w-md text-xs"
+              className="max-w-xs text-xs"
             />
           </li>
         ))}

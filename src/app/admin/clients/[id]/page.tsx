@@ -241,6 +241,7 @@ export default async function ClientOverviewPage({
       brandName: s.ecosystemBrand?.name ?? null,
       active: link?.active ?? false,
       notes: link?.notes ?? "",
+      inactiveReason: link?.inactiveReason ?? "",
     };
   });
 

@@ -28,6 +28,8 @@ export async function syncClientCommercialServices(
   for (const svc of catalog) {
     const active = formData.get(`active_${svc.slug}`) === "on";
     const notes = (formData.get(`notes_${svc.slug}`) as string)?.trim() || null;
+    // Motivo "non attivo": valido solo se il servizio NON è attivo con noi.
+    const inactiveReason = active ? null : (formData.get(`reason_${svc.slug}`) as string)?.trim() || null;
 
     await prisma.clientCommercialService.upsert({
       where: {
@@ -36,12 +38,13 @@ export async function syncClientCommercialServices(
           commercialServiceId: svc.id,
         },
       },
-      update: { active, notes },
+      update: { active, notes, inactiveReason },
       create: {
         clientId,
         commercialServiceId: svc.id,
         active,
         notes,
+        inactiveReason,
         since: active ? new Date() : undefined,
       },
     });

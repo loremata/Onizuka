@@ -1440,6 +1440,8 @@ model ClientCommercialService {
   clientId            String
   commercialServiceId String
   active              Boolean  @default(false)
+  /// Se non attivo con noi: motivo (per targeting promo). Es. non_proposto, vincolo_operatore…
+  inactiveReason      String?
   notes               String?  @db.Text
   since               DateTime?
   createdAt           DateTime @default(now())
