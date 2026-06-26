@@ -6,7 +6,15 @@ import { requireAdminArea } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
 import { syncFinanceEntryForRetailContract } from "@/lib/retail-contract-finance-sync";
 
-const KINDS: RetailContractKind[] = ["MOBILE", "ENERGY", "SKY", "OTHER"];
+const KINDS: RetailContractKind[] = ["MOBILE", "FIBER", "ENERGY", "GAS", "SKY", "TELEPASS", "OTHER"];
+const SWITCH_OPTIONS = [6, 12, 24, 48];
+
+/** Aggiunge `months` mesi a una data (per la scadenza cambio compagnia). */
+function addMonths(date: Date, months: number): Date {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + months);
+  return d;
+}
 
 export async function createClientRetailContract(clientId: string, formData: FormData) {
   const session = await requireAdminArea();
@@ -18,6 +26,11 @@ export async function createClientRetailContract(clientId: string, formData: For
   const amountRaw = (formData.get("monthlyEur") as string)?.trim().replace(",", ".");
   const renewalRaw = (formData.get("renewalDate") as string)?.trim();
   const notes = (formData.get("notes") as string)?.trim() || null;
+  const operator = (formData.get("operator") as string)?.trim() || null;
+  const offerName = (formData.get("offerName") as string)?.trim() || null;
+  const paymentMethod = (formData.get("paymentMethod") as string)?.trim() || null;
+  const signedRaw = (formData.get("signedAt") as string)?.trim();
+  const switchRaw = (formData.get("switchAfterMonths") as string)?.trim();
 
   if (!label) return { error: "Etichetta obbligatoria." };
   if (!KINDS.includes(kindRaw as RetailContractKind)) return { error: "Tipo non valido." };
@@ -29,6 +42,12 @@ export async function createClientRetailContract(clientId: string, formData: For
     return { error: "Data rinnovo non valida." };
   }
 
+  // Data firma (default oggi) + reminder cambio compagnia.
+  const signedAt = signedRaw ? new Date(signedRaw) : new Date();
+  if (signedRaw && Number.isNaN(signedAt.getTime())) return { error: "Data firma non valida." };
+  const switchAfterMonths = switchRaw && SWITCH_OPTIONS.includes(Number(switchRaw)) ? Number(switchRaw) : null;
+  const switchReminderAt = switchAfterMonths ? addMonths(signedAt, switchAfterMonths) : null;
+
   const created = await prisma.clientRetailContract.create({
     data: {
       clientId,
@@ -38,6 +57,12 @@ export async function createClientRetailContract(clientId: string, formData: For
       monthlyEur: amount,
       renewalDate,
       notes,
+      operator,
+      offerName,
+      paymentMethod,
+      signedAt,
+      switchAfterMonths,
+      switchReminderAt,
       status: "ACTIVE",
     },
   });

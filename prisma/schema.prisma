@@ -557,8 +557,11 @@ model ClientAttribute {
 
 enum RetailContractKind {
   MOBILE
+  FIBER
   ENERGY
+  GAS
   SKY
+  TELEPASS
   OTHER
 }
 
@@ -578,6 +581,18 @@ model ClientRetailContract {
   monthlyEur     Decimal              @db.Decimal(12, 2)
   renewalDate    DateTime?
   status         RetailContractStatus @default(ACTIVE)
+  /// Brand/operatore del contratto (Fastweb, Enel, Sky, TIM…).
+  operator       String?
+  /// Nome offerta sottoscritta (es. "Fastweb Mobile Start").
+  offerName      String?
+  /// Modalità pagamento del cliente: IBAN, Carta, Bollettino, Bonifico.
+  paymentMethod  String?
+  /// Data attivazione/firma del contratto (base per il reminder cambio compagnia).
+  signedAt       DateTime?
+  /// Dopo quanti mesi proporre il cambio compagnia (6/12/24/48).
+  switchAfterMonths Int?
+  /// Quando proporre il cambio compagnia (= signedAt + switchAfterMonths).
+  switchReminderAt  DateTime?
   /// Voce Finance MRR collegata (sync automatico).
   financeEntryId String?
   notes          String?              @db.Text
@@ -590,6 +605,7 @@ model ClientRetailContract {
   @@index([clientId])
   @@index([ownerUserId])
   @@index([renewalDate])
+  @@index([switchReminderAt])
 }
 
 /// Registro tempo lavorato (MVP timesheet interno).
