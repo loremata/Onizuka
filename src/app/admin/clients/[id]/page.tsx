@@ -16,10 +16,8 @@ import { ClientRetailSnapshotCard } from "../client-retail-snapshot-card";
 import { opportunityStatusLabel } from "@/lib/crm-opportunity";
 import { platformLabel } from "@/lib/platform-label";
 import { buildClientTimeline, timelineKindLabel } from "@/lib/client-timeline";
-import { scoreClientForAudit } from "@/lib/audit-client-score";
 import { computeClientHealthScore } from "@/lib/client-health-score";
 import { computeCustomerScore, CUSTOMER_BAND_LABEL } from "@/lib/client-customer-scoring";
-import { loadServiceGraphSuggestions } from "@/lib/service-graph-suggestions";
 import { ensureCommercialCatalogSeeded } from "@/lib/commercial-catalog-seed";
 import { loadClientAssetCommercialSummary } from "@/lib/client-asset-commercial";
 import { loadClientServiceGaps } from "@/lib/client-commercial-gaps";
@@ -183,7 +181,6 @@ export default async function ClientOverviewPage({
     openTickets,
     overdueFinance,
     overdueFlowTasks,
-    serviceSuggestions,
     client360Nav,
     digitalAudits,
     outreachDrafts,
@@ -213,7 +210,6 @@ export default async function ClientOverviewPage({
           dueDate: { lt: now },
         },
       }),
-      loadServiceGraphSuggestions(id, 6),
       loadClient360Nav(id, session.user.id),
       prisma.digitalAudit.findMany({
         where: { clientId: id, ownerUserId: session.user.id },
@@ -261,10 +257,6 @@ export default async function ClientOverviewPage({
     status: o.status,
     estimatedValue: o.estimatedValue,
   }));
-  const auditScore = scoreClientForAudit({
-    ...client,
-    opportunities: oppForScore,
-  });
   const healthScore = computeClientHealthScore({
     ...client,
     opportunities: oppForScore,
@@ -382,98 +374,52 @@ export default async function ClientOverviewPage({
 
       <ClientRetailSnapshotCard clientId={client.id} />
 
+      {/* Punteggio cliente unificato: due assi indipendenti (prima 3 score separati e contraddittori). */}
       <Card>
         <CardHeader>
-          <CardTitle>Scoring commerciale</CardTitle>
-          <CardDescription>
-            Valore e priorità del cliente — 6 dimensioni (RFM + ricorrenti + ICP + relazione).
-          </CardDescription>
+          <CardTitle>Punteggio cliente</CardTitle>
+          <CardDescription>Due assi indipendenti: quanto vale e quanto sta bene la relazione.</CardDescription>
         </CardHeader>
         <CardContent className="text-sm">
-          <p className="text-3xl font-bold">
-            {customerScore.score}/100{" "}
-            <span className="text-base font-normal text-muted-foreground">({CUSTOMER_BAND_LABEL[customerScore.band]})</span>
-          </p>
-          <ul className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
-            {customerScore.factors.map((f) => (
-              <li key={f}>{f}</li>
-            ))}
-          </ul>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Valore commerciale</p>
+              <p className="text-3xl font-bold">
+                {customerScore.score}/100{" "}
+                <span className="text-base font-normal text-muted-foreground">({CUSTOMER_BAND_LABEL[customerScore.band]})</span>
+              </p>
+              <ul className="mt-2 grid gap-1 text-xs text-muted-foreground">
+                {customerScore.factors.map((f) => (
+                  <li key={f}>{f}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Salute relazione</p>
+              <p className="text-3xl font-bold">
+                {healthScore.score}/100{" "}
+                <span className="text-base font-normal text-muted-foreground">({healthBandLabel})</span>
+              </p>
+              {healthScore.nextAction ? (
+                <p className="mt-2 text-xs font-medium text-foreground">Prossima azione: {healthScore.nextAction}</p>
+              ) : null}
+              <ul className="mt-2 list-inside list-disc text-xs text-muted-foreground">
+                {healthScore.factors.slice(0, 4).map((f) => (
+                  <li key={f}>{f}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3 border-t pt-3">
+            <Button asChild variant="link" className="h-auto p-0 text-xs">
+              <Link href="/admin/audit/digital">Audit digitali</Link>
+            </Button>
+            <ClientDigitalAuditButton clientId={client.id} />
+          </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Health score</CardTitle>
-            <CardDescription>Ticket, finance, Flow e stato commerciale.</CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm">
-            <p className="text-2xl font-bold">
-              {healthScore.score}/100{" "}
-              <span className="text-base font-normal text-muted-foreground">({healthBandLabel})</span>
-            </p>
-            {healthScore.nextAction ? (
-              <p className="mt-2 text-xs font-medium text-foreground">Prossima azione: {healthScore.nextAction}</p>
-            ) : null}
-            <ul className="mt-2 list-inside list-disc text-xs text-muted-foreground">
-              {healthScore.factors.slice(0, 4).map((f) => (
-                <li key={f}>{f}</li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Score audit (MVP)</CardTitle>
-            <CardDescription>Euristica su CRM, asset, referenti e opportunità.</CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm">
-            <p className="text-2xl font-bold">
-              {auditScore.score}/100{" "}
-              <span className="text-base font-normal text-muted-foreground">({auditScore.band})</span>
-            </p>
-            <ul className="mt-2 list-inside list-disc text-xs text-muted-foreground">
-              {auditScore.factors.slice(0, 4).map((f) => (
-                <li key={f}>{f}</li>
-              ))}
-            </ul>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <Button asChild variant="link" className="h-auto p-0 text-xs">
-                <Link href="/admin/audit/digital">Audit digitali</Link>
-              </Button>
-              <ClientDigitalAuditButton clientId={client.id} />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       <ClientRetailContractsCard clientId={client.id} ownerUserId={session.user.id} />
-
-      {serviceSuggestions.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Service graph · cross-sell</CardTitle>
-            <CardDescription>Servizi del catalogo non ancora attivi su questo cliente.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-sm">
-              {serviceSuggestions.map((s) => (
-                <li
-                  key={s.serviceId}
-                  className="flex flex-wrap justify-between gap-2 border-b border-border/40 pb-2 last:border-0"
-                >
-                  <span>
-                    <strong>{s.serviceName}</strong>
-                    <span className="text-muted-foreground"> · {s.brandName}</span>
-                  </span>
-                  <span className="text-xs text-muted-foreground">{s.reason}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      ) : null}
 
       <GbpReviewsPanel
         ownerUserId={session.user.id}
