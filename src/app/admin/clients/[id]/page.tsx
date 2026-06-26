@@ -32,6 +32,7 @@ import { GbpReviewsPanel } from "./gbp-reviews-panel";
 import { ClientRetailContractsCard } from "../client-retail-contracts-card";
 import { loadClient360Nav } from "@/lib/client-360-nav";
 import { ClientHubNav } from "@/components/onizuka/client-hub-nav";
+import { ClientSchedaTabs, ClientSchedaPanel } from "@/components/onizuka/client-scheda-tabs";
 import { Client360CommercialPanels } from "@/components/onizuka/client-360-commercial";
 import { loadClient360Profile } from "@/lib/client-360-profile";
 import { loadAuditCommercialSummaryForClient } from "@/lib/load-audit-commercial-summary";
@@ -364,6 +365,15 @@ export default async function ClientOverviewPage({
         </div>
       </div>
 
+      <ClientSchedaTabs
+        tabs={[
+          { id: "panoramica", label: "Panoramica" },
+          { id: "commerciale", label: "Commerciale" },
+          { id: "attivita", label: "Attività" },
+          { id: "caring", label: "Caring & progetto" },
+        ]}
+      >
+        <ClientSchedaPanel id="panoramica">
       <ClientHubNav items={client360Nav} />
 
       {client360Profile ? (
@@ -419,6 +429,8 @@ export default async function ClientOverviewPage({
         </CardContent>
       </Card>
 
+        </ClientSchedaPanel>
+        <ClientSchedaPanel id="commerciale">
       <ClientRetailContractsCard clientId={client.id} ownerUserId={session.user.id} />
 
       <GbpReviewsPanel
@@ -506,6 +518,8 @@ export default async function ClientOverviewPage({
         </CardContent>
       </Card>
 
+        </ClientSchedaPanel>
+        <ClientSchedaPanel id="attivita">
       <Card>
         <CardHeader>
           <CardTitle>Timeline attività</CardTitle>
@@ -628,6 +642,8 @@ export default async function ClientOverviewPage({
         </Card>
       </div>
 
+        </ClientSchedaPanel>
+        <ClientSchedaPanel id="caring">
       <Card>
         <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
           <div>
@@ -836,6 +852,8 @@ export default async function ClientOverviewPage({
           )}
         </CardContent>
       </Card>
+        </ClientSchedaPanel>
+      </ClientSchedaTabs>
     </div>
   );
 }
