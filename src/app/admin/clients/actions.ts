@@ -17,6 +17,7 @@ import { staffCanPerformAction } from "@/lib/staff-action-permissions";
 import { logWorkspaceAudit } from "@/lib/workspace-audit";
 import { assertFiscalIdentityUnique } from "@/lib/client-fiscal-identity";
 import { formatFiscalUniqueViolation } from "@/lib/fiscal-unique-error";
+import { lifecycleForRelationshipState } from "@/lib/client-lifecycle";
 
 type ActionResult = { error: string } | null;
 
@@ -38,7 +39,14 @@ export async function setClientRelationshipState(clientId: string, formData: For
   const raw = formData.get("relationshipState");
   const state = raw === "LEAD" || raw === "CLIENTE" || raw === "EX_CLIENTE" ? raw : null;
   if (!state) return;
-  await prisma.client.update({ where: { id: clientId }, data: { relationshipState: state } });
+  // Single source of truth: aggiorno macro-stato E sotto-fase funnel insieme, sempre coerenti.
+  const current = await prisma.client.findUnique({ where: { id: clientId }, select: { status: true } });
+  if (!current) return;
+  const next = lifecycleForRelationshipState(state, current.status);
+  await prisma.client.update({
+    where: { id: clientId },
+    data: { relationshipState: next.relationshipState, status: next.status },
+  });
   revalidatePath(`/admin/clients/${clientId}`);
   revalidatePath("/admin/clients");
 }

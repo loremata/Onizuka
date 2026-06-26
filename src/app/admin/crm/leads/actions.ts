@@ -12,8 +12,12 @@ import { clientStatusOptions } from "@/lib/crm-client-status";
 import { logAuditEvent } from "@/lib/admin-audit-log";
 import { notifyAdminUsers } from "@/lib/user-notifications";
 import { slugify } from "@/lib/slug";
-import { assertFiscalIdentityUnique, assertLeadVatClientLink } from "@/lib/client-fiscal-identity";
+import {
+  assertLeadVatClientLink,
+  findClientByFiscalIdentity,
+} from "@/lib/client-fiscal-identity";
 import { formatFiscalUniqueViolation } from "@/lib/fiscal-unique-error";
+import { lifecycleForRelationshipState } from "@/lib/client-lifecycle";
 import { inferClientKind } from "@/lib/client-kind";
 import { normalizeFiscalCode, normalizeFiscalIdentity, normalizeVatNumber } from "@/lib/fiscal-normalize";
 import { runLeadCreatedAutomationRules } from "@/lib/automation-rules-run";
@@ -227,21 +231,20 @@ export async function convertLeadToClient(
   if (!companyName) return { error: "La ragione sociale è obbligatoria." };
   if (!contactEmail) return { error: "L'email di contatto è obbligatoria per creare il cliente." };
 
-  const fiscalConflict = await assertFiscalIdentityUnique({ vatNumber, fiscalCode });
-  if (fiscalConflict) {
-    return {
-      error: `${fiscalConflict.error} Scheda esistente: /admin/clients/${fiscalConflict.existingClientId}`,
-    };
-  }
+  // Se esiste già una scheda per questa identità fiscale (es. il Client-prospect creato
+  // dall'audit), la PROMUOVIAMO invece di duplicare. Conversione = promozione, non creazione.
+  const existingClient = await findClientByFiscalIdentity({ vatNumber, fiscalCode });
+  // Macro-stato CLIENTE con funnel coerente (single source of truth dello stato).
+  const lc = lifecycleForRelationshipState("CLIENTE", status);
 
   const slug = slugInput ? slugify(slugInput) : slugify(companyName);
   if (!slug) return { error: "Impossibile generare lo slug; usa lettere o numeri." };
 
   let finalSlug = slug;
   let attempt = 0;
-  while (true) {
-    const existing = await prisma.client.findUnique({ where: { slug: finalSlug } });
-    if (!existing) break;
+  while (!existingClient) {
+    const slugTaken = await prisma.client.findUnique({ where: { slug: finalSlug } });
+    if (!slugTaken) break;
     attempt++;
     finalSlug = `${slug}-${attempt}`;
   }
@@ -251,29 +254,51 @@ export async function convertLeadToClient(
 
   try {
     const newClient = await prisma.$transaction(async (tx) => {
-      const client = await tx.client.create({
-        data: {
-          companyName,
-          slug: finalSlug,
-          contactEmail,
-          status,
-          notes: mergedNotes || null,
-          vatNumber,
-          fiscalCode,
-          kind,
-          clientMacroCategory: lead.clientMacroCategory,
-          phone,
-          website,
-          address,
-          city,
-          country,
-        },
-      });
+      const client = existingClient
+        ? await tx.client.update({
+            where: { id: existingClient.id },
+            data: {
+              companyName,
+              contactEmail,
+              status: lc.status,
+              relationshipState: lc.relationshipState,
+              notes: mergedNotes || undefined,
+              vatNumber: vatNumber ?? undefined,
+              fiscalCode: fiscalCode ?? undefined,
+              kind,
+              clientMacroCategory: lead.clientMacroCategory ?? undefined,
+              phone: phone ?? undefined,
+              website: website ?? undefined,
+              address: address ?? undefined,
+              city: city ?? undefined,
+              country,
+            },
+          })
+        : await tx.client.create({
+            data: {
+              companyName,
+              slug: finalSlug,
+              contactEmail,
+              status: lc.status,
+              relationshipState: lc.relationshipState,
+              notes: mergedNotes || null,
+              vatNumber,
+              fiscalCode,
+              kind,
+              clientMacroCategory: lead.clientMacroCategory,
+              phone,
+              website,
+              address,
+              city,
+              country,
+            },
+          });
       await tx.lead.update({
         where: { id: leadId },
         data: {
           status: "CONVERTED",
           convertedClientId: client.id,
+          commercialProspectStage: "WON",
         },
       });
       await tx.opportunity.updateMany({
