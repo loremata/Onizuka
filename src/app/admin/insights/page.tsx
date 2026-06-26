@@ -2,9 +2,6 @@ import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
 import { AnalyticsHubTabs } from "@/components/onizuka/analytics-hub-tabs";
 import { loadInsightsStats } from "@/lib/insights-stats";
-import { buildInsightRecommendations } from "@/lib/insights-recommendations";
-import { loadFinanceReconciliation } from "@/lib/finance-reconciliation";
-import { buildFinanceReconciliationRecommendations } from "@/lib/finance-reconciliation-insights";
 import { loadOwnerPipelineForecast } from "@/lib/insights-pipeline-forecast";
 import { DbUnavailableBanner } from "@/components/onizuka/db-unavailable-banner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,9 +13,8 @@ import { loadTopClientsByServiceGaps } from "@/lib/insights-service-graph";
 export default async function AdminInsightsPage() {
   const session = await requireAdminArea();
 
-  const [result, financeRecon, pipeline, upsellClients] = await Promise.all([
+  const [result, pipeline, upsellClients] = await Promise.all([
     loadInsightsStats(session.user.id, session.user.timeZone),
-    loadFinanceReconciliation(session.user.id),
     loadOwnerPipelineForecast(session.user.id),
     loadTopClientsByServiceGaps(8),
   ]);
@@ -36,12 +32,6 @@ export default async function AdminInsightsPage() {
   }
 
   const s = result.stats;
-  const recommendations = [
-    ...buildInsightRecommendations(s),
-    ...(financeRecon.ok
-      ? buildFinanceReconciliationRecommendations(financeRecon.report)
-      : []),
-  ];
   const alerts: { label: string; href: string; severity: "warn" | "info" }[] = [];
 
   if (s.flowOverdue > 0) {
@@ -78,27 +68,6 @@ export default async function AdminInsightsPage() {
         </div>
         <InsightsOpsDigestToolbar smtpEnabled={digestEmailEnabled()} />
       </div>
-
-      {recommendations.length > 0 ? (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Raccomandazioni operative</CardTitle>
-            <CardDescription>Priorità suggerite (non LLM).</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-3 text-sm">
-              {recommendations.map((r) => (
-                <li key={r.id} className="rounded-md border border-border/60 p-3">
-                  <Link className="font-medium text-primary hover:underline" href={r.href}>
-                    {r.title}
-                  </Link>
-                  <p className="mt-1 text-xs text-muted-foreground">{r.detail}</p>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      ) : null}
 
       {alerts.length > 0 ? (
         <Card className="border-amber-500/30 bg-amber-500/5">

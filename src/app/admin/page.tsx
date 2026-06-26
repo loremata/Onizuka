@@ -8,7 +8,8 @@ import { authOptions } from "@/lib/auth";
 import { requireAdminArea } from "@/lib/admin-session";
 import { loadAdminDashboardStats } from "@/lib/admin-dashboard-stats";
 import { loadAdminKpiTrends } from "@/lib/admin-kpi-trends";
-import { loadCommandCenterPriorities } from "@/lib/command-center-priorities";
+import { loadActionInbox } from "@/lib/action-inbox";
+import { ActionInboxCard } from "@/components/onizuka/action-inbox-card";
 import { resolveRecapDayBounds } from "@/lib/day-bounds";
 import { askIntentLabel } from "@/lib/ask-onizuka";
 import { orchestrateAsk } from "@/lib/ask-orchestration";
@@ -41,10 +42,10 @@ export default async function AdminDashboardPage({ searchParams }: Props) {
     userTimeZone: session.user.timeZone,
   });
   const ownerId = session.user.id;
-  const [dashboard, trends, priorities, bottlenecks, dormant, approvalPending] = await Promise.all([
+  const [dashboard, trends, inbox, bottlenecks, dormant, approvalPending] = await Promise.all([
     loadAdminDashboardStats(ownerId, dayStart, dayEnd),
     loadAdminKpiTrends(ownerId),
-    loadCommandCenterPriorities(ownerId, session.user.timeZone),
+    loadActionInbox(ownerId, 100),
     getLeadPipelineBottlenecks(ownerId, 5),
     getDormantClients(ownerId, 5),
     countApprovalQueuePending(ownerId),
@@ -115,36 +116,10 @@ export default async function AdminDashboardPage({ searchParams }: Props) {
 
       <CommandCenterQuickLinks approvalPending={approvalPending} pendingPosts={pendingPosts} />
 
-      <CrmOpsPanel bottlenecks={bottlenecks} dormant={dormant} />
+      {/* Action Inbox unificata: l'unica lista "cosa fare oggi" (assorbe /admin/inbox). */}
+      <ActionInboxCard items={inbox} />
 
-      {priorities.length > 0 ? (
-        <Card className="border-primary/20">
-          <CardHeader>
-            <CardTitle>Priorità strategiche oggi</CardTitle>
-            <CardDescription>Top 3 azioni consigliate da Insights, Finance e upsell CRM.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ol className="space-y-3 text-sm">
-              {priorities.map((p, i) => (
-                <li key={p.id} className="flex gap-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
-                    {i + 1}
-                  </span>
-                  <div>
-                    <Link className="font-medium text-primary hover:underline" href={p.href}>
-                      {p.title}
-                    </Link>
-                    <p className="text-xs text-muted-foreground">{p.detail}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-            <Button asChild variant="link" className="mt-2 h-auto px-0 text-xs">
-              <Link href="/admin/insights">Tutti i suggerimenti</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
+      <CrmOpsPanel bottlenecks={bottlenecks} dormant={dormant} />
 
       {ask && askPlan && askIntent && (
         <Card className="border-primary/30 bg-primary/5">

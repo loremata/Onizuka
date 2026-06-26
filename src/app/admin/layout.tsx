@@ -42,7 +42,6 @@ export default async function AdminLayout({
   // (dropdown "Strumenti") — vedi ADMIN_TOOL_NAV_GROUPS. Riorganizzazione 27/06/2026.
   const navPrimary = filterAdminNav(role, [
     { href: "/admin", label: "Oggi" },
-    { href: "/admin/inbox", label: "Action Inbox" },
     { href: "/admin/approvals", label: "Approvazioni", badge: approvalPending },
     { href: "/admin/clients", label: "Clienti" },
   ], staffModules);
