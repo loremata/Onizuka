@@ -114,6 +114,22 @@ export default async function AdminClientsPage({ searchParams }: Props) {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
+            <div className="flex min-w-[150px] flex-col gap-1">
+              <label htmlFor="state" className="text-xs font-medium text-muted-foreground">
+                Stato
+              </label>
+              <select
+                id="state"
+                name="state"
+                defaultValue={filters.state}
+                className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="CLIENTE">Clienti</option>
+                <option value="LEAD">Prospect / Lead</option>
+                <option value="EX_CLIENTE">Ex clienti</option>
+                <option value="all">Tutti</option>
+              </select>
+            </div>
             <div className="flex min-w-[140px] flex-col gap-1">
               <label htmlFor="kind" className="text-xs font-medium text-muted-foreground">
                 Tipo

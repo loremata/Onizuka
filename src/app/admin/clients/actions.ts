@@ -32,6 +32,17 @@ function parseClientStatus(raw: string | null): ClientStatus | null {
   return clientStatusOptions.includes(raw as ClientStatus) ? (raw as ClientStatus) : null;
 }
 
+/** Cambia lo stato relazione (Lead / Cliente / Ex cliente) — toggle libero dalla scheda. */
+export async function setClientRelationshipState(clientId: string, formData: FormData) {
+  await requireAdminArea();
+  const raw = formData.get("relationshipState");
+  const state = raw === "LEAD" || raw === "CLIENTE" || raw === "EX_CLIENTE" ? raw : null;
+  if (!state) return;
+  await prisma.client.update({ where: { id: clientId }, data: { relationshipState: state } });
+  revalidatePath(`/admin/clients/${clientId}`);
+  revalidatePath("/admin/clients");
+}
+
 function optionalString(raw: unknown): string | null {
   const s = typeof raw === "string" ? raw.trim() : "";
   return s ? s : null;

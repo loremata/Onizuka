@@ -38,17 +38,13 @@ export default async function AdminLayout({
 
   const staffModules = session.user.staffAllowedModules ?? [];
 
+  // Barra principale = solo i driver quotidiani. Tutto il resto è nelle aree di lavoro
+  // (dropdown "Strumenti") — vedi ADMIN_TOOL_NAV_GROUPS. Riorganizzazione 27/06/2026.
   const navPrimary = filterAdminNav(role, [
-    { href: "/admin", label: "Command Center" },
+    { href: "/admin", label: "Oggi" },
     { href: "/admin/inbox", label: "Action Inbox" },
-    { href: "/admin/approvals", label: "Coda approvazioni", badge: approvalPending },
+    { href: "/admin/approvals", label: "Approvazioni", badge: approvalPending },
     { href: "/admin/clients", label: "Clienti" },
-    { href: "/admin/flow", label: "Flow" },
-    { href: "/admin/memory", label: "Memoria" },
-    { href: "/admin/posts", label: "Contenuti" },
-    { href: "/admin/social", label: "Social Pro" },
-    { href: "/admin/automations", label: "Automazioni" },
-    { href: "/admin/users", label: "Utenti" },
   ], staffModules);
 
   const toolGroups = ADMIN_TOOL_NAV_GROUPS.map((group) => ({

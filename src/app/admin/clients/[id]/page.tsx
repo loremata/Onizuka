@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { clientStatusLabel } from "@/lib/crm-client-status";
+import { setClientRelationshipState } from "../actions";
 import { opportunityStatusLabel } from "@/lib/crm-opportunity";
 import { platformLabel } from "@/lib/platform-label";
 import { buildClientTimeline, timelineKindLabel } from "@/lib/client-timeline";
@@ -340,6 +341,19 @@ export default async function ClientOverviewPage({
                 </>
               ) : null}
             </p>
+            <form action={setClientRelationshipState.bind(null, client.id)} className="mt-2 flex items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground">Relazione:</span>
+              <select
+                name="relationshipState"
+                defaultValue={client.relationshipState}
+                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+              >
+                <option value="CLIENTE">Cliente</option>
+                <option value="LEAD">Lead / Prospect</option>
+                <option value="EX_CLIENTE">Ex cliente</option>
+              </select>
+              <Button type="submit" size="sm" variant="outline">Aggiorna stato</Button>
+            </form>
           </div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">

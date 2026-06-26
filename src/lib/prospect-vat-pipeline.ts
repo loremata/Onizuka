@@ -61,6 +61,8 @@ export async function ensureBusinessClientByVat(params: {
       slug,
       contactEmail: `prospect+${vat}@onizuka.local`,
       status: "LEAD_QUALIFIED",
+      // Prospect da audit/sheet: stato LEAD → NON compare nella lista clienti veri.
+      relationshipState: "LEAD",
       vatNumber: vat,
       kind: "BUSINESS",
       clientMacroCategory: params.macroCategory ?? "DIGITAL_AI",

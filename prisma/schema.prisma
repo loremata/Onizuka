@@ -119,6 +119,14 @@ enum ClientKind {
   BUSINESS
 }
 
+/// Stato relazione semplice e cambiabile a mano in qualsiasi momento.
+/// LEAD = prospect (audit/sheet, NON in lista clienti) · CLIENTE = cliente vero · EX_CLIENTE = ex.
+enum ClientRelationshipState {
+  LEAD
+  CLIENTE
+  EX_CLIENTE
+}
+
 /// Macro-categoria commerciale cliente.
 enum ClientMacroCategory {
   RETAIL_STORE
@@ -481,6 +489,8 @@ model Client {
   slug         String       @unique
   contactEmail String
   status       ClientStatus @default(ACTIVE_CLIENT)
+  /// Stato relazione (Lead/Cliente/Ex cliente): decide se compare tra i clienti veri. Cambiabile a mano.
+  relationshipState ClientRelationshipState @default(CLIENTE)
   /// Privato vs azienda (inferito da CF/P.IVA se assente).
   kind               ClientKind?
   fiscalCode         String?
