@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildPostListWhere, parsePostListFilters } from "@/lib/post-list-filters";
 import { PostsTable } from "./posts-table";
+import { SocialHubTabs } from "@/components/onizuka/social-hub-tabs";
 import type { Platform, PostStatus } from "@prisma/client";
 
 type SearchParams = { clientId?: string; platform?: Platform; status?: PostStatus; q?: string };
@@ -49,6 +50,7 @@ export default async function AdminPostsPage({
 
   return (
     <div className="space-y-6">
+      <SocialHubTabs />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Post</h1>

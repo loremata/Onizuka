@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
+import { SocialHubTabs } from "@/components/onizuka/social-hub-tabs";
 import { loadSocialEngagementReport } from "@/lib/social-engagement-report";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,7 @@ export default async function SocialEngagementPage() {
 
   return (
     <div className="space-y-6">
+      <SocialHubTabs />
       <div>
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin/social">← Social Pro</Link>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
+import { CrmDirectoryTabs } from "@/components/onizuka/crm-directory-tabs";
 import { listUnifiedContacts } from "@/lib/unified-contacts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +15,7 @@ export default async function UnifiedContactsPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
+      <CrmDirectoryTabs />
       <div className="flex flex-wrap items-center gap-4">
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin/crm/leads">← CRM</Link>

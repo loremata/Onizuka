@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
+import { CrmDirectoryTabs } from "@/components/onizuka/crm-directory-tabs";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ export default async function ClientDatabasePage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
+      <CrmDirectoryTabs />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <Button asChild variant="ghost" size="sm">

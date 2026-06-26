@@ -1,6 +1,7 @@
 import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
+import { SocialHubTabs } from "@/components/onizuka/social-hub-tabs";
 import { prisma } from "@/lib/prisma";
 import { platformLabelIt } from "@/lib/post-ui-labels";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ export default async function SocialInboxPage() {
 
   return (
     <div className="space-y-6">
+      <SocialHubTabs />
       <div>
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin/social">← Social Pro</Link>

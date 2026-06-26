@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
+import { CrmDirectoryTabs } from "@/components/onizuka/crm-directory-tabs";
 import { listPeople } from "@/lib/person-crm";
 import { AdminPageHeader } from "@/components/onizuka/admin-page-header";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ export default async function CrmPeoplePage({ searchParams }: Props) {
 
   return (
     <div className="space-y-8">
+      <CrmDirectoryTabs />
       <AdminPageHeader
         title="Persone"
         lead="Entità persona fisica collegata a una o più aziende (ruoli su scheda cliente)."

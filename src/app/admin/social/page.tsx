@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
+import { SocialHubTabs } from "@/components/onizuka/social-hub-tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -8,6 +9,7 @@ export default async function SocialManagerPage() {
 
   return (
     <div className="space-y-6">
+      <SocialHubTabs />
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Social Manager Pro</h1>
         <p className="text-muted-foreground">

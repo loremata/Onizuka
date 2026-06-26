@@ -1,6 +1,7 @@
 import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
+import { SocialHubTabs } from "@/components/onizuka/social-hub-tabs";
 import { loadEditorialCalendar } from "@/lib/social-editorial-calendar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +30,7 @@ export default async function SocialCalendarPage() {
 
   return (
     <div className="space-y-6">
+      <SocialHubTabs />
       <div>
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin/social">← Social Pro</Link>

@@ -23,8 +23,8 @@ export const ADMIN_TOOL_NAV_GROUPS: AdminToolNavGroup[] = [
       { href: "/admin/clients", label: "Clienti" },
       { href: "/admin/crm/leads", label: "Prospect / Lead" },
       { href: "/admin/crm/pipeline", label: "Pipeline" },
-      { href: "/admin/crm/contacts", label: "Rubrica contatti" },
-      { href: "/admin/crm/database", label: "Segmenti & database" },
+      // Hub Rubrica: contatti apre le schede Contatti/Persone/Segmenti & database.
+      { href: "/admin/crm/contacts", label: "Rubrica (hub)" },
       { href: "/admin/crm/cross-sell", label: "Cross-sell" },
       { href: "/admin/crm/renewals", label: "Rinnovi retail" },
       { href: "/admin/crm/referrers", label: "Segnalatori" },
@@ -57,8 +57,8 @@ export const ADMIN_TOOL_NAV_GROUPS: AdminToolNavGroup[] = [
     items: [
       { href: "/admin/flow", label: "Flow / Task" },
       { href: "/admin/calendar", label: "Calendario" },
-      { href: "/admin/posts", label: "Contenuti" },
-      { href: "/admin/social", label: "Social Pro" },
+      // Hub Social: Contenuti apre le schede Contenuti/Calendario/Engagement/Inbox.
+      { href: "/admin/posts", label: "Social / Contenuti" },
       { href: "/admin/automation-rules", label: "Automazioni" },
       { href: "/admin/documents", label: "Documenti" },
     ],
