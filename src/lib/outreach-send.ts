@@ -29,6 +29,10 @@ export async function sendOutreachDraftNow(draftId: string): Promise<OutreachSen
     },
   });
   if (!draft) return { sent: false, note: "Bozza non trovata." };
+  // Difesa anti doppio-invio: una bozza già inviata/annullata non si rispedisce.
+  if (draft.status === "SENT" || draft.status === "CANCELLED") {
+    return { sent: false, note: `Bozza già processata (${draft.status}).` };
+  }
 
   const to = (draft.client?.contactEmail ?? draft.lead?.email ?? "").trim();
   if (!to) return { sent: false, note: "Nessuna email destinatario." };

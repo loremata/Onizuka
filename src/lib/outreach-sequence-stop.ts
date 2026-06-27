@@ -60,17 +60,25 @@ export async function stopActiveOutreachSequences(params: {
 export async function captureHotReply(params: {
   ownerUserId: string;
   clientId?: string | null;
+  leadId?: string | null;
   company: string;
   channel: string;
 }): Promise<void> {
-  const { ownerUserId, clientId, company, channel } = params;
+  const { ownerUserId, clientId, leadId, company, channel } = params;
+  const href = clientId
+    ? `/admin/clients/${clientId}`
+    : leadId
+      ? `/admin/crm/leads/${leadId}/edit`
+      : "/admin/crm/leads";
 
+  // Dedup: per cliente sul relatedClientId; per lead-only sul titolo (FlowTask non
+  // ha un campo leadId, e relatedClientId=null collasserebbe tutti i lead in un task).
   const existing = await prisma.flowTask.findFirst({
     where: {
       ownerUserId,
       source: "hot_reply",
       status: { in: ["TODO", "IN_PROGRESS"] },
-      ...(clientId ? { relatedClientId: clientId } : { relatedClientId: null }),
+      ...(clientId ? { relatedClientId: clientId } : { relatedClientId: null, title: `Rispondi a ${company}` }),
     },
     select: { id: true },
   });
@@ -80,7 +88,7 @@ export async function captureHotReply(params: {
         ownerUserId,
         relatedClientId: clientId ?? null,
         title: `Rispondi a ${company}`,
-        description: `Ha risposto su ${channel}: lead caldo, ricontatta subito.${clientId ? `\n/admin/clients/${clientId}` : ""}`,
+        description: `Ha risposto su ${channel}: lead caldo, ricontatta subito.\n${href}`,
         status: "TODO",
         priority: "URGENT",
         dueDate: new Date(),
@@ -96,7 +104,7 @@ export async function captureHotReply(params: {
         kind: "hot_reply",
         title: `🔥 ${company} ha risposto (${channel})`,
         body: `Lead caldo: follow-up in pausa, ricontatta a mano.`,
-        href: clientId ? `/admin/clients/${clientId}` : "/admin/crm/leads",
+        href,
       },
     })
     .catch(() => undefined);
@@ -124,14 +132,22 @@ export async function stopSequencesByInboundPhone(
       id: true,
       ownerUserId: true,
       clientId: true,
-      client: { select: { phone: true, companyName: true } },
+      leadId: true,
+      // leadDossier = lead satellite del cliente: spesso il telefono del prospect sta
+      // lì e non sul Client, quindi va incluso nel match (sequenze audit→clientId).
+      client: { select: { phone: true, companyName: true, leadDossier: { select: { phone: true } } } },
       lead: { select: { phone: true, businessName: true, title: true } },
     },
   });
 
-  const matched = active.filter(
-    (s) => phoneTail(s.client?.phone) === target || phoneTail(s.lead?.phone) === target
-  );
+  const matched = active.filter((s) => {
+    const phones = [
+      s.client?.phone,
+      s.lead?.phone,
+      ...(s.client?.leadDossier?.map((l) => l.phone) ?? []),
+    ];
+    return phones.some((p) => phoneTail(p) === target);
+  });
   if (!matched.length) return { stopped: 0 };
 
   const ids = matched.map((s) => s.id);
@@ -146,6 +162,7 @@ export async function stopSequencesByInboundPhone(
     await captureHotReply({
       ownerUserId: s.ownerUserId,
       clientId: s.clientId,
+      leadId: s.leadId,
       company,
       channel: "WhatsApp",
     }).catch(() => undefined);

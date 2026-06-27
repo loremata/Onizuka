@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { jsonApiError } from "@/lib/api-json-errors";
 import { runWebhookDeliveryRetries } from "@/lib/webhook-retry-cron";
 
+export const maxDuration = 120;
+export const dynamic = "force-dynamic";
+
 function authorizeCron(request: NextRequest): boolean {
   const secret = process.env.CRON_SECRET?.trim();
   if (!secret) return false;

@@ -18,20 +18,20 @@ export async function approveOutreachFromTelegram(
     return { ok: false, message: "Chat non autorizzata." };
   }
 
-  const draft = await prisma.outreachDraft.findUnique({
-    where: { id: draftId },
-    select: { status: true },
-  });
-
-  if (!draft) return { ok: false, message: "Bozza non trovata." };
-  if (draft.status !== "PENDING_APPROVAL") {
-    return { ok: false, message: `Stato attuale: ${draft.status}` };
-  }
-
-  await prisma.outreachDraft.update({
-    where: { id: draftId },
+  // Claim atomico: una sola callback "vince" il passaggio PENDING_APPROVAL→APPROVED.
+  // Telegram può ritrasmettere la stessa callback → senza questo si inviava 2 volte.
+  const claimed = await prisma.outreachDraft.updateMany({
+    where: { id: draftId, status: "PENDING_APPROVAL" },
     data: { status: "APPROVED" },
   });
+  if (claimed.count === 0) {
+    const existing = await prisma.outreachDraft.findUnique({
+      where: { id: draftId },
+      select: { status: true },
+    });
+    if (!existing) return { ok: false, message: "Bozza non trovata." };
+    return { ok: false, message: `Già processata (stato: ${existing.status}).` };
+  }
 
   const result = await sendOutreachDraftNow(draftId);
   return { ok: true, message: result.sent ? `Approvata e ${result.note}` : `Approvata. ${result.note}` };

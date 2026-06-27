@@ -17,7 +17,7 @@ import { staffCanPerformAction } from "@/lib/staff-action-permissions";
 import { logWorkspaceAudit } from "@/lib/workspace-audit";
 import { assertFiscalIdentityUnique } from "@/lib/client-fiscal-identity";
 import { formatFiscalUniqueViolation } from "@/lib/fiscal-unique-error";
-import { lifecycleForRelationshipState } from "@/lib/client-lifecycle";
+import { lifecycleForRelationshipState, relationshipStateForStatus } from "@/lib/client-lifecycle";
 
 type ActionResult = { error: string } | null;
 
@@ -137,6 +137,8 @@ export async function createClient(
         slug: finalSlug,
         contactEmail: contactEmail,
         status,
+        // Tieni coerente il macro-stato con lo status (evita lead che appaiono tra i clienti).
+        relationshipState: relationshipStateForStatus(status),
         kind,
         fiscalCode,
         clientMacroCategory,
@@ -227,6 +229,7 @@ export async function updateClient(
         slug,
         contactEmail,
         status,
+        relationshipState: relationshipStateForStatus(status),
         kind,
         fiscalCode,
         clientMacroCategory,

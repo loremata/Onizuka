@@ -60,6 +60,33 @@ export async function mergeClients(
       await tx.digitalAudit.updateMany({ where: { clientId: sourceId }, data: move });
       await tx.financeEntry.updateMany({ where: { clientId: sourceId }, data: move });
       await tx.clientMilestone.updateMany({ where: { clientId: sourceId }, data: move });
+      // Relazioni vitali prima mancanti: senza questo spostamento venivano CANCELLATE
+      // alla delete del source (onDelete Cascade) → perdita dei contratti ricorrenti.
+      await tx.clientRetailContract.updateMany({ where: { clientId: sourceId }, data: move });
+      await tx.clientCommitment.updateMany({ where: { clientId: sourceId }, data: move });
+      await tx.clientOnboardingItem.updateMany({ where: { clientId: sourceId }, data: move });
+      await tx.socialInboxComment.updateMany({ where: { clientId: sourceId }, data: move });
+
+      // Attributi: dedup su @@unique([clientId, key]) — tieni quelli del target.
+      const targetAttrKeys = (
+        await tx.clientAttribute.findMany({ where: { clientId: targetId }, select: { key: true } })
+      ).map((a) => a.key);
+      if (targetAttrKeys.length) {
+        await tx.clientAttribute.deleteMany({ where: { clientId: sourceId, key: { in: targetAttrKeys } } });
+      }
+      await tx.clientAttribute.updateMany({ where: { clientId: sourceId }, data: move });
+
+      // Ruoli persona: dedup su @@unique([personId, clientId]).
+      const targetPersonIds = (
+        await tx.personClientRole.findMany({ where: { clientId: targetId }, select: { personId: true } })
+      ).map((r) => r.personId);
+      if (targetPersonIds.length) {
+        await tx.personClientRole.deleteMany({ where: { clientId: sourceId, personId: { in: targetPersonIds } } });
+      }
+      await tx.personClientRole.updateMany({ where: { clientId: sourceId }, data: move });
+
+      // Lead-dossier satellite (Lead.clientId, distinto da convertedClientId gestito sotto).
+      await tx.lead.updateMany({ where: { clientId: sourceId }, data: { clientId: targetId } });
 
       const sourceLead = await tx.lead.findFirst({ where: { convertedClientId: sourceId } });
       if (sourceLead) {

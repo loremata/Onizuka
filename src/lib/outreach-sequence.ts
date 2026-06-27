@@ -291,6 +291,14 @@ export async function activateSequenceStep(stepId: string): Promise<{ draftId: s
   if (!step || step.status !== "SCHEDULED") return null;
   if (step.sequence.status !== "ACTIVE") return null;
 
+  // Claim atomico: solo un run "vince" SCHEDULED→ACTIVATED. Senza, due esecuzioni
+  // sovrapposte del cron creerebbero due bozze (e due invii) per lo stesso step.
+  const claimed = await prisma.outreachSequenceStep.updateMany({
+    where: { id: stepId, status: "SCHEDULED" },
+    data: { status: "ACTIVATED", activatedAt: new Date() },
+  });
+  if (claimed.count === 0) return null;
+
   const built = await buildOutreachDraftFromSequenceStep(step.sequence.ownerUserId, {
     subject: step.subject,
     subjectAlt: step.subjectAlt,
@@ -311,11 +319,6 @@ export async function activateSequenceStep(stepId: string): Promise<{ draftId: s
       bodyAlt: built.draftFields.bodyAlt,
       status: "PENDING_APPROVAL",
     },
-  });
-
-  await prisma.outreachSequenceStep.update({
-    where: { id: stepId },
-    data: { status: "ACTIVATED", activatedAt: new Date() },
   });
 
   const company =
@@ -394,6 +397,15 @@ export async function processDueOutreachSequenceSteps(): Promise<{
   if (weekday === "Sat" || weekday === "Sun") {
     return { activated: 0, completedSequences: 0, skippedWeekend: true };
   }
+
+  // Scadenza degli step "ACTIVATED" mai inviati (bozza manuale mai approvata):
+  // oltre la soglia diventano SKIPPED, altrimenti la sequenza non si chiude mai
+  // e il lead non passa mai a freddo.
+  const STALE_ACTIVATED_MS = 10 * 86_400_000;
+  await prisma.outreachSequenceStep.updateMany({
+    where: { status: "ACTIVATED", activatedAt: { lt: new Date(now.getTime() - STALE_ACTIVATED_MS) } },
+    data: { status: "SKIPPED" },
+  });
 
   const due = await prisma.outreachSequenceStep.findMany({
     where: {

@@ -298,6 +298,15 @@ export async function runDigitalAuditForClient(params: {
 
   let outreachDraftId: string | undefined;
   if (params.createOutreachDraft && !skipOutreachExistingClient) {
+    // Re-audit: chiudi le sequenze ancora attive/in pausa dello stesso cliente,
+    // così non restano due sequenze parallele a mandare doppi follow-up.
+    await prisma.outreachSequence
+      .updateMany({
+        where: { clientId: client.id, status: { in: ["ACTIVE", "PAUSED"] } },
+        data: { status: "CANCELLED" },
+      })
+      .catch(() => undefined);
+
     const emailDraft = buildFirstAuditOutreachEmail({
       companyName: client.companyName,
       priorityProblem: rec.priorityProblem,
