@@ -14,6 +14,7 @@ type Props = {
   linkedInBody: string | null;
   callScript: string | null;
   whatsAppBody: string | null;
+  whatsAppHref: string | null;
   publicReportUrl: string | null;
   publicExpiresAt: Date | null;
   drafts: Draft[];
@@ -51,6 +52,7 @@ export function AuditOutreachKitPanel({
   linkedInBody,
   callScript,
   whatsAppBody,
+  whatsAppHref,
   publicReportUrl,
   publicExpiresAt,
   drafts,
@@ -81,7 +83,22 @@ export function AuditOutreachKitPanel({
           <p className="text-sm text-muted-foreground">Nessuna bozza email. Riesegui audit con outreach attivo.</p>
         )}
 
-        {whatsAppBody ? <CopyBlock label="WhatsApp" text={whatsAppBody} /> : null}
+        {whatsAppBody ? (
+          <div className="space-y-2">
+            <CopyBlock label="WhatsApp" text={whatsAppBody} />
+            {whatsAppHref ? (
+              <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+                <a href={whatsAppHref} target="_blank" rel="noreferrer">
+                  Apri WhatsApp col messaggio
+                </a>
+              </Button>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Aggiungi il numero del titolare alla scheda per abilitare l&apos;invio WhatsApp.
+              </p>
+            )}
+          </div>
+        ) : null}
         {linkedInBody ? <CopyBlock label="LinkedIn" text={linkedInBody} /> : null}
         {callScript ? <CopyBlock label="Script call" text={callScript} /> : null}
 

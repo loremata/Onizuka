@@ -14,6 +14,16 @@ import { Button } from "@/components/ui/button";
 import { AuditOutreachKitPanel } from "@/components/onizuka/audit-outreach-kit-panel";
 import { publicReportPath } from "@/lib/public-report-token";
 
+/** Normalizza un telefono a internazionale (best-effort, default Italia) e crea il link wa.me. */
+function buildWaMeLink(phoneRaw: string | null, text: string | null): string | null {
+  if (!phoneRaw) return null;
+  let d = phoneRaw.replace(/\D/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  if (!d.startsWith("39") && d.startsWith("3") && (d.length === 9 || d.length === 10)) d = `39${d}`;
+  if (d.length < 10) return null;
+  return `https://wa.me/${d}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+}
+
 export default async function DigitalAuditDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAdminArea();
 
@@ -21,8 +31,8 @@ export default async function DigitalAuditDetailPage({ params }: { params: Promi
   const audit = await prisma.digitalAudit.findFirst({
     where: { id, ownerUserId: session.user.id },
     include: {
-      client: { select: { id: true, companyName: true } },
-      lead: { select: { id: true, title: true, businessName: true } },
+      client: { select: { id: true, companyName: true, phone: true } },
+      lead: { select: { id: true, title: true, businessName: true, phone: true } },
       recommendedBrand: true,
       recommendedService: true,
       sections: { orderBy: { sectionKey: "asc" } },
@@ -36,6 +46,11 @@ export default async function DigitalAuditDetailPage({ params }: { params: Promi
   const publicReportUrl = audit.publicReportToken
     ? `${baseUrl}${publicReportPath(audit.publicReportToken)}`
     : null;
+
+  // Deep link wa.me col messaggio già precompilato: lo invii dal tuo WhatsApp
+  // (nessun template/finestra 24h richiesti, a differenza dell'invio via API).
+  const waPhone = audit.client?.phone ?? audit.lead?.phone ?? null;
+  const whatsAppHref = buildWaMeLink(waPhone, audit.outreachWhatsAppBody);
 
   const dateFmt = dateTimeFormatIt({ dateStyle: "long", timeStyle: "short" });
   const gbpSummary = formatGbpAuditSummary(audit);
@@ -119,6 +134,7 @@ export default async function DigitalAuditDetailPage({ params }: { params: Promi
           linkedInBody={audit.outreachLinkedInBody}
           callScript={audit.outreachCallScript}
           whatsAppBody={audit.outreachWhatsAppBody}
+          whatsAppHref={whatsAppHref}
           publicReportUrl={publicReportUrl}
           publicExpiresAt={audit.publicReportExpiresAt}
           drafts={audit.outreachDrafts}

@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { notifyAdminsViaTelegram } from "@/lib/telegram-bot";
+import { bumpNotificationRev } from "@/lib/notification-rev";
 
 const PIXEL_GIF = Buffer.from(
   "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
@@ -55,6 +57,37 @@ export function wrapOutreachHtmlBody(textBody: string, draftId: string): string 
   return `<div style="font-family:sans-serif;font-size:14px;line-height:1.5">${bodyHtml}<img src="${pixel}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0" /></div>`;
 }
 
+/** Notifica "segnale di intento" (apertura/click), una sola volta per bozza. */
+async function notifyOutreachIntent(draftId: string, signal: string): Promise<void> {
+  const draft = await prisma.outreachDraft.findUnique({
+    where: { id: draftId },
+    select: {
+      ownerUserId: true,
+      clientId: true,
+      subject: true,
+      client: { select: { companyName: true } },
+      lead: { select: { businessName: true, title: true } },
+    },
+  });
+  if (!draft) return;
+
+  const company =
+    draft.client?.companyName ?? draft.lead?.businessName ?? draft.lead?.title ?? "Lead";
+  await prisma.userNotification
+    .create({
+      data: {
+        userId: draft.ownerUserId,
+        kind: "outreach_intent",
+        title: `${signal} · ${company}`,
+        body: draft.subject,
+        href: draft.clientId ? `/admin/clients/${draft.clientId}` : "/admin/reach",
+      },
+    })
+    .catch(() => undefined);
+  await bumpNotificationRev([draft.ownerUserId]).catch(() => undefined);
+  await notifyAdminsViaTelegram(`${signal}: ${company} — "${draft.subject}".`).catch(() => undefined);
+}
+
 export async function recordOutreachClick(draftId: string): Promise<void> {
   const draft = await prisma.outreachDraft.findUnique({
     where: { id: draftId },
@@ -62,6 +95,7 @@ export async function recordOutreachClick(draftId: string): Promise<void> {
   });
   if (!draft) return;
 
+  const firstClick = !draft.clickedAt;
   await prisma.outreachDraft.update({
     where: { id: draftId },
     data: {
@@ -69,6 +103,8 @@ export async function recordOutreachClick(draftId: string): Promise<void> {
       clickedAt: draft.clickedAt ?? new Date(),
     },
   });
+  // Click = intento forte (ha aperto un link, es. il report): notifica una volta.
+  if (firstClick) await notifyOutreachIntent(draftId, "🖱️ Ha cliccato un link");
 }
 
 export async function recordOutreachOpen(draftId: string): Promise<void> {
@@ -78,6 +114,7 @@ export async function recordOutreachOpen(draftId: string): Promise<void> {
   });
   if (!draft) return;
 
+  const firstOpen = !draft.openedAt;
   await prisma.outreachDraft.update({
     where: { id: draftId },
     data: {
@@ -85,6 +122,9 @@ export async function recordOutreachOpen(draftId: string): Promise<void> {
       openedAt: draft.openedAt ?? new Date(),
     },
   });
+  // Prima apertura: notifica. NB: i proxy immagini (Gmail) possono pre-caricare il
+  // pixel → qualche apertura "anticipata"; per questo notifichiamo solo la 1ª volta.
+  if (firstOpen) await notifyOutreachIntent(draftId, "👀 Ha aperto la mail");
 }
 
 export function outreachTrackingPixelBuffer(): Buffer {
