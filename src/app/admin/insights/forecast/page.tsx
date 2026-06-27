@@ -2,6 +2,8 @@ import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
 import { requireAdminArea } from "@/lib/admin-session";
 import { AnalyticsHubTabs } from "@/components/onizuka/analytics-hub-tabs";
+import { KpiBox } from "@/components/onizuka/kpi-box";
+import { EmptyState } from "@/components/onizuka/empty-state";
 import { loadOwnerRecurringMrrEur } from "@/lib/finance-mrr";
 import { loadUpcomingFinanceRenewals } from "@/lib/finance-renewals";
 import { syncFinanceOverdueStatuses } from "@/lib/finance-overdue";
@@ -76,57 +78,20 @@ export default async function AdminInsightsForecastPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Opportunità aperte</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{pipeline.openCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Somma stimata (EUR)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              {pipeline.sumEstimatedEur.toLocaleString("it-IT", { maximumFractionDigits: 0 })}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Pipeline pesata</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{pipeline.weightedPipelineLabel}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">MRR finance (ricorrenti)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              {mrr.sumEur.toLocaleString("it-IT", { maximumFractionDigits: 0 })} €
-            </p>
-            <p className="text-xs text-muted-foreground">{mrr.count} voci entrate flaggate</p>
-            <Button asChild variant="link" className="mt-1 h-auto p-0 text-xs">
-              <Link href="/admin/finance">Gestisci in Finance</Link>
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Finance OVERDUE</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{overdueFinance}</p>
-            <Button asChild variant="link" className="mt-1 h-auto p-0 text-xs">
-              <Link href="/admin/finance">Apri finance</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <KpiBox label="Opportunità aperte" value={pipeline.openCount} />
+        <KpiBox
+          label="Somma stimata (EUR)"
+          value={pipeline.sumEstimatedEur.toLocaleString("it-IT", { maximumFractionDigits: 0 })}
+        />
+        <KpiBox label="Pipeline pesata" value={pipeline.weightedPipelineLabel} />
+        <KpiBox
+          label="MRR finance (ricorrenti)"
+          value={`${mrr.sumEur.toLocaleString("it-IT", { maximumFractionDigits: 0 })} €`}
+          hint={`${mrr.count} voci entrate flaggate`}
+          href="/admin/finance"
+          hrefLabel="Gestisci in Finance"
+        />
+        <KpiBox label="Finance OVERDUE" value={overdueFinance} href="/admin/finance" hrefLabel="Apri finance" />
       </div>
 
       <Card>
@@ -136,7 +101,7 @@ export default async function AdminInsightsForecastPage() {
         </CardHeader>
         <CardContent>
           {topOpportunities.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nessuna opportunità OPEN.</p>
+            <EmptyState>Nessuna opportunità OPEN.</EmptyState>
           ) : (
             <ul className="divide-y text-sm">
               {topOpportunities.map((o) => (
@@ -174,7 +139,7 @@ export default async function AdminInsightsForecastPage() {
         </CardHeader>
         <CardContent>
           {dueSoon.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nessuna scadenza nel periodo.</p>
+            <EmptyState>Nessuna scadenza nel periodo.</EmptyState>
           ) : (
             <ul className="divide-y text-sm">
               {dueSoon.map((o) => (
@@ -210,7 +175,7 @@ export default async function AdminInsightsForecastPage() {
         </CardHeader>
         <CardContent>
           {renewals.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nessun rinnovo in scadenza nel periodo.</p>
+            <EmptyState>Nessun rinnovo in scadenza nel periodo.</EmptyState>
           ) : (
             <ul className="divide-y text-sm">
               {renewals.map((r) => (
