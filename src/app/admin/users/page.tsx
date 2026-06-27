@@ -1,9 +1,13 @@
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildUserSearchWhere, parseUserListFilters } from "@/lib/user-list-filters";
 import { StaffPermissionsInline } from "./staff-permissions-inline";
+import { ConfirmSubmitButton } from "@/components/onizuka/confirm-submit-button";
+import { deleteUser } from "./actions";
 import { Select } from "@/components/ui/select";
 
 const roleLabel: Record<string, string> = {
@@ -17,6 +21,8 @@ type Props = {
 };
 
 export default async function AdminUsersPage({ searchParams }: Props) {
+  const session = await getServerSession(authOptions);
+  const currentUserId = session?.user?.id;
   const filters = parseUserListFilters(searchParams);
 
   const users = await prisma.user.findMany({
@@ -142,6 +148,14 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                           <Button asChild variant="outline" size="sm">
                             <Link href={`/admin/users/${u.id}/reset-password`}>Password</Link>
                           </Button>
+                          {u.id !== currentUserId ? (
+                            <form action={deleteUser.bind(null, u.id)}>
+                              <ConfirmSubmitButton
+                                label="Elimina"
+                                question={`Eliminare ${u.email}?`}
+                              />
+                            </form>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

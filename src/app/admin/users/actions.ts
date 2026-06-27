@@ -72,6 +72,34 @@ export async function createUser(
   redirect("/admin/users");
 }
 
+export async function deleteUser(userId: string): Promise<void> {
+  const session = await ensureAdmin();
+  if (userId === session.user.id) return; // mai eliminare sé stessi
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, role: true },
+  });
+  if (!target) return;
+  if (target.role === "ADMIN") {
+    const admins = await prisma.user.count({ where: { role: "ADMIN" } });
+    if (admins <= 1) return; // mantieni almeno un admin
+  }
+  try {
+    await prisma.user.delete({ where: { id: userId } });
+    void logAuditEvent({
+      actorUserId: session.user.id,
+      action: "user.delete",
+      entityType: "user",
+      entityId: userId,
+      summary: `Eliminato utente ${target.email}`,
+    });
+  } catch (e) {
+    console.error(e);
+  }
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/audit");
+}
+
 export async function resetPassword(
   userId: string,
   _prev: unknown,
