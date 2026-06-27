@@ -4,6 +4,12 @@ import { processAuditSheetQueueBatch } from "@/lib/audit-sheet-queue-processor";
 import { prisma } from "@/lib/prisma";
 import { syncAuditSheetQueue } from "@/lib/audit-sheet-ingest";
 
+// Il batch esegue fino a 10 audit sequenziali (probe sito + Google Places): può
+// durare diversi minuti. Alziamo il limite di esecuzione per evitare timeout a
+// metà batch (con il recupero orfani le righe interrotte vengono comunque riprese).
+export const maxDuration = 300;
+export const dynamic = "force-dynamic";
+
 function authorizeCron(request: NextRequest): boolean {
   const secret = process.env.CRON_SECRET?.trim();
   if (!secret) return false;
