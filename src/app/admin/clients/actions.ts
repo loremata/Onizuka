@@ -47,6 +47,11 @@ export async function setClientRelationshipState(clientId: string, formData: For
     where: { id: clientId },
     data: { relationshipState: next.relationshipState, status: next.status },
   });
+  // Non è più un prospect freddo (convertito o ex): ferma i follow-up automatici.
+  if (next.relationshipState !== "LEAD") {
+    const { stopActiveOutreachSequences } = await import("@/lib/outreach-sequence-stop");
+    await stopActiveOutreachSequences({ clientId, reason: "lead_status" }).catch(() => undefined);
+  }
   revalidatePath(`/admin/clients/${clientId}`);
   revalidatePath("/admin/clients");
 }

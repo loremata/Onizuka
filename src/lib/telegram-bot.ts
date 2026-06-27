@@ -110,6 +110,19 @@ async function handleTelegramCallback(callback: NonNullable<TelegramUpdate["call
     return;
   }
 
+  if (data.startsWith("os:")) {
+    const draftId = data.slice(3);
+    const { stopOutreachSequenceByDraftId } = await import("@/lib/outreach-sequence-stop");
+    const result = await stopOutreachSequenceByDraftId(draftId, "telegram_manual");
+    const msg =
+      result.stopped > 0
+        ? `Follow-up fermati per ${result.companyName ?? "il lead"}.`
+        : "Nessuna sequenza attiva da fermare.";
+    await answerCallbackQuery(callback.id, msg);
+    if (result.stopped > 0) await sendTelegramMessage(chatId, `Reach · ${msg}`);
+    return;
+  }
+
   if (data.startsWith("av:")) {
     const auditId = data.slice(3);
     await answerCallbackQuery(callback.id, "Audit");

@@ -324,6 +324,7 @@ export async function activateSequenceStep(stepId: string): Promise<{ draftId: s
         { text: "Modifica", callback_data: `oe:${draft.id}` },
         { text: "Rimanda", callback_data: `op:${draft.id}` },
       ],
+      [{ text: "🛑 Stop follow-up", callback_data: `os:${draft.id}` }],
     ],
   };
 

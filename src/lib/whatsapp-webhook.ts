@@ -57,6 +57,10 @@ export async function ingestWhatsAppWebhookPayload(body: unknown): Promise<numbe
           phoneFrom,
           body: bodyText,
         }).catch(() => {});
+        // Il lead ha risposto via WhatsApp → ferma le sue sequenze di follow-up.
+        void import("@/lib/outreach-sequence-stop")
+          .then((m) => m.stopSequencesByInboundPhone(phoneFrom))
+          .catch(() => {});
       }
     }
   }

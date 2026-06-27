@@ -40,7 +40,10 @@ export async function notifyDigitalAuditCompleted(params: {
           { text: "Modifica", callback_data: `oe:${draftId}` },
           { text: "Rimanda", callback_data: `op:${draftId}` },
         ],
-        [{ text: "Vedi audit", callback_data: `av:${params.auditId}` }],
+        [
+          { text: "🛑 Stop follow-up", callback_data: `os:${draftId}` },
+          { text: "Vedi audit", callback_data: `av:${params.auditId}` },
+        ],
       ],
     };
   } else {
