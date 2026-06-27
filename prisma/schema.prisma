@@ -490,7 +490,8 @@ model Client {
   contactEmail String
   status       ClientStatus @default(ACTIVE_CLIENT)
   /// Stato relazione (Lead/Cliente/Ex cliente): decide se compare tra i clienti veri. Cambiabile a mano.
-  relationshipState ClientRelationshipState @default(CLIENTE)
+  /// Default LEAD: un record senza stato esplicito è un prospect, non un finto cliente.
+  relationshipState ClientRelationshipState @default(LEAD)
   /// Privato vs azienda (inferito da CF/P.IVA se assente).
   kind               ClientKind?
   fiscalCode         String?
@@ -548,6 +549,9 @@ model Client {
   @@index([clientMacroCategory])
   @@index([vatNumber])
   @@index([fiscalCode])
+  @@index([relationshipState])
+  // NB: unique parziali normalizzati su vatNumber/fiscalCode applicati via migration
+  // 20260711120000 (espressione non rappresentabile in Prisma — non rimuovere con migrate dev).
 }
 
 /// Attributo chiave-valore libero del cliente, per segmentazione (es. carrier=TIM, rateizzazione=no).
