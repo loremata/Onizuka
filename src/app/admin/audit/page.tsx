@@ -61,7 +61,7 @@ export default async function AdminAuditPage({
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Onizuka Audit</h1>
+          <h1 className="onizuka-page-title">Onizuka Audit</h1>
           <p className="text-muted-foreground">Registro attività cross-modulo (MVP).</p>
         </div>
         <DbUnavailableBanner />
@@ -80,7 +80,7 @@ export default async function AdminAuditPage({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Onizuka Audit</h1>
+        <h1 className="onizuka-page-title">Onizuka Audit</h1>
         <p className="text-muted-foreground">
           Timeline operativa, log sicurezza con filtri data/attore ed export CSV.
         </p>

@@ -88,7 +88,7 @@ export default async function OpportunityQuotePage({
       >
         <header className="space-y-1 border-b border-border pb-4">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Onizuka · Preventivo</p>
-          <h1 className="text-2xl font-bold">{quote.title}</h1>
+          <h1 className="onizuka-page-title">{quote.title}</h1>
           <p className="text-sm text-muted-foreground">
             {quote.opportunity.client
               ? `Cliente: ${quote.opportunity.client.companyName}${quote.opportunity.client.vatNumber ? ` · P.IVA ${quote.opportunity.client.vatNumber}` : ""}`

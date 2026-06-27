@@ -22,7 +22,7 @@ export default async function UnifiedContactsPage({ searchParams }: Props) {
         </Button>
       </div>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Contatti unificati</h1>
+        <h1 className="onizuka-page-title">Contatti unificati</h1>
         <p className="text-muted-foreground">Vista unica lead + clienti con hint dedupe email/P.IVA.</p>
       </div>
 

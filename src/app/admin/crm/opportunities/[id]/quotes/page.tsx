@@ -44,7 +44,7 @@ export default async function OpportunityQuotesPage({ params }: { params: Promis
         </Button>
       </div>
       <div>
-        <h1 className="text-2xl font-bold">Preventivi</h1>
+        <h1 className="onizuka-page-title">Preventivi</h1>
         <p className="text-muted-foreground">
           {opp.title}
           {opp.client

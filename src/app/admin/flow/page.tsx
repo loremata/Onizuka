@@ -91,7 +91,7 @@ export default async function AdminFlowPage({ searchParams }: Props) {
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Onizuka Flow</h1>
+          <h1 className="onizuka-page-title">Onizuka Flow</h1>
           <p className="text-muted-foreground">Task operativi personali e collegati al CRM.</p>
         </div>
         <DbUnavailableBanner />
@@ -120,7 +120,7 @@ export default async function AdminFlowPage({ searchParams }: Props) {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Onizuka Flow</h1>
+        <h1 className="onizuka-page-title">Onizuka Flow</h1>
         <p className="text-muted-foreground">
           Task operativi personali e collegati al CRM. Filtri opzionali su testo e stato (query GET). MVP 1: creazione
           e aggiornamento stato.

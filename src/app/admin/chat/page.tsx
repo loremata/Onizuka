@@ -20,7 +20,7 @@ export default async function AdminChatPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Assistente chat</h1>
+        <h1 className="onizuka-page-title">Assistente chat</h1>
         <p className="text-muted-foreground">
           Thread persistenti con memoria RAG e contesto operativo (complemento alla barra Ask).
         </p>

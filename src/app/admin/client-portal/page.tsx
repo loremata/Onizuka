@@ -33,7 +33,7 @@ export default async function AdminClientPortalPage() {
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Client Portal</h1>
+          <h1 className="onizuka-page-title">Client Portal</h1>
           <p className="text-muted-foreground">Gestione accessi clienti e anteprima portale.</p>
         </div>
         <DbUnavailableBanner />
@@ -47,7 +47,7 @@ export default async function AdminClientPortalPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Client Portal</h1>
+          <h1 className="onizuka-page-title">Client Portal</h1>
           <p className="text-muted-foreground">
             Utenti cliente, post assegnati e link al portale approvazioni{" "}
             <code className="rounded bg-muted px-1 text-xs">/app</code>.

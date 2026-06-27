@@ -11,7 +11,7 @@ export default async function SocialManagerPage() {
     <div className="space-y-6">
       <SocialHubTabs />
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Social Manager Pro</h1>
+        <h1 className="onizuka-page-title">Social Manager Pro</h1>
         <p className="text-muted-foreground">
           Pubblicazione post con metriche, calendario editoriale, inbox commenti e metriche lato cliente in{" "}
           <Link href="/app/social" className="text-primary hover:underline">

@@ -35,7 +35,7 @@ export default async function SocialCalendarPage() {
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin/social">← Social Pro</Link>
         </Button>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">Calendario editoriale</h1>
+        <h1 className="mt-2 onizuka-page-title">Calendario editoriale</h1>
         <p className="text-muted-foreground">
           Post pianificati o creati negli ultimi 7 giorni e prossime 6 settimane ({items.length} voci).
         </p>

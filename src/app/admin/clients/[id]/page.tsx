@@ -318,7 +318,7 @@ export default async function ClientOverviewPage({
             <Link href="/admin/clients">← Clienti</Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{client.companyName}</h1>
+            <h1 className="onizuka-page-title">{client.companyName}</h1>
             <p className="text-muted-foreground">
               Slug <span className="font-mono text-foreground">{client.slug}</span> · {client.contactEmail}
             </p>

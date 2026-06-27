@@ -15,7 +15,7 @@ export default async function PipelineBottlenecksPage() {
         <Link href="/admin">← Command Center</Link>
       </Button>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Colli di bottiglia lead</h1>
+        <h1 className="onizuka-page-title">Colli di bottiglia lead</h1>
         <p className="text-muted-foreground">Lead oltre SLA per stato pipeline.</p>
       </div>
       <Card>

@@ -21,7 +21,7 @@ export default async function SocialEngagementPage() {
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin/social">← Social Pro</Link>
         </Button>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">Report engagement</h1>
+        <h1 className="mt-2 onizuka-page-title">Report engagement</h1>
         <p className="text-muted-foreground">
           Aggregato da post in Contenuti — {report.totalPosts} post totali, {report.scheduledNext7d} programmati nei
           prossimi 7 giorni.

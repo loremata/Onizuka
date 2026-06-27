@@ -49,7 +49,7 @@ export default async function AdminCrmLeadsPage({ searchParams }: Props) {
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">CRM · Lead</h1>
+          <h1 className="onizuka-page-title">CRM · Lead</h1>
           <p className="text-muted-foreground">Pipeline acquisizione.</p>
         </div>
         <DbUnavailableBanner />
@@ -80,7 +80,7 @@ export default async function AdminCrmLeadsPage({ searchParams }: Props) {
     <div className="space-y-8">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">CRM · Lead</h1>
+          <h1 className="onizuka-page-title">CRM · Lead</h1>
           <p className="text-muted-foreground">Pipeline acquisizione prima della conversione in cliente.</p>
         </div>
         <div className="flex flex-wrap gap-2">

@@ -57,7 +57,7 @@ export default async function AdminCalendarPage() {
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Calendario operativo</h1>
+          <h1 className="onizuka-page-title">Calendario operativo</h1>
           <p className="text-muted-foreground">Agenda da task Flow (MVP).</p>
         </div>
         <DbUnavailableBanner />
@@ -78,7 +78,7 @@ export default async function AdminCalendarPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Calendario operativo</h1>
+          <h1 className="onizuka-page-title">Calendario operativo</h1>
           <p className="text-muted-foreground">
             Agenda da task Flow (14 giorni). Esporta ICS per Google/Outlook. Fuso: {timeZoneLabel}.
           </p>

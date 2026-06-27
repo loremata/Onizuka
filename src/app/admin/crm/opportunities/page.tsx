@@ -55,7 +55,7 @@ export default async function AdminCrmOpportunitiesPage({ searchParams }: Props)
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">CRM · Opportunità</h1>
+          <h1 className="onizuka-page-title">CRM · Opportunità</h1>
           <p className="text-muted-foreground">Trattative commerciali per cliente.</p>
         </div>
         <DbUnavailableBanner />
@@ -77,7 +77,7 @@ export default async function AdminCrmOpportunitiesPage({ searchParams }: Props)
     <div className="space-y-8">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">CRM · Opportunità</h1>
+          <h1 className="onizuka-page-title">CRM · Opportunità</h1>
           <p className="text-muted-foreground">Trattative collegate ai clienti (valore, probabilità, next step).</p>
         </div>
         <div className="flex flex-wrap gap-2">

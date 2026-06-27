@@ -14,7 +14,7 @@ export default async function OpportunityBottlenecksPage() {
         <Link href="/admin/crm/opportunities">← Opportunità</Link>
       </Button>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">SLA opportunità</h1>
+        <h1 className="onizuka-page-title">SLA opportunità</h1>
         <p className="text-muted-foreground">
           Opportunità aperte o in pausa oltre SLA o con next action scaduta.
         </p>

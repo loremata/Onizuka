@@ -29,7 +29,7 @@ export default async function IntelligencePage() {
         </Button>
       </div>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Intelligence</h1>
+        <h1 className="onizuka-page-title">Intelligence</h1>
         <p className="text-muted-foreground">
           Next-best-action da pipeline, clienti dormienti, finance e Reach.
         </p>

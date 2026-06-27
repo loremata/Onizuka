@@ -37,7 +37,7 @@ export default async function ActivityRegisterPage({ searchParams }: Props) {
         </Button>
       </div>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Registro attività</h1>
+        <h1 className="onizuka-page-title">Registro attività</h1>
         <p className="text-muted-foreground">
           Log sicurezza admin e esecuzioni automazione.
         </p>

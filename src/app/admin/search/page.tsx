@@ -35,7 +35,7 @@ export default async function AdminSearchPage({ searchParams }: Props) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Ricerca globale</h1>
+          <h1 className="onizuka-page-title">Ricerca globale</h1>
           <p className="text-muted-foreground">
             Usa la barra &quot;Chiedi a Onizuka&quot; in alto o aggiungi{" "}
             <code className="rounded bg-muted px-1 py-0.5 text-xs">?q=testo</code> all&apos;URL. Cerca in clienti,
@@ -70,7 +70,7 @@ export default async function AdminSearchPage({ searchParams }: Props) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Ricerca</h1>
+          <h1 className="onizuka-page-title">Ricerca</h1>
           <p className="text-muted-foreground">Risultati per &quot;{q}&quot;</p>
         </div>
         <DbUnavailableBanner />
@@ -97,7 +97,7 @@ export default async function AdminSearchPage({ searchParams }: Props) {
     <div className="space-y-8">
       <AskAiPanel query={q} />
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Ricerca</h1>
+        <h1 className="onizuka-page-title">Ricerca</h1>
         <p className="text-muted-foreground">
           Risultati per &quot;{q}&quot; — {total} occorrenze in otto elenchi (max 25 ciascuno).
         </p>

@@ -38,7 +38,7 @@ export default async function AdminPostsPage({
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Post</h1>
+          <h1 className="onizuka-page-title">Post</h1>
           <p className="text-muted-foreground">Gestione contenuti e approvazioni.</p>
         </div>
         <DbUnavailableBanner />
@@ -53,7 +53,7 @@ export default async function AdminPostsPage({
       <SocialHubTabs />
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Post</h1>
+          <h1 className="onizuka-page-title">Post</h1>
           <p className="text-muted-foreground">
             Tutti i post; filtra per cliente, piattaforma, stato o testo (didascalia, riferimento esterno, cliente).
           </p>

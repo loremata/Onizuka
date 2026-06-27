@@ -23,7 +23,7 @@ export default async function AdminInsightsPage() {
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Onizuka Insights</h1>
+          <h1 className="onizuka-page-title">Onizuka Insights</h1>
           <p className="text-muted-foreground">KPI operativi e alert del giorno (MVP).</p>
         </div>
         <DbUnavailableBanner />
@@ -61,7 +61,7 @@ export default async function AdminInsightsPage() {
       <AnalyticsHubTabs />
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Onizuka Insights</h1>
+          <h1 className="onizuka-page-title">Onizuka Insights</h1>
           <p className="text-muted-foreground">
             Sintesi cross-modulo · fuso recap: {s.timeZoneLabel}. Raccomandazioni euristiche da dati reali.
           </p>

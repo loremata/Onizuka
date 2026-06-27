@@ -59,7 +59,7 @@ export default async function DigitalAuditListPage() {
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin/audit">← Audit</Link>
         </Button>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">Audit digitale</h1>
+        <h1 className="mt-2 onizuka-page-title">Audit digitale</h1>
         <p className="text-muted-foreground">
           Protocollo marketing da P.IVA: punteggi per sezione, problema prioritario e bozza Reach opzionale.
         </p>

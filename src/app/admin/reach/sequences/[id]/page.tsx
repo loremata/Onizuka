@@ -39,7 +39,7 @@ export default async function SequenceDetailPage({ params }: { params: Promise<{
         <Link href="/admin/reach/sequences">← Sequenze</Link>
       </Button>
       <div>
-        <h1 className="text-2xl font-bold">{seq.name}</h1>
+        <h1 className="onizuka-page-title">{seq.name}</h1>
         <p className="flex flex-wrap items-center gap-2 text-muted-foreground">
           <EntityClientLabel
             clientId={seq.client?.id}

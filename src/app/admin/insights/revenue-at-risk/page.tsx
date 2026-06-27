@@ -17,7 +17,7 @@ export default async function RevenueAtRiskPage() {
         <Link href="/admin/insights">← Insights</Link>
       </Button>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Revenue at risk</h1>
+        <h1 className="onizuka-page-title">Revenue at risk</h1>
         <p className="text-muted-foreground">
           Rinnovi contratti retail imminenti con segnali finance/ticket. Totale stimato a rischio: €{" "}
           {totalAtRisk.toLocaleString("it-IT")}

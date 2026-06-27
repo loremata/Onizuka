@@ -66,7 +66,7 @@ export default async function AdminSettingsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Impostazioni</h1>
+        <h1 className="onizuka-page-title">Impostazioni</h1>
         <p className="text-muted-foreground">
           Preferenze operative, integrazioni OAuth e hub go-live in menu laterale.
         </p>

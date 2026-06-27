@@ -31,7 +31,7 @@ export default async function EditAutomationRulePage({ params }: { params: Promi
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin/automation-rules">← Regole</Link>
         </Button>
-        <h1 className="mt-2 text-2xl font-bold">Modifica regola</h1>
+        <h1 className="mt-2 onizuka-page-title">Modifica regola</h1>
         <p className="text-muted-foreground">
           {rule.name} · v{rule.ruleVersion} ·{" "}
           <a

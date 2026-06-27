@@ -41,7 +41,7 @@ export default async function ClientContactsPage({ params }: { params: Promise<{
             <Link href={`/admin/clients/${client.id}`}>← Scheda cliente</Link>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Referenti</h1>
+            <h1 className="onizuka-page-title">Referenti</h1>
             <p className="text-muted-foreground">{client.companyName}</p>
           </div>
         </div>

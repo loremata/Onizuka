@@ -26,7 +26,7 @@ export default async function EcosystemBrandsPage() {
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin/sales">← Sales</Link>
         </Button>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">Brand ecosistema</h1>
+        <h1 className="mt-2 onizuka-page-title">Brand ecosistema</h1>
         <p className="text-muted-foreground">
           Memoria commerciale strutturata: LabSeven, StudioPop, DoctorLead e altri asset Lorenzo.
         </p>

@@ -16,7 +16,7 @@ export default async function RetailRenewalsPage() {
         <Link href="/admin/insights/forecast">← Forecast</Link>
       </Button>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Rinnovi contratti retail</h1>
+        <h1 className="onizuka-page-title">Rinnovi contratti retail</h1>
         <p className="text-muted-foreground">Contratti attivi con scadenza nei prossimi 90 giorni.</p>
       </div>
       <Card>

@@ -72,7 +72,7 @@ export default async function AdminCrmPipelinePage({ searchParams }: Props) {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">CRM · Pipeline opportunità</h1>
+        <h1 className="onizuka-page-title">CRM · Pipeline opportunità</h1>
         <p className="text-muted-foreground">
           Vista per stato delle trattative. Trascina dalla maniglia ⋮⋮ per spostare tra colonne, oppure usa il menu
           stato su ogni card. Scheda completa da{" "}

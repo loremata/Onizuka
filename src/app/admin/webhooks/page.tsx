@@ -40,7 +40,7 @@ export default async function AdminWebhooksPage({ searchParams }: Props) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Webhook n8n</h1>
+          <h1 className="onizuka-page-title">Webhook n8n</h1>
           <p className="text-muted-foreground">Automazioni post approvazione.</p>
         </div>
         <DbUnavailableBanner />
@@ -53,7 +53,7 @@ export default async function AdminWebhooksPage({ searchParams }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Webhook n8n</h1>
+        <h1 className="onizuka-page-title">Webhook n8n</h1>
         <p className="text-muted-foreground">
           Quando un post viene approvato o segnato come da rivedere, le sottoscrizioni attive ricevono un POST firmato.
           Filtri opzionali via query GET.

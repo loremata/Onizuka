@@ -44,7 +44,7 @@ export default async function ClientDedupePage({ searchParams }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Dedupe & merge clienti</h1>
+        <h1 className="onizuka-page-title">Dedupe & merge clienti</h1>
         <p className="text-muted-foreground">
           Gruppi con stessa P.IVA, stessa email o ragione sociale normalizzata simile. Unisci i duplicati per
           mantenere anagrafica unica. Il fuzzy nome indicizza fino a <strong>{fuzzyIndexedClients}</strong> anagrafiche

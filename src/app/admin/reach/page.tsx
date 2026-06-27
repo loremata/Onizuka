@@ -64,7 +64,7 @@ export default async function AdminReachPage({
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Onizuka Reach</h1>
+          <h1 className="onizuka-page-title">Onizuka Reach</h1>
           <p className="text-muted-foreground">Outreach con approvazione obbligatoria (MVP).</p>
         </div>
         <DbUnavailableBanner />
@@ -81,7 +81,7 @@ export default async function AdminReachPage({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Onizuka Reach</h1>
+        <h1 className="onizuka-page-title">Onizuka Reach</h1>
         <p className="text-muted-foreground">
           Bozze email: bozza → approvazione → invio SMTP (se configurato) o mailto → segna inviata.
         </p>

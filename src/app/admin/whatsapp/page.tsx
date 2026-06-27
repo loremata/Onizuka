@@ -57,7 +57,7 @@ export default async function WhatsAppOperatorPage({ searchParams }: Props) {
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin/settings">← Impostazioni</Link>
         </Button>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">WhatsApp operatore</h1>
+        <h1 className="mt-2 onizuka-page-title">WhatsApp operatore</h1>
         <p className="text-muted-foreground">
           Inbox two-way per linea (routing webhook <code className="text-xs">phone_number_id</code>).
           {!isWhatsAppConfigured() ? " API non configurata." : null}

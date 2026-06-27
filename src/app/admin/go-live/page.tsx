@@ -22,7 +22,7 @@ export default async function AdminGoLivePage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Go-live</h1>
+        <h1 className="onizuka-page-title">Go-live</h1>
         <p className="text-muted-foreground">
           Hub operativo per onizuka.it: checklist variabili, stato deploy e link di verifica post-rilascio.
         </p>

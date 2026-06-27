@@ -16,7 +16,7 @@ export default async function CrmLeadAnalyticsPage() {
         </Button>
       </div>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Analytics lead</h1>
+        <h1 className="onizuka-page-title">Analytics lead</h1>
         <p className="text-muted-foreground">Distribuzione per stato e origine, tasso conversione.</p>
       </div>
 

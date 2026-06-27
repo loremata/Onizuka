@@ -46,7 +46,7 @@ export default async function AiRunsPage() {
         <Link href="/admin/automations">← Automation Control</Link>
       </Button>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Esecuzioni AI</h1>
+        <h1 className="onizuka-page-title">Esecuzioni AI</h1>
         <p className="text-muted-foreground">
           Log Ask, chat assistente e altre pipeline LLM (ultime 80).
         </p>

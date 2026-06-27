@@ -55,7 +55,7 @@ export default async function AdminMemoryListPage({ searchParams }: Props) {
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Memoria</h1>
+          <h1 className="onizuka-page-title">Memoria</h1>
           <p className="text-muted-foreground">Voci di memoria persistente.</p>
         </div>
         <DbUnavailableBanner />
@@ -71,7 +71,7 @@ export default async function AdminMemoryListPage({ searchParams }: Props) {
     <div className="space-y-8">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Onizuka Memory</h1>
+          <h1 className="onizuka-page-title">Onizuka Memory</h1>
           <p className="text-muted-foreground">
             Memoria persistente manuale: contesto per CRM, Flow e assistente (MVP 1). Filtri opzionali via query GET.
           </p>

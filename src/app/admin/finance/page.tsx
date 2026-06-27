@@ -55,7 +55,7 @@ export default async function AdminFinancePage({ searchParams }: Props) {
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Onizuka Finance</h1>
+          <h1 className="onizuka-page-title">Onizuka Finance</h1>
           <p className="text-muted-foreground">Sintesi pipeline e cashflow.</p>
         </div>
         <DbUnavailableBanner />
@@ -99,7 +99,7 @@ export default async function AdminFinancePage({ searchParams }: Props) {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Onizuka Finance</h1>
+        <h1 className="onizuka-page-title">Onizuka Finance</h1>
         <p className="text-muted-foreground">
           Pipeline CRM + registro entrate/uscite. Target mensile: € {FINANCE_MONTHLY_TARGET_EUR.toLocaleString("it-IT")}{" "}
           (lungo periodo € {FINANCE_LONG_TERM_TARGET_EUR.toLocaleString("it-IT")}).

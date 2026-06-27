@@ -12,7 +12,7 @@ export default async function AutomationFlowBuilderPage() {
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin/automation-rules">← Regole auto</Link>
         </Button>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">Flow builder (n8n-style)</h1>
+        <h1 className="mt-2 onizuka-page-title">Flow builder (n8n-style)</h1>
         <p className="text-muted-foreground">
           Trascina nodi, collega il flusso ed esporta JSON da importare come nuova regola.
         </p>

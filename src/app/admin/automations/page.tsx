@@ -47,7 +47,7 @@ export default async function AutomationsControlPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Automation Control Center</h1>
+        <h1 className="onizuka-page-title">Automation Control Center</h1>
         <p className="text-muted-foreground">
           Panoramica integrazioni esterne, cron Vercel, endpoint n8n e link alle regole in-app (MVP).
         </p>

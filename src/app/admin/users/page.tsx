@@ -36,7 +36,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Utenti</h1>
+          <h1 className="onizuka-page-title">Utenti</h1>
           <p className="text-muted-foreground">Crea utenti cliente e reimposta le password. Filtri opzionali via query GET.</p>
         </div>
         <Button asChild>

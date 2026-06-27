@@ -21,7 +21,7 @@ export default async function AdminSalesPage() {
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Onizuka Sales</h1>
+          <h1 className="onizuka-page-title">Onizuka Sales</h1>
           <p className="text-muted-foreground">Motore commerciale (MVP).</p>
         </div>
         <DbUnavailableBanner />
@@ -57,7 +57,7 @@ export default async function AdminSalesPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Onizuka Sales</h1>
+        <h1 className="onizuka-page-title">Onizuka Sales</h1>
         <p className="text-muted-foreground">
           Vista legacy — usa la{" "}
           <Link href="/admin/crm/commercial" className="text-primary hover:underline">

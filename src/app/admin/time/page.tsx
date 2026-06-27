@@ -71,7 +71,7 @@ export default async function AdminTimePage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Time tracking</h1>
+        <h1 className="onizuka-page-title">Time tracking</h1>
         <p className="text-muted-foreground">
           Registro minuti, tariffa opzionale, commessa, fatturabile. Esporta CSV fino a 10.000 voci. Approvazione a{" "}
           <strong>due firme</strong> (1/2: admin o staff abilitato; 2/2: solo ADMIN distinto).

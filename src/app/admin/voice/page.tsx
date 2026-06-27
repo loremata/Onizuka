@@ -27,7 +27,7 @@ export default async function AdminVoicePage() {
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Onizuka Voice</h1>
+          <h1 className="onizuka-page-title">Onizuka Voice</h1>
           <p className="text-muted-foreground">Recap operativo (MVP testuale).</p>
         </div>
         <DbUnavailableBanner />
@@ -41,7 +41,7 @@ export default async function AdminVoicePage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Onizuka Voice</h1>
+        <h1 className="onizuka-page-title">Onizuka Voice</h1>
         <p className="text-muted-foreground">
           Recap del giorno, push-to-talk, wake word «Onizuka» e comandi rapidi.
         </p>

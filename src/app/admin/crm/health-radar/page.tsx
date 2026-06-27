@@ -16,7 +16,7 @@ export default async function ClientHealthRadarPage() {
         <Link href="/admin/clients">← Clienti</Link>
       </Button>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Client Health Radar</h1>
+        <h1 className="onizuka-page-title">Client Health Radar</h1>
         <p className="text-muted-foreground">Clienti a rischio retention (score basso).</p>
       </div>
       <Card>

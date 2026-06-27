@@ -46,7 +46,7 @@ export default async function DigitalAuditDetailPage({ params }: { params: Promi
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin/audit/digital">← Audit digitali</Link>
         </Button>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">{audit.businessName ?? "Audit digitale"}</h1>
+        <h1 className="mt-2 onizuka-page-title">{audit.businessName ?? "Audit digitale"}</h1>
         <p className="text-muted-foreground">
           {digitalAuditStatusLabel[audit.status]}
           {audit.overallScore != null ? ` · ${audit.overallScore}/100` : ""} · {dateFmt.format(audit.createdAt)}

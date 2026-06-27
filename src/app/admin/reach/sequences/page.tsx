@@ -67,7 +67,7 @@ export default async function OutreachSequencesPage() {
   if (!loaded.ok) {
     return (
       <div className="space-y-8">
-        <h1 className="text-3xl font-bold tracking-tight">Sequenze Reach</h1>
+        <h1 className="onizuka-page-title">Sequenze Reach</h1>
         <DbUnavailableBanner />
       </div>
     );
@@ -82,7 +82,7 @@ export default async function OutreachSequencesPage() {
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin/reach">← Reach</Link>
         </Button>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">Sequenze Reach</h1>
+        <h1 className="mt-2 onizuka-page-title">Sequenze Reach</h1>
         <p className="text-muted-foreground">
           Follow-up automatici J+0, J+3, J+7. Ogni step genera una bozza in approvazione; il cron attiva le
           scadenze giornaliere.

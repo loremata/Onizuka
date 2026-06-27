@@ -33,7 +33,7 @@ export default async function StaffPermissionsPage({ params }: { params: Promise
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin/users">← Utenti</Link>
         </Button>
-        <h1 className="mt-2 text-2xl font-bold">Permessi staff</h1>
+        <h1 className="mt-2 onizuka-page-title">Permessi staff</h1>
         <p className="text-muted-foreground">
           {user.name ?? user.email} — whitelist moduli (vuoto = policy predefinita).
         </p>

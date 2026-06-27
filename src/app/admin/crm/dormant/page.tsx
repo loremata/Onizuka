@@ -14,7 +14,7 @@ export default async function DormantReactivationPage() {
         <Link href="/admin">← Command Center</Link>
       </Button>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Riattivazione dormienti</h1>
+        <h1 className="onizuka-page-title">Riattivazione dormienti</h1>
         <p className="text-muted-foreground">Clienti DORMANT / TO_REACTIVATE con score priorità.</p>
       </div>
       <Card>

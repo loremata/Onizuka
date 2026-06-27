@@ -31,7 +31,7 @@ export default async function AdminNotificationsPage({
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Notifiche</h1>
+          <h1 className="onizuka-page-title">Notifiche</h1>
           <p className="text-muted-foreground">Ticket clienti, richieste portale e avvisi operativi.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

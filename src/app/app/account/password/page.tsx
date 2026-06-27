@@ -18,7 +18,7 @@ export default async function ClientChangePasswordPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Cambia password</h1>
+        <h1 className="onizuka-page-title">Cambia password</h1>
         <p className="text-muted-foreground">Portale cliente · {session.user.email}</p>
       </div>
       <Card className="max-w-lg">

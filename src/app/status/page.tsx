@@ -32,7 +32,7 @@ export default async function PublicStatusPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center gap-6 p-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Stato Onizuka</h1>
+        <h1 className="onizuka-page-title">Stato Onizuka</h1>
         <p className="mt-1 text-sm text-muted-foreground">Monitoraggio pubblico sintetico.</p>
       </div>
       <p className="text-sm">

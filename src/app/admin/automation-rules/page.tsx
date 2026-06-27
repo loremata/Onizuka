@@ -66,7 +66,7 @@ export default async function AutomationRulesPage({ searchParams }: Props) {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Regole automazione in-app</h1>
+        <h1 className="onizuka-page-title">Regole automazione in-app</h1>
         <p className="text-muted-foreground">
           Trigger: <strong>POST_APPROVED</strong>, <strong>LEAD_CREATED</strong>, <strong>TICKET_CREATED</strong>,{" "}
           <strong>FINANCE_OVERDUE_SNAPSHOT</strong> (cron), <strong>REACH_DRAFT_SENT</strong>,{" "}

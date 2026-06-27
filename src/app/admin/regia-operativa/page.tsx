@@ -25,7 +25,7 @@ export default async function RegiaOperativaPage() {
         </Button>
       </div>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Regia operativa</h1>
+        <h1 className="onizuka-page-title">Regia operativa</h1>
         <p className="text-muted-foreground">
           Agenda giornaliera e KPI commerciali (regia operativa).
         </p>

@@ -17,7 +17,7 @@ export default async function AdminDrivePage() {
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Onizuka Drive</h1>
+          <h1 className="onizuka-page-title">Onizuka Drive</h1>
           <p className="text-muted-foreground">Hub documenti per cliente (MVP).</p>
         </div>
         <DbUnavailableBanner />
@@ -28,7 +28,7 @@ export default async function AdminDrivePage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Onizuka Drive</h1>
+        <h1 className="onizuka-page-title">Onizuka Drive</h1>
         <p className="text-muted-foreground">
           Hub per cliente: contenuti Onizuka + cartella Google Drive (URL manuale o creazione automatica con service
           account).

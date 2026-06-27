@@ -57,7 +57,7 @@ export default async function AdminClientTicketsPage({ searchParams }: Props) {
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Ticket clienti</h1>
+          <h1 className="onizuka-page-title">Ticket clienti</h1>
         </div>
         <DbUnavailableBanner />
       </div>
@@ -70,7 +70,7 @@ export default async function AdminClientTicketsPage({ searchParams }: Props) {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Ticket clienti</h1>
+        <h1 className="onizuka-page-title">Ticket clienti</h1>
         <p className="text-muted-foreground">
           Richieste dal portale cliente.{" "}
           <Link href="/admin/client-portal" className="text-primary hover:underline">

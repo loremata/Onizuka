@@ -33,7 +33,7 @@ export default async function PublicAuditReportPage({ params }: { params: Promis
       <div className="container mx-auto max-w-3xl space-y-6 py-10 px-4">
         <header className="space-y-1 border-b pb-6">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Report digitale · Onizuka</p>
-          <h1 className="text-2xl font-bold">{audit.businessName ?? "La tua azienda"}</h1>
+          <h1 className="onizuka-page-title">{audit.businessName ?? "La tua azienda"}</h1>
           <p className="text-sm text-muted-foreground">
             {digitalAuditStatusLabel[audit.status]}
             {audit.overallScore != null ? ` · Punteggio ${audit.overallScore}/100` : ""} · {dateFmt.format(audit.createdAt)}

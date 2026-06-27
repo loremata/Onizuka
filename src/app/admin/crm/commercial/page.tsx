@@ -24,7 +24,7 @@ export default async function CommercialDashboardPage({ searchParams }: Props) {
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard commerciale</h1>
+          <h1 className="onizuka-page-title">Dashboard commerciale</h1>
           <p className="text-muted-foreground">Revenue intelligence e priorità operative.</p>
         </div>
         <DbUnavailableBanner />
@@ -39,7 +39,7 @@ export default async function CommercialDashboardPage({ searchParams }: Props) {
       <AnalyticsHubTabs />
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard commerciale</h1>
+          <h1 className="onizuka-page-title">Dashboard commerciale</h1>
           <p className="text-muted-foreground">
             Priorità da Lead, audit, opportunity e monetizzazione — dati reali, azioni dirette.
           </p>

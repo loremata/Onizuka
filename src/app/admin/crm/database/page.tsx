@@ -57,7 +57,7 @@ export default async function ClientDatabasePage({ searchParams }: Props) {
           <Button asChild variant="ghost" size="sm">
             <Link href="/admin/clients">← Clienti</Link>
           </Button>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight">Database clienti</h1>
+          <h1 className="mt-2 onizuka-page-title">Database clienti</h1>
           <p className="text-muted-foreground">
             Vista unica privati + aziende con tag e attributi liberi. Filtra per costruire segmenti.
           </p>

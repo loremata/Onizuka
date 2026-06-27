@@ -39,7 +39,7 @@ export default async function SocialInboxPage() {
         <Button asChild variant="ghost" size="sm">
           <Link href="/admin/social">← Social Pro</Link>
         </Button>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">Inbox commenti</h1>
+        <h1 className="mt-2 onizuka-page-title">Inbox commenti</h1>
         <p className="text-muted-foreground">
           Registro manuale + sync Meta / LinkedIn / Instagram. Segna come risposto dopo la gestione.
         </p>

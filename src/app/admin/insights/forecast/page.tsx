@@ -64,7 +64,7 @@ export default async function AdminInsightsForecastPage() {
       <AnalyticsHubTabs />
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Forecast commerciale</h1>
+          <h1 className="onizuka-page-title">Forecast commerciale</h1>
           <p className="text-muted-foreground">
             Pipeline delle tue opportunità <strong>OPEN</strong>, MRR da voci finance ricorrenti, e scadenze{" "}
             <strong>OVERDUE</strong> dopo sync automatico delle date.

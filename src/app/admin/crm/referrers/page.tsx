@@ -17,7 +17,7 @@ export default async function ReferrersPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Segnalatori</h1>
+          <h1 className="onizuka-page-title">Segnalatori</h1>
           <p className="text-muted-foreground">Referral engine per lead business.</p>
         </div>
         <Button asChild>

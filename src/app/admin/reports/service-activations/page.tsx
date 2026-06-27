@@ -27,7 +27,7 @@ export default async function ServiceActivationsReportPage({ searchParams }: Pro
         <Link href="/admin/insights">← Insights</Link>
       </Button>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Attivazioni per servizio</h1>
+        <h1 className="onizuka-page-title">Attivazioni per servizio</h1>
         <p className="text-muted-foreground">
           Servizi portati in stato attivo nel mese (campo <code className="text-xs">since</code> su scheda cliente).
         </p>

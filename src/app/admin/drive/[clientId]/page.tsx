@@ -28,7 +28,7 @@ export default async function DriveClientFolderPage({ params }: { params: Promis
     if (loaded.reason === "not_found") notFound();
     return (
       <div className="space-y-8">
-        <h1 className="text-3xl font-bold tracking-tight">Cartella cliente</h1>
+        <h1 className="onizuka-page-title">Cartella cliente</h1>
         <DbUnavailableBanner />
       </div>
     );
@@ -64,7 +64,7 @@ export default async function DriveClientFolderPage({ params }: { params: Promis
       </div>
 
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">{client.companyName}</h1>
+        <h1 className="onizuka-page-title">{client.companyName}</h1>
         <p className="text-muted-foreground">
           Cartella virtuale · slug <span className="font-mono">{client.slug}</span> · {client.contactEmail}
         </p>
