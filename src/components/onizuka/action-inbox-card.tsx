@@ -25,7 +25,7 @@ const priorityClass = {
 
 /** Lista azioni del giorno (Action Inbox), collassabile per non occupare tutta la home. */
 export function ActionInboxCard({ items, title = "Cosa fare oggi" }: { items: ActionInboxItem[]; title?: string }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const high = items.filter((i) => i.priority === "high").length;
 
   return (
