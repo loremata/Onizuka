@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toggleClientRetailKind } from "./snapshot-actions";
 
 /** Snapshot "colpo d'occhio" delle utenze retail (stile Customer Scoring): 6 caselle. */
 const SLOTS = [
@@ -88,6 +89,14 @@ export async function ClientRetailSnapshotCard({ clientId }: { clientId: string 
                     </div>
                   );
                 })}
+                <form action={toggleClientRetailKind.bind(null, clientId, slot.key, slot.label)} className="mt-2">
+                  <button
+                    type="submit"
+                    className={`text-xs font-medium hover:underline ${has ? "text-destructive" : "text-primary"}`}
+                  >
+                    {has ? "Disattiva" : "Attiva"}
+                  </button>
+                </form>
               </div>
             );
           })}

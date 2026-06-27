@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toggleClientServiceSlot } from "./snapshot-actions";
 
 /** Snapshot "colpo d'occhio" dei servizi digitali/AI (gemello della snapshot retail). */
 const SLOTS = [
@@ -77,6 +78,14 @@ export async function ClientDigitalSnapshotCard({ clientId }: { clientId: string
                     {it.brand ? <span className="text-muted-foreground"> · {it.brand}</span> : null}
                   </div>
                 ))}
+                <form action={toggleClientServiceSlot.bind(null, clientId, slot.slugs.join(","))} className="mt-2">
+                  <button
+                    type="submit"
+                    className={`text-xs font-medium hover:underline ${has ? "text-destructive" : "text-primary"}`}
+                  >
+                    {has ? "Disattiva" : "Attiva"}
+                  </button>
+                </form>
               </div>
             );
           })}
