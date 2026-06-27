@@ -37,14 +37,28 @@ export async function runDigitalAuditUnified(
 ): Promise<RunDigitalAuditUnifiedResult> {
   const target = await prepareAuditCommercialTarget(input);
 
-  if (input.enrichClient) {
+  {
     const data: Record<string, string> = {};
     const e = input.enrichClient;
-    if (e.businessName?.trim()) data.companyName = e.businessName.trim();
-    if (e.contactEmail?.trim()) data.contactEmail = e.contactEmail.trim();
-    if (e.website?.trim()) data.website = e.website.trim();
-    if (e.city?.trim()) data.city = e.city.trim();
-    if (e.phone?.trim()) data.phone = e.phone.trim();
+    if (e?.businessName?.trim()) data.companyName = e.businessName.trim();
+    if (e?.contactEmail?.trim()) data.contactEmail = e.contactEmail.trim();
+    if (e?.website?.trim()) data.website = e.website.trim();
+    if (e?.city?.trim()) data.city = e.city.trim();
+    if (e?.phone?.trim()) data.phone = e.phone.trim();
+
+    // Form P.IVA: la ragione sociale digitata (campo top-level) sostituisce il
+    // placeholder "Prospect P.IVA …" del cliente appena creato. Non sovrascrive
+    // un nome reale già presente né quello eventualmente dato da enrichClient.
+    if (!data.companyName && input.businessName?.trim()) {
+      const current = await prisma.client.findUnique({
+        where: { id: target.clientId },
+        select: { companyName: true },
+      });
+      if (!current?.companyName || /^Prospect P\.IVA /i.test(current.companyName)) {
+        data.companyName = input.businessName.trim();
+      }
+    }
+
     if (Object.keys(data).length > 0) {
       await prisma.client.update({ where: { id: target.clientId }, data });
     }
