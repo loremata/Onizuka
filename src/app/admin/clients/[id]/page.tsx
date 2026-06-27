@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { clientStatusLabel } from "@/lib/crm-client-status";
 import { setClientRelationshipState } from "../actions";
 import { ClientRetailSnapshotCard } from "../client-retail-snapshot-card";
+import { ClientDigitalSnapshotCard } from "../client-digital-snapshot-card";
 import { opportunityStatusLabel } from "@/lib/crm-opportunity";
 import { platformLabel } from "@/lib/platform-label";
 import { buildClientTimeline, timelineKindLabel } from "@/lib/client-timeline";
@@ -385,6 +386,8 @@ export default async function ClientOverviewPage({
       <AuditCommercialSummaryCard summary={auditCommercialSummary} />
 
       <ClientRetailSnapshotCard clientId={client.id} />
+
+      <ClientDigitalSnapshotCard clientId={client.id} />
 
       {/* Punteggio cliente unificato: due assi indipendenti (prima 3 score separati e contraddittori). */}
       <Card>
