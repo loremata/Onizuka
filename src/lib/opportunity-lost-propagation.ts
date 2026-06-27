@@ -10,18 +10,6 @@ export type OpportunityLostResult = {
 const EMPTY: OpportunityLostResult = { clientId: null, leadNurturing: false, taskCreated: false };
 const SOURCE = "opportunity_lost";
 
-/** Stadi prospect "pre-vittoria": da qui si può tornare in nurturing. */
-const PRE_WIN_STAGES = new Set([
-  "PROSPECT_ENTERED",
-  "AUDIT_IN_PROGRESS",
-  "AUDIT_COMPLETED",
-  "REPORT_GENERATED",
-  "AWAITING_SEND_APPROVAL",
-  "OUTREACH_SENT",
-  "QUOTE_SENT",
-  "IN_NEGOTIATION",
-]);
-
 /**
  * Propaga gli effetti di un'opportunità PERSA (asse LOST, prima morto: la perdita
  * non faceva nulla a valle). Best-effort, non rilancia.
@@ -56,8 +44,9 @@ export async function propagateOpportunityLost(
     let leadNurturing = false;
 
     if (opp.leadId && opp.lead) {
+      // Qualsiasi stadio non terminale (≠ WON/LOST) torna in nurturing.
       const stage = opp.lead.commercialProspectStage ?? undefined;
-      if (!stage || PRE_WIN_STAGES.has(stage)) {
+      if (!stage || (stage !== "WON" && stage !== "LOST")) {
         await prisma.lead.update({
           where: { id: opp.leadId },
           data: leadLifecycleForStage("NURTURING"),

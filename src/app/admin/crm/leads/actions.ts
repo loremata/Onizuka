@@ -90,6 +90,8 @@ export async function createLead(_prev: LeadActionResult, formData: FormData): P
         notes,
         ownerUserId: session.user.id,
         convertedClientId,
+        // Satellite coerente: se collegato a un cliente, clientId punta allo stesso.
+        ...(convertedClientId ? { clientId: convertedClientId } : {}),
       },
     });
     void logAuditEvent({
@@ -175,6 +177,8 @@ export async function updateLead(
         status,
         notes,
         convertedClientId,
+        // Satellite coerente: se collegato a un cliente, clientId punta allo stesso.
+        ...(convertedClientId ? { clientId: convertedClientId } : {}),
       },
     });
     void logAuditEvent({
@@ -303,8 +307,9 @@ export async function convertLeadToClient(
           commercialProspectStage: "WON",
         },
       });
+      // Solo le opp ancora senza cliente (non riassegnare quelle già di un altro cliente).
       await tx.opportunity.updateMany({
-        where: { leadId },
+        where: { leadId, clientId: null },
         data: { clientId: client.id, leadId: null },
       });
       return client;

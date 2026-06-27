@@ -237,10 +237,11 @@ export async function updateClient(
         ticketSlaHours,
       },
     });
-    // Canonico recapiti: tiene allineato il referente primario con la scheda cliente.
+    // Canonico email (usata per login portale): allinea il referente primario.
+    // Il telefono NON si propaga qui per non sovrascrivere quello gestito sul contatto.
     await prisma.clientContact.updateMany({
       where: { clientId, isPrimary: true },
-      data: { email: contactEmail, phone },
+      data: { email: contactEmail },
     });
     void logAdminAction({
       actorUserId: session.user.id,

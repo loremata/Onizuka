@@ -165,8 +165,8 @@ export async function updateQuoteStatus(quoteId: string, status: QuoteStatus): P
       metadata: { opportunityId: quote.opportunityId },
     });
     if (status === "ACCEPTED") {
-      // Preventivo accettato = opportunità vinta → vince e propaga (cliente, servizio, lead).
-      if (quote.opportunity.status !== "WON" && quote.opportunity.status !== "LOST") {
+      // Preventivo accettato = opportunità vinta → forza WON (anche da LOST) e propaga.
+      if (quote.opportunity.status !== "WON") {
         await prisma.opportunity.update({ where: { id: quote.opportunity.id }, data: { status: "WON" } });
       }
       await propagateOpportunityWon(quote.opportunity.id);
@@ -182,8 +182,8 @@ export async function updateQuoteStatus(quoteId: string, status: QuoteStatus): P
       revalidatePath("/admin/crm/opportunities");
       if (quote.opportunity.clientId) revalidatePath(`/admin/clients/${quote.opportunity.clientId}`);
     } else if (status === "REJECTED") {
-      // Rifiuto = opportunità persa → chiude e rimette il prospect in nurturing.
-      if (quote.opportunity.status !== "WON" && quote.opportunity.status !== "LOST") {
+      // Rifiuto = opportunità persa → forza LOST (anche da WON) e rimette in nurturing.
+      if (quote.opportunity.status !== "LOST") {
         await prisma.opportunity.update({ where: { id: quote.opportunity.id }, data: { status: "LOST" } });
       }
       await propagateOpportunityLost(quote.opportunity.id, "preventivo rifiutato");

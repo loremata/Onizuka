@@ -59,13 +59,18 @@ export async function runRiskSignalTasks(): Promise<{
         overdueTasks++;
       }
 
-      // 2) Churn: cliente ATTIVO con 2+ insoluti → DORMANTE + task di recupero.
-      if (g._count._all >= 2 && client.relationshipState === "CLIENTE" && client.status === "ACTIVE_CLIENT") {
-        const lc = lifecycleForStatus("DORMANT");
-        await prisma.client.update({
-          where: { id: clientId },
-          data: { status: lc.status, relationshipState: lc.relationshipState },
-        });
+      // 2) Churn: cliente con 2+ insoluti → DORMANTE + task di recupero.
+      if (g._count._all >= 2 && client.relationshipState === "CLIENTE") {
+        // Transizione a DORMANTE: idempotente (solo se ancora attivo).
+        if (client.status === "ACTIVE_CLIENT") {
+          const lc = lifecycleForStatus("DORMANT");
+          await prisma.client.update({
+            where: { id: clientId },
+            data: { status: lc.status, relationshipState: lc.relationshipState },
+          });
+        }
+        // Task di recupero GARANTITO, disaccoppiato dalla transizione: così se la
+        // create fallì a un run precedente, viene comunque ricreato (idempotente).
         const ct = `Recupero cliente a rischio: ${client.companyName}`;
         const cf = await prisma.flowTask.findFirst({
           where: { ownerUserId: o.id, source: "churn_risk", relatedClientId: clientId, title: ct },
@@ -78,12 +83,12 @@ export async function runRiskSignalTasks(): Promise<{
               relatedClientId: clientId,
               source: "churn_risk",
               title: ct,
-              description: `Passato a DORMANTE per ${g._count._all} insoluti: definisci un piano di recupero.`,
+              description: `${g._count._all} insoluti: cliente a rischio churn, definisci un piano di recupero.`,
               priority: "HIGH",
             },
           });
+          churned++;
         }
-        churned++;
       }
     }
   }

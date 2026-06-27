@@ -1067,6 +1067,11 @@ model IntelligenceRecommendation {
   @@index([createdAt])
 }
 
+/// ATTENZIONE: a livello DB esiste un CHECK "opportunity_single_party"
+/// (clientId IS NULL OR leadId IS NULL) — vedi migration 20260709120000.
+/// Prisma non lo rappresenta: NON rimuoverlo con un `migrate dev` (ricrearlo a mano
+/// in ogni migration che tocca Opportunity). Esclusione mutua applicata anche in
+/// assertOpportunityParty (opportunity-party.ts).
 model Opportunity {
   id              String              @id @default(cuid())
   clientId        String?
