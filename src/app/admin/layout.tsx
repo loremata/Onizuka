@@ -58,9 +58,10 @@ export default async function AdminLayout({
       <div className="sticky top-0 z-20 border-b border-border/80 bg-card/90 shadow-sm shadow-black/5 backdrop-blur-md supports-[backdrop-filter]:bg-card/75">
         <header className="container mx-auto px-4">
           <div className="flex flex-col gap-3 py-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <AdminBrandMark />
               <MarketingSiteLink />
+              <AdminPrimaryNav items={navPrimary} />
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <span className="hidden max-w-[220px] truncate text-xs text-muted-foreground sm:inline sm:text-sm">
@@ -70,9 +71,6 @@ export default async function AdminLayout({
                 <Link href="/api/auth/signout">Esci</Link>
               </Button>
             </div>
-          </div>
-          <div className="border-t border-border/60 py-2">
-            <AdminPrimaryNav items={navPrimary} />
           </div>
           <div className="border-t border-border/40 pb-2 pt-1.5">
             <AdminToolsMenu groups={toolGroups} />

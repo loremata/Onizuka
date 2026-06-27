@@ -16,6 +16,8 @@ import { AdminProductionAlert } from "@/components/onizuka/admin-production-aler
 import { CrmOpsPanel } from "@/components/onizuka/crm-ops-panel";
 import { getLeadPipelineBottlenecks } from "@/lib/lead-pipeline-bottleneck";
 import { getDormantClients } from "@/lib/dormant-reactivation";
+import { loadClientSegmentDashboards } from "@/lib/client-segment-dashboards";
+import { ClientSegmentDashboardsCards } from "@/components/onizuka/client-segment-dashboards";
 
 type Props = {
   searchParams: Record<string, string | string[] | undefined>;
@@ -37,12 +39,13 @@ export default async function AdminDashboardPage({ searchParams }: Props) {
     userTimeZone: session.user.timeZone,
   });
   const ownerId = session.user.id;
-  const [dashboard, trends, inbox, bottlenecks, dormant] = await Promise.all([
+  const [dashboard, trends, inbox, bottlenecks, dormant, segments] = await Promise.all([
     loadAdminDashboardStats(ownerId, dayStart, dayEnd),
     loadAdminKpiTrends(ownerId),
     loadActionInbox(ownerId, 100),
     getLeadPipelineBottlenecks(ownerId, 5),
     getDormantClients(ownerId, 5),
+    loadClientSegmentDashboards(ownerId),
   ]);
 
   if (!dashboard.ok) {
@@ -131,7 +134,10 @@ export default async function AdminDashboardPage({ searchParams }: Props) {
         ))}
       </div>
 
-      {/* 3 · Segnali CRM da gestire (colli di bottiglia + dormienti) */}
+      {/* 3 · Situazione per segmento: clienti negozio e clienti digitali */}
+      <ClientSegmentDashboardsCards retail={segments.retail} digital={segments.digital} />
+
+      {/* 4 · Segnali CRM da gestire (colli di bottiglia + dormienti) */}
       <CrmOpsPanel bottlenecks={bottlenecks} dormant={dormant} />
 
       {/* 4 · Trend 7 giorni (sintesi, non duplicata altrove) */}
