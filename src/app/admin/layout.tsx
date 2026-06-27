@@ -3,8 +3,6 @@ import Link from "next/link";
 import { Toaster } from "sonner";
 import { FlashToast } from "@/components/onizuka/flash-toast";
 import { requireAdminArea } from "@/lib/admin-session";
-import { isFullAdmin } from "@/lib/auth-roles";
-import { filterAdminNav } from "@/lib/staff-permissions";
 import { Button } from "@/components/ui/button";
 import { GlobalCommandBar } from "@/components/onizuka/global-command-bar";
 import { MarketingSiteLink } from "@/components/onizuka/marketing-site-link";
@@ -30,28 +28,24 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const session = await requireAdminArea();
-  const role = session.user.role;
-  const staffMode = !isFullAdmin(role);
 
   const [notificationUnread, approvalPending] = await Promise.all([
     countUnreadNotifications(session.user.id),
     countApprovalQueuePending(session.user.id),
   ]);
 
-  const staffModules = session.user.staffAllowedModules ?? [];
-
   // Barra principale = solo i driver quotidiani. Tutto il resto è nelle aree di lavoro
   // (dropdown "Strumenti") — vedi ADMIN_TOOL_NAV_GROUPS. Riorganizzazione 27/06/2026.
-  const navPrimary = filterAdminNav(role, [
+  const navPrimary = [
     { href: "/admin", label: "Oggi" },
     { href: "/admin/approvals", label: "Approvazioni", badge: approvalPending },
     { href: "/admin/clients", label: "Clienti" },
-  ], staffModules);
+  ];
 
   const toolGroups = ADMIN_TOOL_NAV_GROUPS.map((group) => ({
     id: group.id,
     label: group.label,
-    items: filterAdminNav(role, group.items, staffModules).map((item) =>
+    items: group.items.map((item) =>
       item.href === "/admin/notifications" && notificationUnread > 0
         ? { ...item, badge: notificationUnread }
         : item
@@ -65,7 +59,7 @@ export default async function AdminLayout({
         <header className="container mx-auto px-4">
           <div className="flex flex-col gap-3 py-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-4">
-              <AdminBrandMark staffMode={staffMode} />
+              <AdminBrandMark />
               <MarketingSiteLink />
             </div>
             <div className="flex shrink-0 items-center gap-2">

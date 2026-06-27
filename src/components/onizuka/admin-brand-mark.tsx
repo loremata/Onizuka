@@ -1,10 +1,6 @@
 import Link from "next/link";
 
-type Props = {
-  staffMode?: boolean;
-};
-
-export function AdminBrandMark({ staffMode }: Props) {
+export function AdminBrandMark() {
   return (
     <Link href="/admin" className="group flex items-center gap-3">
       <span
@@ -21,11 +17,6 @@ export function AdminBrandMark({ staffMode }: Props) {
           Business OS
         </span>
       </span>
-      {staffMode ? (
-        <span className="ml-1 rounded-md border border-border bg-muted/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          Staff
-        </span>
-      ) : null}
     </Link>
   );
 }
