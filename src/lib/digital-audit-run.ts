@@ -283,8 +283,21 @@ export async function runDigitalAuditForClient(params: {
     })
     .catch(() => undefined);
 
+  // Sicurezza: non creare outreach a freddo verso chi è già cliente reale.
+  // L'audit resta utile (refresh interno), ma niente prima mail/sequenza.
+  const skipOutreachExistingClient =
+    params.createOutreachDraft && client.relationshipState === "CLIENTE";
+  if (skipOutreachExistingClient) {
+    await prisma.digitalAudit
+      .update({
+        where: { id: audit.id },
+        data: { internalNotes: `${audit.internalNotes ?? ""} · Outreach saltato: già cliente.`.slice(0, 1000) },
+      })
+      .catch(() => undefined);
+  }
+
   let outreachDraftId: string | undefined;
-  if (params.createOutreachDraft) {
+  if (params.createOutreachDraft && !skipOutreachExistingClient) {
     const emailDraft = buildFirstAuditOutreachEmail({
       companyName: client.companyName,
       priorityProblem: rec.priorityProblem,

@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { notifyAdminsViaTelegram } from "@/lib/telegram-bot";
+import { bumpNotificationRev } from "@/lib/notification-rev";
 
 export type StopOutreachReason =
   | "whatsapp_reply"
@@ -51,9 +53,64 @@ export async function stopActiveOutreachSequences(params: {
 }
 
 /**
+ * Quando un lead/cliente risponde su un canale: oltre a fermare i follow-up,
+ * registra il segnale caldo → task "Rispondi a {azienda}" (idempotente) +
+ * notifica in-app e Telegram. È il momento giusto per ricontattare a mano.
+ */
+export async function captureHotReply(params: {
+  ownerUserId: string;
+  clientId?: string | null;
+  company: string;
+  channel: string;
+}): Promise<void> {
+  const { ownerUserId, clientId, company, channel } = params;
+
+  const existing = await prisma.flowTask.findFirst({
+    where: {
+      ownerUserId,
+      source: "hot_reply",
+      status: { in: ["TODO", "IN_PROGRESS"] },
+      ...(clientId ? { relatedClientId: clientId } : { relatedClientId: null }),
+    },
+    select: { id: true },
+  });
+  if (!existing) {
+    await prisma.flowTask.create({
+      data: {
+        ownerUserId,
+        relatedClientId: clientId ?? null,
+        title: `Rispondi a ${company}`,
+        description: `Ha risposto su ${channel}: lead caldo, ricontatta subito.${clientId ? `\n/admin/clients/${clientId}` : ""}`,
+        status: "TODO",
+        priority: "URGENT",
+        dueDate: new Date(),
+        source: "hot_reply",
+      },
+    });
+  }
+
+  await prisma.userNotification
+    .create({
+      data: {
+        userId: ownerUserId,
+        kind: "hot_reply",
+        title: `🔥 ${company} ha risposto (${channel})`,
+        body: `Lead caldo: follow-up in pausa, ricontatta a mano.`,
+        href: clientId ? `/admin/clients/${clientId}` : "/admin/crm/leads",
+      },
+    })
+    .catch(() => undefined);
+  await bumpNotificationRev([ownerUserId]).catch(() => undefined);
+  await notifyAdminsViaTelegram(
+    `🔥 ${company} ha risposto su ${channel} — follow-up messi in pausa. Ricontatta a mano.`
+  ).catch(() => undefined);
+}
+
+/**
  * Ferma le sequenze attive il cui cliente o lead ha un telefono che corrisponde al
  * numero entrante (best-effort, confronto sulle ultime 9 cifre). Scansiona solo le
  * sequenze ATTIVE (poche), quindi è leggero anche senza indice telefono.
+ * Registra anche il segnale caldo (task + notifica) per ogni azienda coinvolta.
  */
 export async function stopSequencesByInboundPhone(
   phoneFrom: string
@@ -65,20 +122,35 @@ export async function stopSequencesByInboundPhone(
     where: { status: "ACTIVE" },
     select: {
       id: true,
-      client: { select: { phone: true } },
-      lead: { select: { phone: true } },
+      ownerUserId: true,
+      clientId: true,
+      client: { select: { phone: true, companyName: true } },
+      lead: { select: { phone: true, businessName: true, title: true } },
     },
   });
 
-  const ids = active
-    .filter((s) => phoneTail(s.client?.phone) === target || phoneTail(s.lead?.phone) === target)
-    .map((s) => s.id);
-  if (!ids.length) return { stopped: 0 };
+  const matched = active.filter(
+    (s) => phoneTail(s.client?.phone) === target || phoneTail(s.lead?.phone) === target
+  );
+  if (!matched.length) return { stopped: 0 };
 
+  const ids = matched.map((s) => s.id);
   await prisma.outreachSequence.updateMany({
     where: { id: { in: ids } },
     data: { status: "PAUSED" },
   });
+
+  for (const s of matched) {
+    const company =
+      s.client?.companyName ?? s.lead?.businessName ?? s.lead?.title ?? "Lead";
+    await captureHotReply({
+      ownerUserId: s.ownerUserId,
+      clientId: s.clientId,
+      company,
+      channel: "WhatsApp",
+    }).catch(() => undefined);
+  }
+
   return { stopped: ids.length };
 }
 

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { buildOutreachDraftFromSequenceStep } from "@/lib/reach-sequence-draft";
 import { notifyAdminsViaTelegram, type TelegramInlineKeyboard } from "@/lib/telegram-bot";
+import { ITALY_TZ } from "@/lib/datetime-it";
 
 export type SequenceStepTemplate = {
   delayDays: number;
@@ -383,8 +384,17 @@ export async function activateSequenceStep(stepId: string): Promise<{ draftId: s
 export async function processDueOutreachSequenceSteps(): Promise<{
   activated: number;
   completedSequences: number;
+  skippedWeekend?: boolean;
 }> {
   const now = new Date();
+
+  // Orario umano: niente follow-up nel weekend (ora Italia). Gli step restano
+  // SCHEDULED e partono al primo giorno feriale utile → più credibilità/consegna.
+  const weekday = new Intl.DateTimeFormat("en-US", { timeZone: ITALY_TZ, weekday: "short" }).format(now);
+  if (weekday === "Sat" || weekday === "Sun") {
+    return { activated: 0, completedSequences: 0, skippedWeekend: true };
+  }
+
   const due = await prisma.outreachSequenceStep.findMany({
     where: {
       status: "SCHEDULED",
@@ -417,6 +427,24 @@ export async function processDueOutreachSequenceSteps(): Promise<{
         where: { id: seq.id },
         data: { status: "COMPLETED" },
       });
+      // Sequenza conclusa restando ACTIVE = nessuna risposta (una risposta l'avrebbe
+      // messa in PAUSED). Il lead satellite passa a "freddo/nurturing" invece di
+      // restare LEAD attivo all'infinito.
+      if (seq.leadId) {
+        await prisma.lead
+          .updateMany({
+            where: { id: seq.leadId, status: { notIn: ["CONVERTED", "LOST"] } },
+            data: { status: "COLD" },
+          })
+          .catch(() => undefined);
+      } else if (seq.clientId) {
+        await prisma.lead
+          .updateMany({
+            where: { clientId: seq.clientId, status: { notIn: ["CONVERTED", "LOST"] } },
+            data: { status: "COLD" },
+          })
+          .catch(() => undefined);
+      }
       completedSequences += 1;
     }
   }
