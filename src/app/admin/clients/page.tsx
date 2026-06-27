@@ -238,11 +238,11 @@ export default async function AdminClientsPage({ searchParams }: Props) {
                     <th className="pb-3 font-medium">Stato</th>
                     <th className="pb-3 font-medium">Tipo</th>
                     <th className="pb-3 font-medium">Ragione sociale</th>
-                    <th className="pb-3 font-medium">Slug</th>
+                    <th className="hidden pb-3 font-medium md:table-cell">Slug</th>
                     <th className="pb-3 font-medium">Email di contatto</th>
                     <th className="pb-3 font-medium text-right">Spesa/mese</th>
-                    <th className="pb-3 font-medium">Utenti</th>
-                    <th className="pb-3 font-medium">Post</th>
+                    <th className="hidden pb-3 font-medium md:table-cell">Utenti</th>
+                    <th className="hidden pb-3 font-medium md:table-cell">Post</th>
                     <th className="pb-3 font-medium text-right">Azioni</th>
                   </tr>
                 </thead>
@@ -257,15 +257,15 @@ export default async function AdminClientsPage({ searchParams }: Props) {
                           : ""}
                       </td>
                       <td className="py-3">{c.companyName}</td>
-                      <td className="py-3 font-mono text-muted-foreground">{c.slug}</td>
+                      <td className="hidden py-3 font-mono text-muted-foreground md:table-cell">{c.slug}</td>
                       <td className="py-3">{c.contactEmail}</td>
                       <td className="py-3 text-right tabular-nums">
                         {spendByClient.get(c.id)
                           ? `€ ${spendByClient.get(c.id)!.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                           : "—"}
                       </td>
-                      <td className="py-3">{c._count.users}</td>
-                      <td className="py-3">{c._count.posts}</td>
+                      <td className="hidden py-3 md:table-cell">{c._count.users}</td>
+                      <td className="hidden py-3 md:table-cell">{c._count.posts}</td>
                       <td className="py-3 text-right">
                         <div className="flex flex-wrap justify-end gap-2">
                           <Button asChild variant="secondary" size="sm">
