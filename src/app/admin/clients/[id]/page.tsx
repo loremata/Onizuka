@@ -380,14 +380,24 @@ export default async function ClientOverviewPage({
       <ClientHubNav items={client360Nav} />
 
       {client360Profile ? (
-        <Client360CommercialPanels clientId={client.id} profile={client360Profile} />
-      ) : null}
+        <Client360CommercialPanels
+          clientId={client.id}
+          profile={client360Profile}
+          snapshots={
+            <>
+              <ClientDigitalSnapshotCard clientId={client.id} />
+              <ClientRetailSnapshotCard clientId={client.id} />
+            </>
+          }
+        />
+      ) : (
+        <div className="space-y-6">
+          <ClientDigitalSnapshotCard clientId={client.id} />
+          <ClientRetailSnapshotCard clientId={client.id} />
+        </div>
+      )}
 
       <AuditCommercialSummaryCard summary={auditCommercialSummary} />
-
-      <ClientRetailSnapshotCard clientId={client.id} />
-
-      <ClientDigitalSnapshotCard clientId={client.id} />
 
       {/* Punteggio cliente unificato: due assi indipendenti (prima 3 score separati e contraddittori). */}
       <Card>

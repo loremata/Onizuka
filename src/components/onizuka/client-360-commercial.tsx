@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { Client360Profile } from "@/lib/client-360-profile";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,10 +34,12 @@ function ProfileList({
 type Props = {
   clientId: string;
   profile: Client360Profile;
+  /** Card extra (es. snapshot colpo d'occhio) rese subito sotto "Identità fiscale univoca". */
+  snapshots?: ReactNode;
 };
 
 /** Pannelli commerciali monetizzazione sulla scheda cliente 360°. */
-export function Client360CommercialPanels({ clientId, profile }: Props) {
+export function Client360CommercialPanels({ clientId, profile, snapshots }: Props) {
   const { identity } = profile;
 
   return (
@@ -67,6 +70,8 @@ export function Client360CommercialPanels({ clientId, profile }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      {snapshots}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
