@@ -14,6 +14,7 @@ import {
   opportunityStatusLabel,
   opportunityStatusOptions,
 } from "@/lib/crm-opportunity";
+import { Select } from "@/components/ui/select";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -77,7 +78,7 @@ export function OpportunityForm({ clients, leads = [], assets, opportunity }: Pr
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="clientId">Cliente (opzionale se c&apos;è un lead)</Label>
-          <select
+          <Select
             id="clientId"
             name="clientId"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -97,11 +98,11 @@ export function OpportunityForm({ clients, leads = [], assets, opportunity }: Pr
                 {c.companyName}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="leadId">Lead collegato</Label>
-          <select
+          <Select
             id="leadId"
             name="leadId"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -113,7 +114,7 @@ export function OpportunityForm({ clients, leads = [], assets, opportunity }: Pr
                 {l.businessName ?? l.title}
               </option>
             ))}
-          </select>
+          </Select>
           <p className="text-xs text-muted-foreground">Almeno cliente o lead richiesto.</p>
         </div>
         <div className="space-y-2 sm:col-span-2">
@@ -122,7 +123,7 @@ export function OpportunityForm({ clients, leads = [], assets, opportunity }: Pr
         </div>
         <div className="space-y-2">
           <Label htmlFor="status">Stato</Label>
-          <select
+          <Select
             id="status"
             name="status"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -133,11 +134,11 @@ export function OpportunityForm({ clients, leads = [], assets, opportunity }: Pr
                 {opportunityStatusLabel[s]}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="priority">Priorità</Label>
-          <select
+          <Select
             id="priority"
             name="priority"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -148,7 +149,7 @@ export function OpportunityForm({ clients, leads = [], assets, opportunity }: Pr
                 {opportunityPriorityLabel[p]}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="estimatedValue">Valore stimato (€)</Label>
@@ -171,7 +172,7 @@ export function OpportunityForm({ clients, leads = [], assets, opportunity }: Pr
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="assetId">Asset (opzionale)</Label>
-          <select
+          <Select
             id="assetId"
             name="assetId"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -184,7 +185,7 @@ export function OpportunityForm({ clients, leads = [], assets, opportunity }: Pr
                 {a.name}
               </option>
             ))}
-          </select>
+          </Select>
           {assetChoices.length === 0 && clientId ? (
             <p className="text-xs text-muted-foreground">
               Nessun asset per questo cliente.{" "}

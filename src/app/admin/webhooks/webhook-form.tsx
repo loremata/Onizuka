@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createWebhook } from "./actions";
+import { Select } from "@/components/ui/select";
 
 type Props = { clients: { id: string; companyName: string; slug: string }[] };
 
@@ -22,7 +23,7 @@ export function WebhookForm({ clients }: Props) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="event">Evento</Label>
-          <select
+          <Select
             id="event"
             name="event"
             required
@@ -30,11 +31,11 @@ export function WebhookForm({ clients }: Props) {
           >
             <option value="POST_APPROVED">POST_APPROVED</option>
             <option value="POST_STATUS_CHANGED">POST_STATUS_CHANGED</option>
-          </select>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="clientId">Cliente (opzionale)</Label>
-          <select
+          <Select
             id="clientId"
             name="clientId"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -45,7 +46,7 @@ export function WebhookForm({ clients }: Props) {
                 {c.companyName} ({c.slug})
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
       <div className="space-y-2">

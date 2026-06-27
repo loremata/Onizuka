@@ -4,6 +4,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import type { FlowTaskStatus } from "@prisma/client";
 import { updateFlowTaskStatus, type FlowActionResult } from "./actions";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -39,7 +40,7 @@ export function FlowTaskStatusForm({
   return (
     <form action={formAction} className="flex flex-wrap items-center gap-2">
       {state?.error && <span className="w-full text-xs text-destructive">{state.error}</span>}
-      <select
+      <Select
         name="status"
         aria-label="Stato task"
         defaultValue={current}
@@ -50,7 +51,7 @@ export function FlowTaskStatusForm({
             {o.label}
           </option>
         ))}
-      </select>
+      </Select>
       <SubmitButton />
     </form>
   );

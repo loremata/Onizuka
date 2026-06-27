@@ -17,6 +17,7 @@ import {
 import { buildListExportHref } from "@/lib/list-export-href";
 import { buildOwnedOpportunityWhere, parseOpportunityListFilters } from "@/lib/opportunity-list-filters";
 import { OpportunityQuickStatusForm } from "../opportunity-quick-status-form";
+import { Select } from "@/components/ui/select";
 
 type Props = {
   searchParams: Record<string, string | string[] | undefined>;
@@ -119,7 +120,7 @@ export default async function AdminCrmOpportunitiesPage({ searchParams }: Props)
               <label htmlFor="clientId" className="text-xs font-medium text-muted-foreground">
                 Cliente
               </label>
-              <select
+              <Select
                 id="clientId"
                 name="clientId"
                 defaultValue={filters.clientId}
@@ -131,13 +132,13 @@ export default async function AdminCrmOpportunitiesPage({ searchParams }: Props)
                     {c.companyName}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="flex flex-col gap-1 lg:col-span-2">
               <label htmlFor="status" className="text-xs font-medium text-muted-foreground">
                 Stato
               </label>
-              <select
+              <Select
                 id="status"
                 name="status"
                 defaultValue={filters.status ?? ""}
@@ -149,13 +150,13 @@ export default async function AdminCrmOpportunitiesPage({ searchParams }: Props)
                     {opportunityStatusLabel[s]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="flex flex-col gap-1 lg:col-span-2">
               <label htmlFor="priority" className="text-xs font-medium text-muted-foreground">
                 Priorità
               </label>
-              <select
+              <Select
                 id="priority"
                 name="priority"
                 defaultValue={filters.priority ?? ""}
@@ -167,13 +168,13 @@ export default async function AdminCrmOpportunitiesPage({ searchParams }: Props)
                     {opportunityPriorityLabel[p]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="flex flex-col gap-1 lg:col-span-3">
               <label htmlFor="assetId" className="text-xs font-medium text-muted-foreground">
                 Asset
               </label>
-              <select
+              <Select
                 id="assetId"
                 name="assetId"
                 defaultValue={filters.assetId}
@@ -185,7 +186,7 @@ export default async function AdminCrmOpportunitiesPage({ searchParams }: Props)
                     {a.client.companyName} — {a.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-2">
               <label htmlFor="q" className="text-xs font-medium text-muted-foreground">

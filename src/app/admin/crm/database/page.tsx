@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { parseClientListFilters, buildClientSearchWhere } from "@/lib/client-list-filters";
 import { ClientTagsAttributes } from "@/components/onizuka/client-tags-attributes";
+import { Select } from "@/components/ui/select";
 
 const kindLabel: Record<string, string> = { PRIVATE: "Privato", BUSINESS: "Azienda" };
 const macroLabel: Record<string, string> = {
@@ -71,17 +72,17 @@ export default async function ClientDatabasePage({ searchParams }: Props) {
         <CardContent>
           <form method="get" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
             <input name="q" defaultValue={filters.q} placeholder="Nome, email, città…" className="flex h-10 w-full max-w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm" />
-            <select name="kind" defaultValue={filters.kind} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <Select name="kind" defaultValue={filters.kind} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
               <option value="">Tipo: tutti</option>
               <option value="PRIVATE">Privato</option>
               <option value="BUSINESS">Azienda</option>
-            </select>
-            <select name="macro" defaultValue={filters.macro} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            </Select>
+            <Select name="macro" defaultValue={filters.macro} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
               <option value="">Macro: tutte</option>
               <option value="RETAIL_STORE">Retail</option>
               <option value="DIGITAL_AI">Digital/AI</option>
               <option value="MIXED">Misto</option>
-            </select>
+            </Select>
             <Input name="tag" defaultValue={filters.tag} placeholder="Tag (es. TIM)" className="max-w-[140px]" />
             <Input name="attrKey" defaultValue={filters.attrKey} placeholder="Attr. chiave" className="max-w-[130px]" />
             <Input name="attrValue" defaultValue={filters.attrValue} placeholder="Attr. valore" className="max-w-[130px]" />

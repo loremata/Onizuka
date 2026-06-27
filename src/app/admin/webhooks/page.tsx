@@ -11,6 +11,7 @@ import { WebhookDeliveriesPanel } from "./webhook-deliveries-panel";
 import { WebhookFailuresPanel } from "./webhook-failures-panel";
 import { WebhookTestButton } from "./webhook-test-button";
 import { WebhookToggleButton } from "./webhook-toggle-button";
+import { Select } from "@/components/ui/select";
 
 const eventLabel: Record<WebhookEvent, string> = {
   POST_APPROVED: "Post approvato",
@@ -83,7 +84,7 @@ export default async function AdminWebhooksPage({ searchParams }: Props) {
               <label htmlFor="clientId" className="text-xs font-medium text-muted-foreground">
                 Cliente
               </label>
-              <select
+              <Select
                 id="clientId"
                 name="clientId"
                 defaultValue={filters.clientId}
@@ -95,13 +96,13 @@ export default async function AdminWebhooksPage({ searchParams }: Props) {
                     {c.companyName}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="flex flex-col gap-1 lg:col-span-2">
               <label htmlFor="event" className="text-xs font-medium text-muted-foreground">
                 Evento
               </label>
-              <select
+              <Select
                 id="event"
                 name="event"
                 defaultValue={filters.event ?? ""}
@@ -110,13 +111,13 @@ export default async function AdminWebhooksPage({ searchParams }: Props) {
                 <option value="">Tutti</option>
                 <option value="POST_APPROVED">{eventLabel.POST_APPROVED}</option>
                 <option value="POST_STATUS_CHANGED">{eventLabel.POST_STATUS_CHANGED}</option>
-              </select>
+              </Select>
             </div>
             <div className="flex flex-col gap-1 lg:col-span-2">
               <label htmlFor="active" className="text-xs font-medium text-muted-foreground">
                 Stato
               </label>
-              <select
+              <Select
                 id="active"
                 name="active"
                 defaultValue={filters.active ?? ""}
@@ -125,7 +126,7 @@ export default async function AdminWebhooksPage({ searchParams }: Props) {
                 <option value="">Tutti</option>
                 <option value="1">Solo attivi</option>
                 <option value="0">Solo inattivi</option>
-              </select>
+              </Select>
             </div>
             <div className="flex flex-wrap gap-2 lg:col-span-2">
               <Button type="submit">Applica</Button>

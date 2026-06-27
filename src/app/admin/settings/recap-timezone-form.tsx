@@ -4,6 +4,7 @@ import { useFormState } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { setRecapTimeZonePreference, type RecapTzActionResult } from "./actions";
+import { Select } from "@/components/ui/select";
 
 const initial: RecapTzActionResult = null;
 
@@ -21,7 +22,7 @@ export function RecapTimezoneForm({ options, defaultValue }: { options: Opt[]; d
       )}
       <div className="space-y-2">
         <Label htmlFor="timeZone">Fuso per «oggi» nel Command Center</Label>
-        <select
+        <Select
           id="timeZone"
           name="timeZone"
           defaultValue={defaultValue}
@@ -32,7 +33,7 @@ export function RecapTimezoneForm({ options, defaultValue }: { options: Opt[]; d
               {o.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <Button type="submit">Salva</Button>
     </form>

@@ -4,6 +4,7 @@ import { useFormState } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createOutreachDraft } from "./actions";
+import { Select } from "@/components/ui/select";
 
 type ClientOption = { id: string; companyName: string };
 
@@ -17,7 +18,7 @@ export function OutreachDraftForm({ clients }: { clients: ClientOption[] }) {
         <label htmlFor="clientId" className="text-xs font-medium text-muted-foreground">
           Cliente (opzionale)
         </label>
-        <select
+        <Select
           id="clientId"
           name="clientId"
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -29,7 +30,7 @@ export function OutreachDraftForm({ clients }: { clients: ClientOption[] }) {
               {c.companyName}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div className="space-y-1">
         <label htmlFor="subject" className="text-xs font-medium text-muted-foreground">

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AutomationRuleTemplatePicker } from "./automation-rule-template-picker";
 import { updateAutomationRule, type AutomationRuleResult } from "./actions";
+import { Select } from "@/components/ui/select";
 
 function Submit() {
   const { pending } = useFormStatus();
@@ -57,7 +58,7 @@ export function AutomationRuleEditForm({ rule }: { rule: AutomationRule }) {
         </div>
         <div className="space-y-2">
           <Label htmlFor="conditionOperator">Operatore</Label>
-          <select
+          <Select
             id="conditionOperator"
             name="conditionOperator"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -70,7 +71,7 @@ export function AutomationRuleEditForm({ rule }: { rule: AutomationRule }) {
                 </option>
               )
             )}
-          </select>
+          </Select>
         </div>
       </div>
       <div className="space-y-2">
@@ -126,7 +127,7 @@ export function AutomationRuleEditForm({ rule }: { rule: AutomationRule }) {
       </div>
       <div className="space-y-2">
         <Label htmlFor="trigger">Trigger</Label>
-        <select
+        <Select
           id="trigger"
           name="trigger"
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -139,7 +140,7 @@ export function AutomationRuleEditForm({ rule }: { rule: AutomationRule }) {
           <option value="REACH_DRAFT_SENT">REACH_DRAFT_SENT</option>
           <option value="FINANCE_INCOME_CREATED">FINANCE_INCOME_CREATED</option>
           <option value="WHATSAPP_INBOUND">WHATSAPP_INBOUND</option>
-        </select>
+        </Select>
       </div>
       <Submit />
     </form>

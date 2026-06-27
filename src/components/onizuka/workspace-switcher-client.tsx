@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { switchWorkspace } from "@/app/admin/settings/workspace-actions";
+import { Select } from "@/components/ui/select";
 
 export function WorkspaceSwitcherClient({
   workspaces,
@@ -15,7 +16,7 @@ export function WorkspaceSwitcherClient({
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
       <span className="text-muted-foreground">Workspace:</span>
-      <select
+      <Select
         className="h-9 rounded-md border border-input bg-background px-2"
         value={activeId}
         disabled={pending}
@@ -32,7 +33,7 @@ export function WorkspaceSwitcherClient({
             {w.isolated ? " (isolato)" : ""}
           </option>
         ))}
-      </select>
+      </Select>
     </div>
   );
 }

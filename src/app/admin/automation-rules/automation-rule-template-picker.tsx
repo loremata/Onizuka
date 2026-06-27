@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import { AUTOMATION_ACTION_TEMPLATES } from "@/lib/automation-templates-catalog";
+import { Select } from "@/components/ui/select";
 
 /** Applica un modello dalla libreria ai campi template del form (per id DOM). */
 export function AutomationRuleTemplatePicker() {
@@ -23,7 +24,7 @@ export function AutomationRuleTemplatePicker() {
         Libreria template (email + webhook)
       </Label>
       <div className="flex flex-wrap gap-2">
-        <select
+        <Select
           id="automation-template-lib"
           className="flex h-9 min-w-[200px] flex-1 rounded-md border border-input bg-background px-2 text-sm"
           defaultValue=""
@@ -39,7 +40,7 @@ export function AutomationRuleTemplatePicker() {
               {t.title}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <p className="text-[11px] text-muted-foreground">
         I modelli compilano i tre campi sottostanti; puoi modificarli prima di salvare.

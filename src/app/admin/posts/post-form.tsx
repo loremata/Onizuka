@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { createPost } from "./actions";
 import { platformSelectRows } from "@/lib/post-ui-labels";
 import type { Client } from "@prisma/client";
+import { Select } from "@/components/ui/select";
 
 type PostFormProps = { clients: Client[] };
 
@@ -26,7 +27,7 @@ export function PostForm({ clients }: PostFormProps) {
       )}
       <div className="space-y-2">
         <Label htmlFor="clientId">Cliente</Label>
-        <select
+        <Select
           id="clientId"
           name="clientId"
           required
@@ -38,11 +39,11 @@ export function PostForm({ clients }: PostFormProps) {
               {c.companyName} ({c.slug})
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div className="space-y-2">
         <Label htmlFor="platform">Piattaforma</Label>
-        <select
+        <Select
           id="platform"
           name="platform"
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -52,7 +53,7 @@ export function PostForm({ clients }: PostFormProps) {
               {p.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div className="space-y-2">
         <Label htmlFor="captionText">Didascalia</Label>

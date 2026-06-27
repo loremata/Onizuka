@@ -5,6 +5,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createFinanceEntry, type FinanceActionResult } from "./actions";
+import { Select } from "@/components/ui/select";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -41,10 +42,10 @@ export function FinanceEntryForm({
       </div>
       <div>
         <label className="mb-1 block text-xs text-muted-foreground">Tipo</label>
-        <select name="type" className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+        <Select name="type" className="h-10 rounded-md border border-input bg-background px-3 text-sm">
           <option value="INCOME">Entrata</option>
           <option value="EXPENSE">Uscita</option>
-        </select>
+        </Select>
       </div>
       <div>
         <label className="mb-1 block text-xs text-muted-foreground">Importo €</label>
@@ -52,7 +53,7 @@ export function FinanceEntryForm({
       </div>
       <div>
         <label className="mb-1 block text-xs text-muted-foreground">Cliente</label>
-        <select
+        <Select
           name="clientId"
           value={clientId}
           onChange={(e) => setClientId(e.target.value)}
@@ -64,11 +65,11 @@ export function FinanceEntryForm({
               {c.companyName}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div>
         <label className="mb-1 block text-xs text-muted-foreground">Asset / canale</label>
-        <select
+        <Select
           name="assetId"
           className="h-10 w-44 rounded-md border border-input bg-background px-3 text-sm"
           disabled={!clientId}
@@ -80,7 +81,7 @@ export function FinanceEntryForm({
               {a.platform ? ` (${a.platform})` : ""}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div>
         <label className="mb-1 block text-xs text-muted-foreground">Scadenza</label>

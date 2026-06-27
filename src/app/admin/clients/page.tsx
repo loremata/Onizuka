@@ -10,6 +10,7 @@ import { clientKindBadge, clientKindLabel, clientMacroCategoryLabel } from "@/li
 import { buildClientSearchWhere, parseClientListFilters } from "@/lib/client-list-filters";
 import { clientWorkspaceWhere, getScopedPrisma } from "@/lib/workspace-scope";
 import { WorkspaceSwitcher } from "@/components/onizuka/workspace-switcher";
+import { Select } from "@/components/ui/select";
 
 type Props = {
   searchParams: Record<string, string | string[] | undefined>;
@@ -118,7 +119,7 @@ export default async function AdminClientsPage({ searchParams }: Props) {
               <label htmlFor="state" className="text-xs font-medium text-muted-foreground">
                 Stato
               </label>
-              <select
+              <Select
                 id="state"
                 name="state"
                 defaultValue={filters.state}
@@ -128,13 +129,13 @@ export default async function AdminClientsPage({ searchParams }: Props) {
                 <option value="LEAD">Prospect / Lead</option>
                 <option value="EX_CLIENTE">Ex clienti</option>
                 <option value="all">Tutti</option>
-              </select>
+              </Select>
             </div>
             <div className="flex min-w-[140px] flex-col gap-1">
               <label htmlFor="kind" className="text-xs font-medium text-muted-foreground">
                 Tipo
               </label>
-              <select
+              <Select
                 id="kind"
                 name="kind"
                 defaultValue={filters.kind}
@@ -143,13 +144,13 @@ export default async function AdminClientsPage({ searchParams }: Props) {
                 <option value="">Tutti</option>
                 <option value="PRIVATE">Privato</option>
                 <option value="BUSINESS">Azienda</option>
-              </select>
+              </Select>
             </div>
             <div className="flex min-w-[160px] flex-col gap-1">
               <label htmlFor="macro" className="text-xs font-medium text-muted-foreground">
                 Macro
               </label>
-              <select
+              <Select
                 id="macro"
                 name="macro"
                 defaultValue={filters.macro}
@@ -159,7 +160,7 @@ export default async function AdminClientsPage({ searchParams }: Props) {
                 <option value="RETAIL_STORE">Negozio</option>
                 <option value="DIGITAL_AI">Digitale / AI</option>
                 <option value="MIXED">Misto</option>
-              </select>
+              </Select>
             </div>
             <div className="flex min-w-[150px] flex-col gap-1">
               <label htmlFor="operator" className="text-xs font-medium text-muted-foreground">

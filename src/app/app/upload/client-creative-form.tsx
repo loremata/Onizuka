@@ -8,6 +8,7 @@ import { applySquareCropToFileList } from "@/lib/image-crop-client";
 import { submitClientCreative, type CreativeActionResult } from "../creative-actions";
 import { UploadMediaPreview } from "./upload-media-preview";
 import { UploadInteractiveCropModal } from "./upload-interactive-crop-modal";
+import { Select } from "@/components/ui/select";
 
 function SubmitButton({ disabled }: { disabled?: boolean }) {
   return (
@@ -70,7 +71,7 @@ export function ClientCreativeForm() {
     >
       <div>
         <label className="mb-1 block text-xs text-muted-foreground">Piattaforma</label>
-        <select
+        <Select
           name="platform"
           className="h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 text-sm"
           defaultValue="INSTAGRAM"
@@ -80,7 +81,7 @@ export function ClientCreativeForm() {
               {p.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div>
         <label className="mb-1 block text-xs text-muted-foreground">Didascalia / note (opzionale)</label>

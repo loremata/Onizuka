@@ -11,6 +11,7 @@ import {
   postStatusSelectRows,
 } from "@/lib/post-ui-labels";
 import type { Client, PostItem } from "@prisma/client";
+import { Select } from "@/components/ui/select";
 
 type PostWithMeta = PostItem & {
   client: { companyName: string; slug: string };
@@ -44,7 +45,7 @@ export function PostsTable({ posts, clients, currentFilters }: Props) {
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium">Cliente</label>
-          <select
+          <Select
             value={currentFilters.clientId}
             onChange={(e) => setFilter("clientId", e.target.value)}
             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
@@ -55,11 +56,11 @@ export function PostsTable({ posts, clients, currentFilters }: Props) {
                 {c.companyName}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium">Piattaforma</label>
-          <select
+          <Select
             value={currentFilters.platform}
             onChange={(e) => setFilter("platform", e.target.value)}
             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
@@ -70,11 +71,11 @@ export function PostsTable({ posts, clients, currentFilters }: Props) {
                 {label}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="flex items-center gap-2">
           <label className="text-sm font-medium">Stato</label>
-          <select
+          <Select
             value={currentFilters.status}
             onChange={(e) => setFilter("status", e.target.value)}
             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
@@ -85,7 +86,7 @@ export function PostsTable({ posts, clients, currentFilters }: Props) {
                 {label}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="flex flex-wrap items-end gap-4">
           <div className="flex min-w-[200px] flex-col gap-1">

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createOutreachSequence } from "../actions";
 import { SequenceAbFields } from "./sequence-ab-fields";
+import { Select } from "@/components/ui/select";
 
 type ClientOption = { id: string; companyName: string };
 type LeadOption = { id: string; label: string };
@@ -147,7 +148,7 @@ export function CreateSequenceForm({
       </div>
 
       {targetType === "client" ? (
-        <select
+        <Select
           name="clientId"
           required
           className="flex h-10 w-full max-w-md rounded-md border border-input bg-background px-3 text-sm"
@@ -159,9 +160,9 @@ export function CreateSequenceForm({
               {c.companyName}
             </option>
           ))}
-        </select>
+        </Select>
       ) : (
-        <select
+        <Select
           name="leadId"
           required
           className="flex h-10 w-full max-w-md rounded-md border border-input bg-background px-3 text-sm"
@@ -173,7 +174,7 @@ export function CreateSequenceForm({
               {l.label}
             </option>
           ))}
-        </select>
+        </Select>
       )}
 
       <Input name="priorityProblem" placeholder="Focus commerciale (opzionale)" disabled={pending} />

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { AutomationRuleTemplatePicker } from "./automation-rule-template-picker";
 import { AutomationConditionBuilder } from "./automation-condition-builder";
 import { createAutomationRule, type AutomationRuleResult } from "./actions";
+import { Select } from "@/components/ui/select";
 
 function Submit() {
   const { pending } = useFormStatus();
@@ -39,7 +40,7 @@ export function AutomationRuleCreateForm() {
       </label>
       <div id="auto-trigger" className="space-y-2">
         <Label htmlFor="trigger">Trigger</Label>
-        <select
+        <Select
           id="trigger"
           name="trigger"
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -52,7 +53,7 @@ export function AutomationRuleCreateForm() {
           <option value="REACH_DRAFT_SENT">REACH_DRAFT_SENT — bozza Reach segnata come inviata (SMTP/Gmail o pulsante)</option>
           <option value="FINANCE_INCOME_CREATED">FINANCE_INCOME_CREATED — creazione voce entrata in Finance</option>
           <option value="WHATSAPP_INBOUND">WHATSAPP_INBOUND — messaggio WhatsApp in ingresso (webhook)</option>
-        </select>
+        </Select>
       </div>
       <div id="auto-condition" className="space-y-3">
         <AutomationConditionBuilder />
@@ -63,7 +64,7 @@ export function AutomationRuleCreateForm() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="conditionOperator">Operatore</Label>
-          <select
+          <Select
             id="conditionOperator"
             name="conditionOperator"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -81,7 +82,7 @@ export function AutomationRuleCreateForm() {
             <option value="IN">IN (csv)</option>
             <option value="DATE_BEFORE">DATE_BEFORE</option>
             <option value="DATE_AFTER">DATE_AFTER</option>
-          </select>
+          </Select>
         </div>
       </div>
       <div className="space-y-2">

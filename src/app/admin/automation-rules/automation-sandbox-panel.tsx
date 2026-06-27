@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
 
 type SandboxResult = {
   matched: boolean;
@@ -30,7 +31,7 @@ export function AutomationSandboxPanel({ rules }: { rules: { id: string; name: s
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
-        <select
+        <Select
           className="h-10 w-full rounded-md border border-input bg-background px-3"
           value={ruleId}
           onChange={(e) => setRuleId(e.target.value)}
@@ -40,7 +41,7 @@ export function AutomationSandboxPanel({ rules }: { rules: { id: string; name: s
               {r.name}
             </option>
           ))}
-        </select>
+        </Select>
         <textarea
           className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs"
           value={payload}

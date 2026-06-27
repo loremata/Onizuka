@@ -6,6 +6,7 @@ import { assertMergeClientsAllowed } from "@/lib/client-merge-guard";
 import { duplicatePairScore } from "@/lib/client-dedupe-score";
 import { listMergeFieldConflicts } from "@/lib/client-merge-fields";
 import { getMergeImpactPairAction, mergeClientsAction } from "./actions";
+import { Select } from "@/components/ui/select";
 
 type ClientOpt = {
   id: string;
@@ -82,7 +83,7 @@ export function DedupeMergeForm({ clients }: { clients: ClientOpt[] }) {
       </p>
       <label className="block">
         <span className="text-xs font-medium">Destinazione (mantieni)</span>
-        <select
+        <Select
           className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
           value={targetId}
           onChange={(e) => setTargetId(e.target.value)}
@@ -92,11 +93,11 @@ export function DedupeMergeForm({ clients }: { clients: ClientOpt[] }) {
               {c.companyName}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       <label className="block">
         <span className="text-xs font-medium">Sorgente (elimina dopo merge)</span>
-        <select
+        <Select
           className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
           value={sourceId}
           onChange={(e) => setSourceId(e.target.value)}
@@ -106,7 +107,7 @@ export function DedupeMergeForm({ clients }: { clients: ClientOpt[] }) {
               {c.companyName}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       {blocked ? <p className="text-xs text-destructive">{blocked}</p> : null}
       {target && source && conflicts.length > 0 ? (

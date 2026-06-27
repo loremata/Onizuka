@@ -7,6 +7,7 @@ import type { LeadStatus } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { leadStatusLabel, leadStatusOptions } from "@/lib/crm-lead-status";
 import { updateLeadStatus, type LeadActionResult } from "./actions";
+import { Select } from "@/components/ui/select";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -55,7 +56,7 @@ export function LeadQuickStatusForm({ leadId, current }: { leadId: string; curre
         >
           Stato
         </label>
-        <select
+        <Select
           id={`lead-status-${leadId}`}
           name="status"
           defaultValue={current}
@@ -66,7 +67,7 @@ export function LeadQuickStatusForm({ leadId, current }: { leadId: string; curre
               {leadStatusLabel[s]}
             </option>
           ))}
-        </select>
+        </Select>
         <SubmitButton />
       </div>
     </form>

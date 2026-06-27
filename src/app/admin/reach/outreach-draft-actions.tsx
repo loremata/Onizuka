@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { approveOutreachDraft, markOutreachSent, submitOutreachForApproval } from "./actions";
 import { OutreachSendButton } from "./outreach-mailto-button";
 import type { OutreachAbVariant } from "@/lib/outreach-ab";
+import { Select } from "@/components/ui/select";
 
 const labels: Record<string, string> = {
   DRAFT: "Bozza",
@@ -73,7 +74,7 @@ export function OutreachDraftActions({
       {status === "APPROVED" || status === "PENDING_APPROVAL" ? (
         <>
           {hasAb ? (
-            <select
+            <Select
               value={variant}
               onChange={(e) => setVariant(e.target.value as OutreachAbVariant)}
               className="h-7 rounded border border-input bg-background px-1 text-xs"
@@ -82,7 +83,7 @@ export function OutreachDraftActions({
             >
               <option value="A">A</option>
               <option value="B">B</option>
-            </select>
+            </Select>
           ) : null}
           <Button
             type="button"

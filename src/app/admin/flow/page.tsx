@@ -16,6 +16,7 @@ import { FlowTaskDeleteButton } from "./flow-task-delete-button";
 import { ClientLink } from "@/components/onizuka/client-link";
 import { FlowTaskDueForm } from "./flow-task-due-form";
 import { FlowTaskStatusForm } from "./flow-task-status-form";
+import { Select } from "@/components/ui/select";
 
 const statusFilterLabels: Record<string, string> = {
   TODO: "Da fare",
@@ -152,7 +153,7 @@ export default async function AdminFlowPage({ searchParams }: Props) {
               <label htmlFor="clientId" className="text-xs font-medium text-muted-foreground">
                 Cliente
               </label>
-              <select
+              <Select
                 id="clientId"
                 name="clientId"
                 defaultValue={listFilters.clientId}
@@ -164,13 +165,13 @@ export default async function AdminFlowPage({ searchParams }: Props) {
                     {c.companyName}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="flex min-w-[140px] flex-col gap-1">
               <label htmlFor="due" className="text-xs font-medium text-muted-foreground">
                 Scadenza
               </label>
-              <select
+              <Select
                 id="due"
                 name="due"
                 defaultValue={listFilters.due ?? ""}
@@ -179,13 +180,13 @@ export default async function AdminFlowPage({ searchParams }: Props) {
                 <option value="">Tutte</option>
                 <option value="today">Oggi</option>
                 <option value="overdue">In ritardo</option>
-              </select>
+              </Select>
             </div>
             <div className="flex min-w-[180px] flex-col gap-1">
               <label htmlFor="status" className="text-xs font-medium text-muted-foreground">
                 Stato
               </label>
-              <select
+              <Select
                 id="status"
                 name="status"
                 defaultValue={listFilters.status ?? ""}
@@ -197,7 +198,7 @@ export default async function AdminFlowPage({ searchParams }: Props) {
                     {statusFilterLabels[s] ?? s}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button type="submit">Applica</Button>

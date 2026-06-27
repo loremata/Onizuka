@@ -10,6 +10,7 @@ import {
 } from "@/lib/admin-audit-log";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 type Filters = {
   action?: string;
@@ -55,7 +56,7 @@ export function AuditDateFilter({ filters }: { filters: Filters }) {
     >
       <div>
         <label className="mb-1 block text-[10px] font-medium text-muted-foreground">Azione</label>
-        <select
+        <Select
           value={action}
           onChange={(e) => setAction(e.target.value)}
           className="h-8 rounded-md border border-input bg-background px-2 text-xs"
@@ -66,11 +67,11 @@ export function AuditDateFilter({ filters }: { filters: Filters }) {
               {ADMIN_AUDIT_ACTION_LABELS[a] ?? a}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div>
         <label className="mb-1 block text-[10px] font-medium text-muted-foreground">Entità</label>
-        <select
+        <Select
           value={entity}
           onChange={(e) => setEntity(e.target.value)}
           className="h-8 rounded-md border border-input bg-background px-2 text-xs"
@@ -81,7 +82,7 @@ export function AuditDateFilter({ filters }: { filters: Filters }) {
               {AUDIT_ENTITY_TYPE_LABELS[e] ?? e}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div>
         <label className="mb-1 block text-[10px] font-medium text-muted-foreground">Da</label>

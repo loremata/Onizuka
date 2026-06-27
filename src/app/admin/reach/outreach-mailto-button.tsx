@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import type { OutreachAbVariant } from "@/lib/outreach-ab";
+import { Select } from "@/components/ui/select";
 
 export function OutreachSendButton({
   draftId,
@@ -55,7 +56,7 @@ export function OutreachSendButton({
   return (
     <div className="flex flex-wrap items-center gap-1">
       {hasAb ? (
-        <select
+        <Select
           value={variant}
           onChange={(e) => setVariant(e.target.value as OutreachAbVariant)}
           className="h-7 rounded border border-input bg-background px-1 text-xs"
@@ -64,7 +65,7 @@ export function OutreachSendButton({
         >
           <option value="A">Oggetto A</option>
           <option value="B">Oggetto B</option>
-        </select>
+        </Select>
       ) : null}
       {smtpHint ? (
         <Button

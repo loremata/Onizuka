@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClientRetailContract, updateRetailContractStatus } from "./client-retail-actions";
+import { Select } from "@/components/ui/select";
 
 export function ClientRetailContractsForm({
   clientId,
@@ -26,7 +27,7 @@ export function ClientRetailContractsForm({
           });
         }}
       >
-        <select name="kind" className="h-9 rounded-md border border-input bg-background px-2 text-sm" defaultValue="MOBILE">
+        <Select name="kind" className="h-9 rounded-md border border-input bg-background px-2 text-sm" defaultValue="MOBILE">
           <option value="MOBILE">Telefonia mobile</option>
           <option value="FIBER">Fibra / fisso</option>
           <option value="ENERGY">Luce</option>
@@ -34,29 +35,29 @@ export function ClientRetailContractsForm({
           <option value="SKY">Sky</option>
           <option value="TELEPASS">Telepass</option>
           <option value="OTHER">Altro</option>
-        </select>
+        </Select>
         <Input name="label" placeholder="Etichetta" className="h-9 w-32" required />
         <Input name="operator" placeholder="Operatore (Fastweb…)" className="h-9 w-36" />
         <Input name="offerName" placeholder="Offerta" className="h-9 w-40" />
         <Input name="monthlyEur" type="number" step="0.01" min="0" placeholder="€/mese cliente" className="h-9 w-28" required />
-        <select name="paymentMethod" className="h-9 rounded-md border border-input bg-background px-2 text-sm" defaultValue="IBAN">
+        <Select name="paymentMethod" className="h-9 rounded-md border border-input bg-background px-2 text-sm" defaultValue="IBAN">
           <option value="">Pagamento…</option>
           <option value="IBAN">IBAN</option>
           <option value="Carta di credito">Carta</option>
           <option value="Bollettino">Bollettino</option>
           <option value="Bonifico">Bonifico</option>
-        </select>
+        </Select>
         <label className="flex flex-col text-[10px] text-muted-foreground">
           Firma
           <Input name="signedAt" type="date" className="h-9 w-36" />
         </label>
-        <select name="switchAfterMonths" className="h-9 rounded-md border border-input bg-background px-2 text-sm" defaultValue="24" title="Reminder cambio compagnia">
+        <Select name="switchAfterMonths" className="h-9 rounded-md border border-input bg-background px-2 text-sm" defaultValue="24" title="Reminder cambio compagnia">
           <option value="">Cambio dopo…</option>
           <option value="6">6 mesi</option>
           <option value="12">12 mesi</option>
           <option value="24">24 mesi</option>
           <option value="48">48 mesi</option>
-        </select>
+        </Select>
         <Input name="renewalDate" type="date" className="h-9 w-36" title="Data rinnovo/scadenza" />
         <Button type="submit" size="sm" disabled={pending}>
           Aggiungi

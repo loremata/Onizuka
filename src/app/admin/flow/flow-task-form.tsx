@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createFlowTask, type FlowActionResult } from "./actions";
+import { Select } from "@/components/ui/select";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -76,7 +77,7 @@ export function FlowTaskForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="priority">Priorità</Label>
-          <select
+          <Select
             id="priority"
             name="priority"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -86,11 +87,11 @@ export function FlowTaskForm({
             <option value="MEDIUM">Media</option>
             <option value="HIGH">Alta</option>
             <option value="URGENT">Urgente</option>
-          </select>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="status">Stato iniziale</Label>
-          <select
+          <Select
             id="status"
             name="status"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -101,7 +102,7 @@ export function FlowTaskForm({
             <option value="WAITING">In attesa</option>
             <option value="DONE">Completato</option>
             <option value="CANCELLED">Annullato</option>
-          </select>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="dueDate">Scadenza (opzionale)</Label>
@@ -110,7 +111,7 @@ export function FlowTaskForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="relatedClientId">Cliente collegato (opzionale)</Label>
-          <select
+          <Select
             id="relatedClientId"
             name="relatedClientId"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -122,7 +123,7 @@ export function FlowTaskForm({
                 {c.companyName}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
       <SubmitButton />

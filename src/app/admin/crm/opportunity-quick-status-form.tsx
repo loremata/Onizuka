@@ -7,6 +7,7 @@ import type { OpportunityStatus } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { opportunityStatusLabel, opportunityStatusOptions } from "@/lib/crm-opportunity";
 import { updateOpportunityStatus, type OpportunityActionResult } from "./opportunities/actions";
+import { Select } from "@/components/ui/select";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -72,7 +73,7 @@ export function OpportunityQuickStatusForm({
         >
           Stato
         </label>
-        <select
+        <Select
           id={`opp-status-${opportunityId}`}
           name="status"
           defaultValue={current}
@@ -83,7 +84,7 @@ export function OpportunityQuickStatusForm({
               {opportunityStatusLabel[s]}
             </option>
           ))}
-        </select>
+        </Select>
         <SubmitButton />
       </div>
     </form>

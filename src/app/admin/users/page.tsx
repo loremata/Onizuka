@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildUserSearchWhere, parseUserListFilters } from "@/lib/user-list-filters";
 import { StaffPermissionsInline } from "./staff-permissions-inline";
+import { Select } from "@/components/ui/select";
 
 const roleLabel: Record<string, string> = {
   ADMIN: "Amministratore",
@@ -67,7 +68,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
               <label htmlFor="role" className="text-xs font-medium text-muted-foreground">
                 Ruolo
               </label>
-              <select
+              <Select
                 id="role"
                 name="role"
                 defaultValue={filters.role ?? ""}
@@ -77,7 +78,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                 <option value="ADMIN">{roleLabel.ADMIN}</option>
                 <option value="STAFF">{roleLabel.STAFF}</option>
                 <option value="CLIENT">{roleLabel.CLIENT}</option>
-              </select>
+              </Select>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button type="submit">Applica</Button>

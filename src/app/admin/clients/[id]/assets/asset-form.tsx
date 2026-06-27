@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import type { Asset } from "@prisma/client";
 import { createAssetForClient, updateAsset, type AssetActionResult } from "./actions";
 import { platformLabel, platformOptions } from "@/lib/platform-label";
+import { Select } from "@/components/ui/select";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -44,7 +45,7 @@ export function NewAssetForm({ clientId }: { clientId: string }) {
         </div>
         <div className="space-y-2">
           <Label htmlFor="platform">Piattaforma (opzionale)</Label>
-          <select
+          <Select
             id="platform"
             name="platform"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -56,7 +57,7 @@ export function NewAssetForm({ clientId }: { clientId: string }) {
                 {platformLabel[p]}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="profileUrl">URL profilo (opzionale)</Label>
@@ -122,7 +123,7 @@ export function EditAssetForm({ clientId, asset }: EditProps) {
         </div>
         <div className="space-y-2">
           <Label htmlFor="platform">Piattaforma (opzionale)</Label>
-          <select
+          <Select
             id="platform"
             name="platform"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -134,7 +135,7 @@ export function EditAssetForm({ clientId, asset }: EditProps) {
                 {platformLabel[p]}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="profileUrl">URL profilo (opzionale)</Label>

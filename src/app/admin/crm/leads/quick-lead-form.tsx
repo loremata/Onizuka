@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createQuickLead, type LeadActionResult } from "./actions";
+import { Select } from "@/components/ui/select";
 
 function Submit() {
   const { pending } = useFormStatus();
@@ -48,7 +49,7 @@ export function QuickLeadForm({ referrers }: { referrers: ReferrerOpt[] }) {
         {referrers.length > 0 ? (
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="referrerId">Segnalatore</Label>
-            <select
+            <Select
               id="referrerId"
               name="referrerId"
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -60,7 +61,7 @@ export function QuickLeadForm({ referrers }: { referrers: ReferrerOpt[] }) {
                   {r.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         ) : null}
       </div>

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { simulationPayloadPresetsForTrigger } from "@/lib/automation-simulation-presets";
 import { deleteAutomationRule, duplicateAutomationRule, simulateAutomationRule, toggleAutomationRule } from "./actions";
 import { AutomationSimWizard } from "./automation-sim-wizard";
+import { Select } from "@/components/ui/select";
 
 export function AutomationRuleRowActions({
   id,
@@ -27,7 +28,7 @@ export function AutomationRuleRowActions({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <select
+      <Select
         ref={presetRef}
         className="h-8 max-w-[200px] rounded-md border border-input bg-background px-2 text-xs"
         defaultValue={presets[0]?.id}
@@ -38,7 +39,7 @@ export function AutomationRuleRowActions({
             {p.label}
           </option>
         ))}
-      </select>
+      </Select>
       <Button
         type="button"
         size="sm"

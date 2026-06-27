@@ -10,6 +10,7 @@ import type { Client } from "@prisma/client";
 import { clientStatusLabel, clientStatusOptions } from "@/lib/crm-client-status";
 import { clientKindLabel, clientMacroCategoryLabel } from "@/lib/client-kind";
 import type { ClientKind, ClientMacroCategory } from "@prisma/client";
+import { Select } from "@/components/ui/select";
 
 type ClientFormProps = { client?: Client };
 
@@ -62,7 +63,7 @@ export function ClientForm({ client }: ClientFormProps) {
         </div>
         <div className="space-y-2">
           <Label htmlFor="status">Stato pipeline</Label>
-          <select
+          <Select
             id="status"
             name="status"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -73,7 +74,7 @@ export function ClientForm({ client }: ClientFormProps) {
                 {clientStatusLabel[s]}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="ticketSlaHours">SLA ticket (ore, opzionale)</Label>
@@ -102,7 +103,7 @@ export function ClientForm({ client }: ClientFormProps) {
         </div>
         <div className="space-y-2">
           <Label htmlFor="kind">Tipo cliente</Label>
-          <select
+          <Select
             id="kind"
             name="kind"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -114,11 +115,11 @@ export function ClientForm({ client }: ClientFormProps) {
                 {clientKindLabel[k]}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="clientMacroCategory">Macro-categoria</Label>
-          <select
+          <Select
             id="clientMacroCategory"
             name="clientMacroCategory"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -130,7 +131,7 @@ export function ClientForm({ client }: ClientFormProps) {
                 {clientMacroCategoryLabel[m]}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="fiscalCode">Codice fiscale (privato)</Label>

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createLead, updateLead, type LeadActionResult } from "./actions";
 import { leadStatusLabel, leadStatusOptions } from "@/lib/crm-lead-status";
+import { Select } from "@/components/ui/select";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -47,7 +48,7 @@ export function LeadForm({ clients, referrers = [], lead }: Props) {
         </div>
         <div className="space-y-2">
           <Label htmlFor="status">Stato</Label>
-          <select
+          <Select
             id="status"
             name="status"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -58,11 +59,11 @@ export function LeadForm({ clients, referrers = [], lead }: Props) {
                 {leadStatusLabel[s]}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="referrerId">Segnalatore (opzionale)</Label>
-          <select
+          <Select
             id="referrerId"
             name="referrerId"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -74,7 +75,7 @@ export function LeadForm({ clients, referrers = [], lead }: Props) {
                 {r.name}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="source">Origine (opzionale)</Label>
@@ -102,7 +103,7 @@ export function LeadForm({ clients, referrers = [], lead }: Props) {
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="convertedClientId">Cliente CRM collegato (conversione, opzionale)</Label>
-          <select
+          <Select
             id="convertedClientId"
             name="convertedClientId"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -114,7 +115,7 @@ export function LeadForm({ clients, referrers = [], lead }: Props) {
                 {c.companyName}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="notes">Note</Label>

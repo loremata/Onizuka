@@ -10,6 +10,7 @@ import { buildListExportHref } from "@/lib/list-export-href";
 import { buildOwnedLeadWhere, parseLeadListFilters } from "@/lib/lead-list-filters";
 import { LeadQuickStatusForm } from "./lead-quick-status-form";
 import { LeadCsvImportForm } from "@/components/onizuka/lead-csv-import-form";
+import { Select } from "@/components/ui/select";
 
 type Props = {
   searchParams: Record<string, string | string[] | undefined>;
@@ -154,7 +155,7 @@ export default async function AdminCrmLeadsPage({ searchParams }: Props) {
               <label htmlFor="status" className="text-xs font-medium text-muted-foreground">
                 Stato
               </label>
-              <select
+              <Select
                 id="status"
                 name="status"
                 defaultValue={filters.status ?? ""}
@@ -166,13 +167,13 @@ export default async function AdminCrmLeadsPage({ searchParams }: Props) {
                     {leadStatusLabel[s]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="flex min-w-[200px] flex-col gap-1">
               <label htmlFor="referrerId" className="text-xs font-medium text-muted-foreground">
                 Segnalatore
               </label>
-              <select
+              <Select
                 id="referrerId"
                 name="referrerId"
                 defaultValue={filters.referrerId ?? ""}
@@ -184,7 +185,7 @@ export default async function AdminCrmLeadsPage({ searchParams }: Props) {
                     {r.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button type="submit">Applica</Button>

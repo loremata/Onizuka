@@ -15,6 +15,7 @@ import { countMemoryEmbeddingStats } from "@/lib/memory-reindex";
 import { buildOwnedMemoryWhere, MEMORY_SCOPE_FILTER_OPTIONS, parseMemoryListFilters } from "@/lib/memory-list-filters";
 import { MemoryReindexButton } from "./memory-reindex-button";
 import { MemoryVaultBanner } from "@/components/onizuka/memory-vault-banner";
+import { Select } from "@/components/ui/select";
 
 const scopeLabel: Record<string, string> = {
   PERSONAL: "Personale",
@@ -128,7 +129,7 @@ export default async function AdminMemoryListPage({ searchParams }: Props) {
               <label htmlFor="scope" className="text-xs font-medium text-muted-foreground">
                 Ambito
               </label>
-              <select
+              <Select
                 id="scope"
                 name="scope"
                 defaultValue={listFilters.scope ?? ""}
@@ -140,13 +141,13 @@ export default async function AdminMemoryListPage({ searchParams }: Props) {
                     {scopeLabel[s] ?? s}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="flex min-w-[200px] flex-col gap-1">
               <label htmlFor="clientId" className="text-xs font-medium text-muted-foreground">
                 Cliente
               </label>
-              <select
+              <Select
                 id="clientId"
                 name="clientId"
                 defaultValue={listFilters.clientId}
@@ -158,7 +159,7 @@ export default async function AdminMemoryListPage({ searchParams }: Props) {
                     {c.companyName}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button type="submit">Applica</Button>

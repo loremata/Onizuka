@@ -8,6 +8,7 @@ import {
   simulationPayloadPresetsForTrigger,
 } from "@/lib/automation-simulation-presets";
 import { simulateAutomationRule } from "./actions";
+import { Select } from "@/components/ui/select";
 
 type Step = 1 | 2 | 3;
 
@@ -86,7 +87,7 @@ export function AutomationSimWizard({
             {step === 1 && (
               <div className="mt-4 space-y-3 text-sm">
                 <p className="text-muted-foreground">Scegli uno scenario di test per il payload evento.</p>
-                <select
+                <Select
                   className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
                   value={presetId}
                   onChange={(e) => setPresetId(e.target.value)}
@@ -96,7 +97,7 @@ export function AutomationSimWizard({
                       {p.label}
                     </option>
                   ))}
-                </select>
+                </Select>
                 {chosenPreset?.json === "__CUSTOM__" && (
                   <p className="text-xs text-muted-foreground">
                     Al passo 2 potrai incollare JSON personalizzato.

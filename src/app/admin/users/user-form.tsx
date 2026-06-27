@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createUser } from "./actions";
 import type { Client } from "@prisma/client";
+import { Select } from "@/components/ui/select";
 
 type UserFormProps = { clients: Client[] };
 
@@ -50,7 +51,7 @@ export function UserForm({ clients }: UserFormProps) {
       </div>
       <div className="space-y-2">
         <Label htmlFor="role">Ruolo</Label>
-        <select
+        <Select
           id="role"
           name="role"
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -58,11 +59,11 @@ export function UserForm({ clients }: UserFormProps) {
           <option value="CLIENT">Cliente</option>
           <option value="STAFF">Staff (collaboratore)</option>
           <option value="ADMIN">Amministratore</option>
-        </select>
+        </Select>
       </div>
       <div className="space-y-2" id="clientIdWrapper">
         <Label htmlFor="clientId">Cliente (obbligatorio per il ruolo Cliente)</Label>
-        <select
+        <Select
           id="clientId"
           name="clientId"
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -73,7 +74,7 @@ export function UserForm({ clients }: UserFormProps) {
               {c.companyName} ({c.slug})
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div className="flex gap-2">
         <Button type="submit">Crea utente</Button>

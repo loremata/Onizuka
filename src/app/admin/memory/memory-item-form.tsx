@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createMemoryItem, updateMemoryItem, type MemoryActionResult } from "./actions";
+import { Select } from "@/components/ui/select";
 
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -76,7 +77,7 @@ export function MemoryItemForm({ clients, assets, memory }: Props) {
         </div>
         <div className="space-y-2">
           <Label htmlFor="scope">Ambito</Label>
-          <select
+          <Select
             id="scope"
             name="scope"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -89,11 +90,11 @@ export function MemoryItemForm({ clients, assets, memory }: Props) {
             <option value="EPISODIC">Episodica</option>
             <option value="DOCUMENTAL">Documentale</option>
             <option value="SENSITIVE">Sensibile</option>
-          </select>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="sensitivity">Sensibilità</Label>
-          <select
+          <Select
             id="sensitivity"
             name="sensitivity"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -102,11 +103,11 @@ export function MemoryItemForm({ clients, assets, memory }: Props) {
             <option value="LOW">Bassa</option>
             <option value="MEDIUM">Media</option>
             <option value="HIGH">Alta</option>
-          </select>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="source">Origine</Label>
-          <select
+          <Select
             id="source"
             name="source"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -117,7 +118,7 @@ export function MemoryItemForm({ clients, assets, memory }: Props) {
             <option value="CHAT">Chat</option>
             <option value="DOCUMENT">Documento</option>
             <option value="SYSTEM">Sistema</option>
-          </select>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="tags">Tag (separati da virgola)</Label>
@@ -125,7 +126,7 @@ export function MemoryItemForm({ clients, assets, memory }: Props) {
         </div>
         <div className="space-y-2">
           <Label htmlFor="relatedClientId">Cliente collegato</Label>
-          <select
+          <Select
             id="relatedClientId"
             name="relatedClientId"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -145,11 +146,11 @@ export function MemoryItemForm({ clients, assets, memory }: Props) {
                 {c.companyName}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="relatedAssetId">Asset collegato (opzionale)</Label>
-          <select
+          <Select
             id="relatedAssetId"
             name="relatedAssetId"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -162,7 +163,7 @@ export function MemoryItemForm({ clients, assets, memory }: Props) {
                 {a.name}
               </option>
             ))}
-          </select>
+          </Select>
           <p className="text-xs text-muted-foreground">
             Seleziona un cliente per filtrare gli asset del catalogo CRM. Con cliente, solo asset di quel cliente.
           </p>

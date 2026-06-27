@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { platformSelectRows, postStatusSelectRows } from "@/lib/post-ui-labels";
+import { Select } from "@/components/ui/select";
 
 const PLATFORMS = [{ value: "", label: "Tutte le piattaforme" }, ...platformSelectRows()];
 const STATUSES = [{ value: "", label: "Tutti gli stati" }, ...postStatusSelectRows()];
@@ -23,7 +24,7 @@ export function ClientPostsFilters({ currentPlatform, currentStatus }: Props) {
     <div className="flex flex-wrap items-center gap-4">
       <div className="flex items-center gap-2">
         <label className="text-sm font-medium">Piattaforma</label>
-        <select
+        <Select
           value={currentPlatform}
           onChange={(e) => setFilter("platform", e.target.value)}
           className="h-9 rounded-md border border-input bg-background px-2 text-sm"
@@ -33,11 +34,11 @@ export function ClientPostsFilters({ currentPlatform, currentStatus }: Props) {
               {p.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div className="flex items-center gap-2">
         <label className="text-sm font-medium">Stato</label>
-        <select
+        <Select
           value={currentStatus}
           onChange={(e) => setFilter("status", e.target.value)}
           className="h-9 rounded-md border border-input bg-background px-2 text-sm"
@@ -47,7 +48,7 @@ export function ClientPostsFilters({ currentPlatform, currentStatus }: Props) {
               {s.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { assignWhatsAppMessage, replyWhatsAppInbound } from "@/app/admin/whatsapp/actions";
+import { Select } from "@/components/ui/select";
 
 export type WhatsAppInboxRow = {
   id: string;
@@ -58,7 +59,7 @@ export function WhatsAppOperatorInbox({
             ) : null}
             <div className="flex flex-wrap items-center gap-2">
               <Label className="sr-only">Assegna</Label>
-              <select
+              <Select
                 className="h-9 rounded-md border border-input bg-background px-2 text-xs"
                 value={m.assignedUserId ?? ""}
                 disabled={pending}
@@ -75,13 +76,13 @@ export function WhatsAppOperatorInbox({
                     {u.name ?? u.email}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             {!m.repliedAt ? (
               <div className="space-y-2 rounded-md border bg-muted/30 p-3">
                 <div className="space-y-1">
                   <Label htmlFor={`tpl-${m.id}`}>Template HSM (opz.)</Label>
-                  <select
+                  <Select
                     id={`tpl-${m.id}`}
                     className="h-9 w-full rounded-md border border-input bg-background px-2 text-xs"
                     value={templatePick[m.id] ?? ""}
@@ -93,7 +94,7 @@ export function WhatsAppOperatorInbox({
                         {t.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
                 <Input
                   placeholder="Testo risposta…"

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createTimeEntry, type TimeEntryResult } from "./actions";
+import { Select } from "@/components/ui/select";
 
 function Submit() {
   const { pending } = useFormStatus();
@@ -52,7 +53,7 @@ export function TimeEntryForm({ clients }: { clients: ClientOpt[] }) {
       </div>
       <div className="space-y-2">
         <Label htmlFor="clientId">Cliente (opzionale)</Label>
-        <select
+        <Select
           id="clientId"
           name="clientId"
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -64,7 +65,7 @@ export function TimeEntryForm({ clients }: { clients: ClientOpt[] }) {
               {c.companyName}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <fieldset className="space-y-1 text-sm">
         <legend className="text-sm font-medium">Fatturabile</legend>

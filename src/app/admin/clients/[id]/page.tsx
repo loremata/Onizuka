@@ -38,6 +38,7 @@ import { loadClient360Profile } from "@/lib/client-360-profile";
 import { loadAuditCommercialSummaryForClient } from "@/lib/load-audit-commercial-summary";
 import { AuditCommercialSummaryCard } from "@/components/onizuka/audit-commercial-summary-card";
 import { clientKindLabel } from "@/lib/client-kind";
+import { Select } from "@/components/ui/select";
 
 const priorityLabel: Record<string, string> = {
   LOW: "Bassa",
@@ -344,7 +345,7 @@ export default async function ClientOverviewPage({
             </p>
             <form action={setClientRelationshipState.bind(null, client.id)} className="mt-2 flex items-center gap-2">
               <span className="text-xs font-medium text-muted-foreground">Relazione:</span>
-              <select
+              <Select
                 name="relationshipState"
                 aria-label="Stato relazione cliente"
                 defaultValue={client.relationshipState}
@@ -353,7 +354,7 @@ export default async function ClientOverviewPage({
                 <option value="CLIENTE">Cliente</option>
                 <option value="LEAD">Lead / Prospect</option>
                 <option value="EX_CLIENTE">Ex cliente</option>
-              </select>
+              </Select>
               <Button type="submit" size="sm" variant="outline">Aggiorna stato</Button>
             </form>
           </div>

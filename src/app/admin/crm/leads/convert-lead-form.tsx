@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { convertLeadToClient, type LeadActionResult } from "./actions";
 import { clientStatusLabel, clientStatusOptions } from "@/lib/crm-client-status";
+import { Select } from "@/components/ui/select";
 
 export type ConvertLeadFormDefaults = {
   leadId: string;
@@ -65,7 +66,7 @@ export function ConvertLeadForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="status">Stato cliente</Label>
-          <select
+          <Select
             id="status"
             name="status"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -76,7 +77,7 @@ export function ConvertLeadForm({
                 {clientStatusLabel[s]}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="vatNumber">Partita IVA (opzionale)</Label>

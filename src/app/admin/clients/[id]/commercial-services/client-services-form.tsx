@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { syncClientCommercialServices, type ClientServiceActionResult } from "./actions";
 import { COMMERCIAL_SERVICE_REASONS } from "@/lib/commercial-service-reasons";
+import { Select } from "@/components/ui/select";
 
 type ServiceRow = {
   slug: string;
@@ -43,7 +44,7 @@ export function ClientServicesForm({ clientId, services }: { clientId: string; s
               {s.category}
               {s.brandName ? ` · ${s.brandName}` : ""}
             </span>
-            <select
+            <Select
               name={`reason_${s.slug}`}
               defaultValue={s.inactiveReason}
               className="h-9 rounded-md border border-input bg-background px-2 text-xs"
@@ -53,7 +54,7 @@ export function ClientServicesForm({ clientId, services }: { clientId: string; s
               {COMMERCIAL_SERVICE_REASONS.map((r) => (
                 <option key={r.code} value={r.code}>{r.label}</option>
               ))}
-            </select>
+            </Select>
             <Input
               name={`notes_${s.slug}`}
               defaultValue={s.notes}

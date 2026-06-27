@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { TICKET_MAX_FILES } from "@/lib/ticket-upload";
 import { updateTicketReply } from "./actions";
+import { Select } from "@/components/ui/select";
 
 const OPTIONS = [
   { value: "OPEN", label: "Aperto" },
@@ -44,7 +45,7 @@ export function TicketStatusForm({ ticketId, current }: { ticketId: string; curr
 
   return (
     <div className="flex min-w-[220px] flex-col gap-2">
-      <select
+      <Select
         className="h-8 rounded-md border border-input bg-background px-2 text-xs"
         value={nextStatus}
         disabled={pending}
@@ -56,7 +57,7 @@ export function TicketStatusForm({ ticketId, current }: { ticketId: string; curr
             {o.label}
           </option>
         ))}
-      </select>
+      </Select>
       <input
         type="text"
         value={message}

@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createSocialInboxComment } from "./actions";
+import { Select } from "@/components/ui/select";
 
 export function SocialInboxCommentForm({
   clients,
@@ -17,20 +18,20 @@ export function SocialInboxCommentForm({
       className="grid gap-2 sm:grid-cols-2"
       action={(fd) => start(async () => { await createSocialInboxComment(fd); })}
     >
-      <select name="platform" className="h-10 rounded-md border border-input bg-background px-2 text-sm" required>
+      <Select name="platform" className="h-10 rounded-md border border-input bg-background px-2 text-sm" required>
         <option value="INSTAGRAM">Instagram</option>
         <option value="FACEBOOK">Facebook</option>
         <option value="LINKEDIN">LinkedIn</option>
         <option value="GBP">Google Business</option>
-      </select>
-      <select name="clientId" className="h-10 rounded-md border border-input bg-background px-2 text-sm">
+      </Select>
+      <Select name="clientId" className="h-10 rounded-md border border-input bg-background px-2 text-sm">
         <option value="">Cliente (opzionale)</option>
         {clients.map((c) => (
           <option key={c.id} value={c.id}>
             {c.companyName}
           </option>
         ))}
-      </select>
+      </Select>
       <Input name="authorName" placeholder="Autore commento" />
       <Input name="externalUrl" type="url" placeholder="URL post" />
       <textarea

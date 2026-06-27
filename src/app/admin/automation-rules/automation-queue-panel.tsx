@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
 
 type QueueStatus = {
   redisEnabled: boolean;
@@ -38,7 +39,7 @@ export function AutomationQueuePanel({ rules }: { rules: { id: string; name: str
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap items-center gap-2 text-sm">
-        <select
+        <Select
           className="h-9 rounded-md border border-input bg-background px-2"
           value={ruleId}
           onChange={(e) => setRuleId(e.target.value)}
@@ -48,7 +49,7 @@ export function AutomationQueuePanel({ rules }: { rules: { id: string; name: str
               {r.name}
             </option>
           ))}
-        </select>
+        </Select>
         <Button
           type="button"
           size="sm"
