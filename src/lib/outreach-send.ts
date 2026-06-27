@@ -32,6 +32,10 @@ export async function sendOutreachDraftNow(draftId: string): Promise<OutreachSen
 
   const to = (draft.client?.contactEmail ?? draft.lead?.email ?? "").trim();
   if (!to) return { sent: false, note: "Nessuna email destinatario." };
+  // Prospect da Sheet senza contatto reale: email segnaposto interna → mai inviare.
+  if (/@onizuka\.local$/i.test(to) || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
+    return { sent: false, to, note: "Email segnaposto/non valida — usa WhatsApp o chiamata." };
+  }
 
   const abVariant = await resolveReachAbVariantForSend(draft.ownerUserId, undefined);
   const subject = pickOutreachSubject(draft, abVariant);
