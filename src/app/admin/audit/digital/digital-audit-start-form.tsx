@@ -24,11 +24,8 @@ export function DigitalAuditStartForm() {
       <Input name="businessName" placeholder="Ragione sociale (opzionale)" className="max-w-md" />
       <p className="text-xs text-muted-foreground">
         Almeno P.IVA oppure sito/ragione sociale. Il matching CRM evita duplicati prima dell&apos;audit.
+        Viene creata automaticamente la bozza email Reach (in attesa di approvazione).
       </p>
-      <label className="flex items-center gap-2 text-sm text-muted-foreground">
-        <input type="checkbox" name="createOutreach" className="rounded" />
-        Crea bozza email Reach (in attesa approvazione)
-      </label>
       {state && "error" in state ? <p className="text-sm text-destructive">{state.error}</p> : null}
       <SubmitButton />
     </form>

@@ -40,6 +40,7 @@ export default async function AdminLayout({
     { href: "/admin", label: "Oggi" },
     { href: "/admin/approvals", label: "Approvazioni", badge: approvalPending },
     { href: "/admin/clients", label: "Clienti" },
+    { href: "/admin/audit/digital", label: "Audit digitale" },
   ];
 
   const toolGroups = ADMIN_TOOL_NAV_GROUPS.map((group) => ({

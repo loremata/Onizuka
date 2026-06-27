@@ -28,12 +28,13 @@ export async function startDigitalAuditByVat(
   const vat = normalizeVatNumber((formData.get("vatNumber") as string)?.trim());
   const website = (formData.get("website") as string)?.trim() || undefined;
   const businessName = (formData.get("businessName") as string)?.trim() || undefined;
-  const withOutreach = formData.get("createOutreach") === "on";
 
   if ((!vat || vat.length < 9) && !website && !businessName) {
     return { error: "Inserire P.IVA valida oppure dominio/ragione sociale." };
   }
 
+  let auditId: string;
+  let clientId: string | undefined;
   try {
     const result =
       vat && vat.length >= 9
@@ -42,26 +43,30 @@ export async function startDigitalAuditByVat(
             vatNumber: vat,
             website,
             businessName,
-            createOutreachDraft: withOutreach,
+            createOutreachDraft: true,
           })
         : await runDigitalAuditUnified({
             ownerUserId: session.user.id,
             website,
             businessName,
             acquisitionSource: "vat_form",
-            createOutreachDraft: withOutreach,
+            createOutreachDraft: true,
           }).then((r) => ({
             auditId: r.auditId,
             clientId: r.clientId,
             leadId: r.leadId,
           }));
+    auditId = result.auditId;
+    clientId = result.clientId;
     revalidatePath("/admin/audit/digital");
     revalidatePath("/admin/reach");
-    revalidatePath(`/admin/clients/${result.clientId}`);
-    redirect(`/admin/audit/digital/${result.auditId}`);
+    if (clientId) revalidatePath(`/admin/clients/${clientId}`);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Audit fallito" };
   }
+  // redirect() lancia NEXT_REDIRECT: DEVE stare fuori dal try, altrimenti il catch
+  // lo intercetta e mostra "NEXT_REDIRECT" come errore.
+  redirect(`/admin/audit/digital/${auditId}`);
 }
 
 export async function startDigitalAuditForClientId(
