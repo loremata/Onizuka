@@ -1,6 +1,9 @@
 import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { ClientRetailContractsForm } from "./client-retail-contracts-form";
 import { updateClientRetailContract } from "./client-retail-actions";
 
@@ -92,83 +95,53 @@ export async function ClientRetailContractsCard({
                       {c.financeEntryId ? " · collegato Finance" : ""}
                     </p>
                     {reminder ? (
-                      <p className={`text-xs ${reminder.due ? "font-semibold text-rose-600" : "text-muted-foreground"}`}>
+                      <p className={`text-xs ${reminder.due ? "font-semibold text-destructive" : "text-muted-foreground"}`}>
                         {reminder.text}
                       </p>
                     ) : null}
                   </div>
                   <details className="mt-1 w-full text-xs">
                     <summary className="cursor-pointer text-primary hover:underline">Modifica canone / dati</summary>
-                    <form
-                      action={submitRetailEdit.bind(null, c.id)}
-                      className="mt-2 grid gap-2 sm:grid-cols-2"
-                    >
-                      <label className="flex flex-col gap-0.5">
+                    <form action={submitRetailEdit.bind(null, c.id)} className="mt-2 grid gap-2 sm:grid-cols-2">
+                      <label className="flex flex-col gap-1">
                         <span className="text-muted-foreground">Canone €/mese</span>
-                        <input
-                          name="monthlyEur"
-                          type="text"
-                          defaultValue={Number(c.monthlyEur.toString())}
-                          className="h-8 rounded-md border border-input bg-background px-2"
-                        />
+                        <Input name="monthlyEur" defaultValue={Number(c.monthlyEur.toString())} className="h-9" />
                       </label>
-                      <label className="flex flex-col gap-0.5">
+                      <label className="flex flex-col gap-1">
                         <span className="text-muted-foreground">Operatore</span>
-                        <input
-                          name="operator"
-                          type="text"
-                          defaultValue={c.operator ?? ""}
-                          className="h-8 rounded-md border border-input bg-background px-2"
-                        />
+                        <Input name="operator" defaultValue={c.operator ?? ""} className="h-9" />
                       </label>
-                      <label className="flex flex-col gap-0.5">
+                      <label className="flex flex-col gap-1">
                         <span className="text-muted-foreground">Offerta</span>
-                        <input
-                          name="offerName"
-                          type="text"
-                          defaultValue={c.offerName ?? ""}
-                          className="h-8 rounded-md border border-input bg-background px-2"
-                        />
+                        <Input name="offerName" defaultValue={c.offerName ?? ""} className="h-9" />
                       </label>
-                      <label className="flex flex-col gap-0.5">
+                      <label className="flex flex-col gap-1">
                         <span className="text-muted-foreground">Pagamento</span>
-                        <input
-                          name="paymentMethod"
-                          type="text"
-                          defaultValue={c.paymentMethod ?? ""}
-                          className="h-8 rounded-md border border-input bg-background px-2"
-                        />
+                        <Input name="paymentMethod" defaultValue={c.paymentMethod ?? ""} className="h-9" />
                       </label>
-                      <label className="flex flex-col gap-0.5">
+                      <label className="flex flex-col gap-1">
                         <span className="text-muted-foreground">Rinnovo</span>
-                        <input
+                        <Input
                           name="renewalDate"
                           type="date"
                           defaultValue={c.renewalDate ? c.renewalDate.toISOString().slice(0, 10) : ""}
-                          className="h-8 rounded-md border border-input bg-background px-2"
+                          className="h-9"
                         />
                       </label>
-                      <label className="flex flex-col gap-0.5">
+                      <label className="flex flex-col gap-1">
                         <span className="text-muted-foreground">Cambio compagnia</span>
-                        <select
-                          name="switchAfterMonths"
-                          defaultValue={c.switchAfterMonths ?? ""}
-                          className="h-8 rounded-md border border-input bg-background px-2"
-                        >
+                        <Select name="switchAfterMonths" defaultValue={c.switchAfterMonths ?? ""} className="h-9">
                           <option value="">—</option>
                           <option value="6">6 mesi</option>
                           <option value="12">12 mesi</option>
                           <option value="24">24 mesi</option>
                           <option value="48">48 mesi</option>
-                        </select>
+                        </Select>
                       </label>
                       <div className="sm:col-span-2">
-                        <button
-                          type="submit"
-                          className="h-8 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground"
-                        >
+                        <Button type="submit" size="sm">
                           Salva e sincronizza MRR
-                        </button>
+                        </Button>
                       </div>
                     </form>
                   </details>

@@ -41,6 +41,7 @@ export function FlowTaskStatusForm({
       {state?.error && <span className="w-full text-xs text-destructive">{state.error}</span>}
       <select
         name="status"
+        aria-label="Stato task"
         defaultValue={current}
         className="h-9 rounded-md border border-input bg-background px-2 text-sm"
       >

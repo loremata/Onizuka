@@ -346,6 +346,7 @@ export default async function ClientOverviewPage({
               <span className="text-xs font-medium text-muted-foreground">Relazione:</span>
               <select
                 name="relationshipState"
+                aria-label="Stato relazione cliente"
                 defaultValue={client.relationshipState}
                 className="h-8 rounded-md border border-input bg-background px-2 text-xs"
               >

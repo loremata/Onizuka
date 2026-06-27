@@ -57,21 +57,21 @@ export async function ClientRetailSnapshotCard({ clientId }: { clientId: string 
             return (
               <div
                 key={slot.key}
-                className={`rounded-lg border p-2.5 text-sm ${has ? "border-emerald-300/60 bg-emerald-500/5" : "border-dashed border-border bg-muted/30"}`}
+                className={`rounded-lg border p-2.5 text-sm ${has ? "border-success/40 bg-success/5" : "border-dashed border-border bg-muted/30"}`}
               >
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5 font-medium">
                     <span>{slot.icon}</span>
                     {slot.label}
                   </span>
-                  <span className={`text-xs ${has ? "text-emerald-600" : "text-muted-foreground"}`}>
+                  <span className={`text-xs ${has ? "text-success" : "text-muted-foreground"}`}>
                     {has ? "attivo con te" : "non attivo"}
                   </span>
                 </div>
                 {items.map((c) => {
                   const rem = reminder(c.switchReminderAt);
                   return (
-                    <div key={c.id} className="mt-1.5 border-t border-emerald-200/40 pt-1.5 text-xs first:border-0 first:pt-0">
+                    <div key={c.id} className="mt-1.5 border-t border-success/20 pt-1.5 text-xs first:border-0 first:pt-0">
                       <div className="flex items-center justify-between">
                         <span className="font-medium text-foreground">{c.operator ?? c.label}</span>
                         <span className="text-muted-foreground">{eur2(Number(c.monthlyEur.toString()))}/m</span>
@@ -83,7 +83,7 @@ export async function ClientRetailSnapshotCard({ clientId }: { clientId: string 
                         </div>
                       ) : null}
                       {rem ? (
-                        <div className={rem.due ? "font-semibold text-rose-600" : "text-muted-foreground"}>{rem.text}</div>
+                        <div className={rem.due ? "font-semibold text-destructive" : "text-muted-foreground"}>{rem.text}</div>
                       ) : null}
                     </div>
                   );
