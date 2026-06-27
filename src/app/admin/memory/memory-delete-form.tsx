@@ -1,17 +1,8 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
-import { Button } from "@/components/ui/button";
+import { useFormState } from "react-dom";
+import { ConfirmSubmitButton } from "@/components/onizuka/confirm-submit-button";
 import { deleteMemoryItem, type MemoryActionResult } from "./actions";
-
-function DeleteButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" variant="destructive" size="sm" disabled={pending}>
-      {pending ? "Eliminazione…" : "Elimina voce"}
-    </Button>
-  );
-}
 
 const initialState: MemoryActionResult = null;
 
@@ -27,7 +18,7 @@ export function MemoryDeleteForm({ memoryId }: { memoryId: string }) {
         </p>
       )}
       <p className="text-xs text-muted-foreground">Eliminazione definitiva della voce di memoria.</p>
-      <DeleteButton />
+      <ConfirmSubmitButton label="Elimina voce" question="Eliminare questa voce di memoria?" />
     </form>
   );
 }

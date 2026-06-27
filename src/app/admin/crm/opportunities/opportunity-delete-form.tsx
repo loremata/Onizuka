@@ -1,17 +1,8 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
-import { Button } from "@/components/ui/button";
+import { useFormState } from "react-dom";
+import { ConfirmSubmitButton } from "@/components/onizuka/confirm-submit-button";
 import { deleteOpportunity, type OpportunityActionResult } from "./actions";
-
-function DelBtn() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" variant="destructive" size="sm" disabled={pending}>
-      {pending ? "Eliminazione…" : "Elimina opportunità"}
-    </Button>
-  );
-}
 
 const initial: OpportunityActionResult = null;
 
@@ -25,7 +16,7 @@ export function OpportunityDeleteForm({ opportunityId }: { opportunityId: string
           {state.error}
         </p>
       )}
-      <DelBtn />
+      <ConfirmSubmitButton label="Elimina opportunità" question="Eliminare questa opportunità?" />
     </form>
   );
 }

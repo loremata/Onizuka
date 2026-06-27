@@ -162,7 +162,7 @@ export async function createClient(
   revalidatePath("/admin/audit");
   revalidatePath("/admin");
   revalidatePath("/admin/search");
-  redirect("/admin/clients");
+  redirect(`/admin/clients?ok=${encodeURIComponent("Cliente creato")}`);
 }
 
 export async function updateClient(
@@ -258,7 +258,8 @@ export async function updateClient(
   revalidatePath("/admin");
   revalidatePath(`/admin/clients/${clientId}`);
   revalidatePath("/admin/search");
-  redirect("/admin/clients");
+  // Torna alla scheda appena salvata (non alla lista) con conferma toast.
+  redirect(`/admin/clients/${clientId}?ok=${encodeURIComponent("Cliente aggiornato")}`);
 }
 
 export async function deleteClient(clientId: string): Promise<ActionResult> {

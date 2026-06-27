@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { Toaster } from "sonner";
+import { FlashToast } from "@/components/onizuka/flash-toast";
 import { requireAdminArea } from "@/lib/admin-session";
 import { isFullAdmin } from "@/lib/auth-roles";
 import { filterAdminNav } from "@/lib/staff-permissions";
@@ -87,6 +89,10 @@ export default async function AdminLayout({
         </Suspense>
       </div>
       <main className="container mx-auto px-4 py-8">{children}</main>
+      <Toaster richColors position="top-right" closeButton />
+      <Suspense fallback={null}>
+        <FlashToast />
+      </Suspense>
     </div>
   );
 }

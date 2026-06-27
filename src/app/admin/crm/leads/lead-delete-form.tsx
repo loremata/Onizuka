@@ -1,17 +1,8 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
-import { Button } from "@/components/ui/button";
+import { useFormState } from "react-dom";
+import { ConfirmSubmitButton } from "@/components/onizuka/confirm-submit-button";
 import { deleteLead, type LeadActionResult } from "./actions";
-
-function DelBtn() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" variant="destructive" size="sm" disabled={pending}>
-      {pending ? "Eliminazione…" : "Elimina lead"}
-    </Button>
-  );
-}
 
 const initial: LeadActionResult = null;
 
@@ -25,7 +16,7 @@ export function LeadDeleteForm({ leadId }: { leadId: string }) {
           {state.error}
         </p>
       )}
-      <DelBtn />
+      <ConfirmSubmitButton label="Elimina lead" question="Eliminare questo lead?" />
     </form>
   );
 }
