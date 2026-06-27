@@ -257,7 +257,11 @@ export default async function AdminClientsPage({ searchParams }: Props) {
                           ? ` · ${clientMacroCategoryLabel[c.clientMacroCategory]}`
                           : ""}
                       </td>
-                      <td className="py-3">{c.companyName}</td>
+                      <td className="py-3">
+                        <Link href={`/admin/clients/${c.id}`} className="font-medium text-primary hover:underline">
+                          {c.companyName}
+                        </Link>
+                      </td>
                       <td className="hidden py-3 font-mono text-muted-foreground md:table-cell">{c.slug}</td>
                       <td className="py-3">{c.contactEmail}</td>
                       <td className="py-3 text-right tabular-nums">
