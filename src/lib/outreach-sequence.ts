@@ -317,6 +317,42 @@ export async function activateSequenceStep(stepId: string): Promise<{ draftId: s
     data: { status: "ACTIVATED", activatedAt: new Date() },
   });
 
+  const company =
+    step.sequence.client?.companyName ??
+    step.sequence.lead?.businessName?.trim() ??
+    step.sequence.lead?.title ??
+    "Cliente";
+
+  // Auto-invio dei follow-up: la 1ª mail (step 0) resta sempre con approvazione
+  // manuale; gli step J+3+ partono da soli, ma SOLO se la prima è stata davvero
+  // inviata (altrimenti un "ti ricontatto" senza primo contatto non ha senso).
+  const firstStep = await prisma.outreachSequenceStep.findFirst({
+    where: { sequenceId: step.sequenceId, stepIndex: 0 },
+    select: { status: true },
+  });
+  const eligibleForAutoSend = step.stepIndex >= 1 && firstStep?.status === "SENT";
+
+  if (eligibleForAutoSend) {
+    const { sendOutreachDraftNow } = await import("@/lib/outreach-send");
+    const result = await sendOutreachDraftNow(draft.id);
+    if (result.sent) {
+      // Notifica informativa (niente approvazione): solo lo Stop a portata di mano.
+      await notifyAdminsViaTelegram(
+        [
+          "Onizuka · Follow-up inviato in automatico",
+          "",
+          `Cliente: ${company}`,
+          `Step: ${step.stepIndex + 1} (J+${step.delayDays})`,
+          `Oggetto (${built.variant}): ${built.previewSubject}`,
+          result.to ? `Inviato a: ${result.to}` : "",
+        ].filter(Boolean).join("\n"),
+        { inline_keyboard: [[{ text: "🛑 Stop follow-up", callback_data: `os:${draft.id}` }]] }
+      );
+      return { draftId: draft.id };
+    }
+    // Auto-invio non riuscito (es. nessuna email/canale): degrado ad approvazione manuale.
+  }
+
   const keyboard: TelegramInlineKeyboard = {
     inline_keyboard: [
       [
@@ -328,11 +364,6 @@ export async function activateSequenceStep(stepId: string): Promise<{ draftId: s
     ],
   };
 
-  const company =
-    step.sequence.client?.companyName ??
-    step.sequence.lead?.businessName?.trim() ??
-    step.sequence.lead?.title ??
-    "Cliente";
   await notifyAdminsViaTelegram(
     [
       "Onizuka · Follow-up sequenza",

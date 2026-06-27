@@ -1,11 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { sendGmailViaApi } from "@/lib/gmail-api";
-import { isGmailConnected } from "@/lib/gmail-oauth";
-import { isSmtpConfigured, sendEmailViaSmtp } from "@/lib/smtp-send";
-import { markOutreachDraftSent } from "@/lib/outreach-sent";
-import { wrapOutreachHtmlBody } from "@/lib/outreach-tracking";
-import { pickOutreachBody, pickOutreachSubject } from "@/lib/outreach-ab";
-import { resolveReachAbVariantForSend } from "@/lib/reach-ab-default";
+import { sendOutreachDraftNow } from "@/lib/outreach-send";
 import { sendTelegramMessage } from "@/lib/telegram-bot";
 
 export function isTelegramAdminChat(chatId: string | number): boolean {
@@ -26,7 +20,7 @@ export async function approveOutreachFromTelegram(
 
   const draft = await prisma.outreachDraft.findUnique({
     where: { id: draftId },
-    include: { client: { select: { contactEmail: true, companyName: true } } },
+    select: { status: true },
   });
 
   if (!draft) return { ok: false, message: "Bozza non trovata." };
@@ -39,41 +33,8 @@ export async function approveOutreachFromTelegram(
     data: { status: "APPROVED" },
   });
 
-  const to = draft.client?.contactEmail?.trim() ?? "";
-  let sendNote = "Approvata. Invia manualmente da Reach.";
-  const abVariant = await resolveReachAbVariantForSend(draft.ownerUserId, undefined);
-  const subject = pickOutreachSubject(draft, abVariant);
-  const emailBody = pickOutreachBody(draft, abVariant);
-
-  if (to) {
-    if (await isGmailConnected(draft.ownerUserId)) {
-      const viaApi = await sendGmailViaApi(draft.ownerUserId, {
-        to,
-        subject,
-        text: emailBody,
-        html: wrapOutreachHtmlBody(emailBody, draft.id),
-      });
-      if (viaApi.ok) {
-        await markOutreachDraftSent(draftId, draft.ownerUserId, { abVariantSent: abVariant });
-        sendNote = `Approvata e inviata via Gmail a ${to} (variante ${abVariant}).`;
-      }
-    } else if (isSmtpConfigured()) {
-      const sent = await sendEmailViaSmtp({
-        to,
-        subject,
-        text: emailBody,
-        html: wrapOutreachHtmlBody(emailBody, draft.id),
-      });
-      if (sent.ok) {
-        await markOutreachDraftSent(draftId, draft.ownerUserId, { abVariantSent: abVariant });
-        sendNote = `Approvata e inviata via SMTP a ${to} (variante ${abVariant}).`;
-      } else {
-        sendNote = `Approvata. SMTP: ${sent.error}`;
-      }
-    }
-  }
-
-  return { ok: true, message: sendNote };
+  const result = await sendOutreachDraftNow(draftId);
+  return { ok: true, message: result.sent ? `Approvata e ${result.note}` : `Approvata. ${result.note}` };
 }
 
 export async function postponeOutreachFromTelegram(
