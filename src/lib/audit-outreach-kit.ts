@@ -4,6 +4,7 @@ import { digitalAuditSectionLabel } from "@/lib/digital-audit-labels";
 export type AuditOutreachKit = {
   linkedInBody: string;
   callScript: string;
+  whatsAppBody: string;
 };
 
 export type AuditOutreachSectionInput = {
@@ -74,5 +75,14 @@ A presto`;
 Obiezione budget → "Partiamo da quick win su ${weak[0] ? digitalAuditSectionLabel[weak[0].sectionKey] : "local"} con KPI chiari."
 Obiezione timing → "Il report resta valido 30 giorni; possiamo fissare solo un debrief."`;
 
-  return { linkedInBody, callScript };
+  // Messaggio WhatsApp: breve, diretto, tono colloquiale (da usare se si ottiene il numero del titolare).
+  const whatsAppBody = `Buongiorno 👋 sono Lorenzo di Online Station.
+
+Ho dato un'occhiata alla presenza online di ${name} e ho preparato una breve analisi gratuita (punteggio ${score}/100).
+
+Il punto principale su cui si può migliorare: ${problem}.
+
+Se le fa piacere le giro il report e ci sentiamo 10 minuti, senza impegno. Va bene?`;
+
+  return { linkedInBody, callScript, whatsAppBody };
 }

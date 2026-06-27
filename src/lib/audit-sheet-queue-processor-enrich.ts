@@ -28,6 +28,7 @@ export async function enrichAuditOutreach(auditId: string): Promise<void> {
     data: {
       outreachLinkedInBody: kit.linkedInBody,
       outreachCallScript: kit.callScript,
+      outreachWhatsAppBody: kit.whatsAppBody,
     },
   });
 

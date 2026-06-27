@@ -118,6 +118,7 @@ export default async function DigitalAuditDetailPage({ params }: { params: Promi
           auditId={audit.id}
           linkedInBody={audit.outreachLinkedInBody}
           callScript={audit.outreachCallScript}
+          whatsAppBody={audit.outreachWhatsAppBody}
           publicReportUrl={publicReportUrl}
           publicExpiresAt={audit.publicReportExpiresAt}
           drafts={audit.outreachDrafts}

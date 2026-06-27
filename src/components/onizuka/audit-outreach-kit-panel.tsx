@@ -13,6 +13,7 @@ type Props = {
   auditId: string;
   linkedInBody: string | null;
   callScript: string | null;
+  whatsAppBody: string | null;
   publicReportUrl: string | null;
   publicExpiresAt: Date | null;
   drafts: Draft[];
@@ -49,6 +50,7 @@ export function AuditOutreachKitPanel({
   auditId,
   linkedInBody,
   callScript,
+  whatsAppBody,
   publicReportUrl,
   publicExpiresAt,
   drafts,
@@ -61,7 +63,7 @@ export function AuditOutreachKitPanel({
     <Card>
       <CardHeader>
         <CardTitle>Outreach dall&apos;audit</CardTitle>
-        <CardDescription>Email (Reach), LinkedIn e script call — più report pubblico prospect.</CardDescription>
+        <CardDescription>Email (Reach), WhatsApp, LinkedIn e script call — più report pubblico prospect.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {drafts.length > 0 ? (
@@ -79,6 +81,7 @@ export function AuditOutreachKitPanel({
           <p className="text-sm text-muted-foreground">Nessuna bozza email. Riesegui audit con outreach attivo.</p>
         )}
 
+        {whatsAppBody ? <CopyBlock label="WhatsApp" text={whatsAppBody} /> : null}
         {linkedInBody ? <CopyBlock label="LinkedIn" text={linkedInBody} /> : null}
         {callScript ? <CopyBlock label="Script call" text={callScript} /> : null}
 
