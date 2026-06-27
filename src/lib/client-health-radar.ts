@@ -34,25 +34,42 @@ export async function loadClientHealthRadar(
   });
 
   const now = new Date();
+
+  // Conteggi aggregati in 3 query invece di 3-per-cliente (era N+1, fino a 360 query).
+  const clientIds = clients.map((c) => c.id);
+  const [ticketGroups, financeGroups, flowGroups] = await Promise.all([
+    clientIds.length
+      ? prisma.clientTicket.groupBy({
+          by: ["clientId"],
+          where: { clientId: { in: clientIds }, status: { in: ["OPEN", "IN_PROGRESS"] } },
+          _count: true,
+        })
+      : [],
+    clientIds.length
+      ? prisma.financeEntry.groupBy({
+          by: ["clientId"],
+          where: { clientId: { in: clientIds }, ownerUserId, status: "OVERDUE" },
+          _count: true,
+        })
+      : [],
+    clientIds.length
+      ? prisma.flowTask.groupBy({
+          by: ["relatedClientId"],
+          where: { relatedClientId: { in: clientIds }, ownerUserId, status: { not: "DONE" }, dueDate: { lt: now } },
+          _count: true,
+        })
+      : [],
+  ]);
+  const ticketsByClient = new Map(ticketGroups.map((g) => [g.clientId, g._count]));
+  const financeByClient = new Map(financeGroups.map((g) => [g.clientId, g._count]));
+  const flowByClient = new Map(flowGroups.map((g) => [g.relatedClientId, g._count]));
+
   const rows: ClientHealthRadarRow[] = [];
 
   for (const client of clients) {
-    const [openTickets, overdueFinance, overdueFlowTasks] = await Promise.all([
-      prisma.clientTicket.count({
-        where: { clientId: client.id, status: { in: ["OPEN", "IN_PROGRESS"] } },
-      }),
-      prisma.financeEntry.count({
-        where: { clientId: client.id, ownerUserId, status: "OVERDUE" },
-      }),
-      prisma.flowTask.count({
-        where: {
-          relatedClientId: client.id,
-          ownerUserId,
-          status: { not: "DONE" },
-          dueDate: { lt: now },
-        },
-      }),
-    ]);
+    const openTickets = ticketsByClient.get(client.id) ?? 0;
+    const overdueFinance = financeByClient.get(client.id) ?? 0;
+    const overdueFlowTasks = flowByClient.get(client.id) ?? 0;
 
     const health = computeClientHealthScore({
       ...client,

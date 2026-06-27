@@ -104,6 +104,7 @@ export async function loadAdminDashboardStats(
       prisma.opportunity.findMany({
         where: { ownerUserId: ownerId, status: "OPEN" },
         select: { estimatedValue: true, priority: true },
+        take: 300,
       }),
     ]);
 

@@ -47,6 +47,7 @@ export default async function AdminCrmOpportunitiesPage({ searchParams }: Props)
           asset: { select: { id: true, name: true } },
         },
         orderBy: { updatedAt: "desc" },
+        take: 300,
       }),
     ])
   );

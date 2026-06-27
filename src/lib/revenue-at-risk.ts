@@ -37,6 +37,27 @@ export async function getRevenueAtRisk(
     take: 80,
   });
 
+  // Conteggi aggregati in 2 query invece di 2-per-contratto (era N+1, fino a 160 query).
+  const clientIds = Array.from(new Set(contracts.map((c) => c.clientId)));
+  const [financeGroups, ticketGroups] = await Promise.all([
+    clientIds.length
+      ? prisma.financeEntry.groupBy({
+          by: ["clientId"],
+          where: { clientId: { in: clientIds }, ownerUserId, status: "OVERDUE" },
+          _count: true,
+        })
+      : [],
+    clientIds.length
+      ? prisma.clientTicket.groupBy({
+          by: ["clientId"],
+          where: { clientId: { in: clientIds }, status: { in: ["OPEN", "IN_PROGRESS"] } },
+          _count: true,
+        })
+      : [],
+  ]);
+  const overdueByClient = new Map(financeGroups.map((g) => [g.clientId, g._count]));
+  const ticketsByClient = new Map(ticketGroups.map((g) => [g.clientId, g._count]));
+
   const items: RevenueAtRiskItem[] = [];
 
   for (const c of contracts) {
@@ -45,14 +66,8 @@ export async function getRevenueAtRisk(
     if (daysToExpiry > 120) continue;
 
     const monthlyEur = Number(c.monthlyEur.toString());
-    const [overdueFinance, openTickets] = await Promise.all([
-      prisma.financeEntry.count({
-        where: { clientId: c.clientId, ownerUserId, status: "OVERDUE" },
-      }),
-      prisma.clientTicket.count({
-        where: { clientId: c.clientId, status: { in: ["OPEN", "IN_PROGRESS"] } },
-      }),
-    ]);
+    const overdueFinance = overdueByClient.get(c.clientId) ?? 0;
+    const openTickets = ticketsByClient.get(c.clientId) ?? 0;
 
     const expiryRisk = clamp01(1 - Math.max(0, daysToExpiry) / 120);
     const financeRisk = clamp01(overdueFinance / 4);

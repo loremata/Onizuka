@@ -49,6 +49,7 @@ export default async function AdminCrmPipelinePage({ searchParams }: Props) {
       asset: { select: { id: true, name: true } },
     },
     orderBy: { updatedAt: "desc" },
+    take: 300,
   });
 
   const tableParams = new URLSearchParams();

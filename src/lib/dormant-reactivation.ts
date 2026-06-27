@@ -38,41 +38,48 @@ export async function getDormantClients(ownerUserId: string, limit = 12): Promis
     select: { id: true, companyName: true, updatedAt: true },
   });
 
+  // Conteggi e ultime-attività aggregati in 5 query invece di 5-per-cliente
+  // (era N+1, fino a ~400 query — e questo loader gira sulla home).
+  const clientIds = allClients.map((c) => c.id);
+  const [lastTickets, lastPosts, lastOpps, ticketGroups, financeGroups] = await Promise.all([
+    clientIds.length
+      ? prisma.clientTicket.groupBy({ by: ["clientId"], where: { clientId: { in: clientIds } }, _max: { updatedAt: true } })
+      : [],
+    clientIds.length
+      ? prisma.postItem.groupBy({ by: ["clientId"], where: { clientId: { in: clientIds } }, _max: { updatedAt: true } })
+      : [],
+    clientIds.length
+      ? prisma.opportunity.groupBy({ by: ["clientId"], where: { clientId: { in: clientIds }, ownerUserId }, _max: { updatedAt: true } })
+      : [],
+    clientIds.length
+      ? prisma.clientTicket.groupBy({ by: ["clientId"], where: { clientId: { in: clientIds }, status: { in: ["OPEN", "IN_PROGRESS"] } }, _count: true })
+      : [],
+    clientIds.length
+      ? prisma.financeEntry.groupBy({
+          by: ["clientId"],
+          where: { clientId: { in: clientIds }, ownerUserId, status: { in: ["PLANNED", "OVERDUE"] }, dueDate: { lt: new Date() } },
+          _count: true,
+        })
+      : [],
+  ]);
+  const lastTicketBy = new Map(lastTickets.map((g) => [g.clientId, g._max.updatedAt]));
+  const lastPostBy = new Map(lastPosts.map((g) => [g.clientId, g._max.updatedAt]));
+  const lastOppBy = new Map(lastOpps.map((g) => [g.clientId, g._max.updatedAt]));
+  const openTicketsBy = new Map(ticketGroups.map((g) => [g.clientId, g._count]));
+  const overdueFinanceBy = new Map(financeGroups.map((g) => [g.clientId, g._count]));
+
   const rows: DormantClientItem[] = [];
 
   for (const client of allClients) {
-    const [lastTicket, lastPost, lastOpp, openTickets, overdueFinance] = await Promise.all([
-      prisma.clientTicket.findFirst({
-        where: { clientId: client.id },
-        orderBy: { updatedAt: "desc" },
-        select: { updatedAt: true },
-      }),
-      prisma.postItem.findFirst({
-        where: { clientId: client.id },
-        orderBy: { updatedAt: "desc" },
-        select: { updatedAt: true },
-      }),
-      prisma.opportunity.findFirst({
-        where: { clientId: client.id, ownerUserId },
-        orderBy: { updatedAt: "desc" },
-        select: { updatedAt: true },
-      }),
-      prisma.clientTicket.count({
-        where: { clientId: client.id, status: { in: ["OPEN", "IN_PROGRESS"] } },
-      }),
-      prisma.financeEntry.count({
-        where: {
-          clientId: client.id,
-          ownerUserId,
-          status: { in: ["PLANNED", "OVERDUE"] },
-          dueDate: { lt: new Date() },
-        },
-      }),
-    ]);
+    const openTickets = openTicketsBy.get(client.id) ?? 0;
+    const overdueFinance = overdueFinanceBy.get(client.id) ?? 0;
 
-    const dates = [lastTicket?.updatedAt, lastPost?.updatedAt, lastOpp?.updatedAt, client.updatedAt].filter(
-      (d): d is Date => Boolean(d)
-    );
+    const dates = [
+      lastTicketBy.get(client.id),
+      lastPostBy.get(client.id),
+      lastOppBy.get(client.id),
+      client.updatedAt,
+    ].filter((d): d is Date => Boolean(d));
     const latest = dates.length ? new Date(Math.max(...dates.map((d) => d.getTime()))) : null;
     const inactivityDays = daysSince(latest);
     if (inactivityDays < 45) continue;
