@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { ensureClientForLead } from "@/lib/ensure-client-for-lead";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
         source: referrerId ? "segnalatore_walkin" : "walk_in",
         referrerId,
         status: "NEW",
+        commercialProspectStage: "PROSPECT_ENTERED",
         notes: JSON.stringify({
           need: body.need ?? null,
           nextStep: body.nextStep ?? null,
@@ -56,6 +58,9 @@ export async function POST(request: NextRequest) {
         }),
       },
     });
+
+    // Unificazione: anche il walk-in ha un Client (identità unica, dedup per P.IVA).
+    await ensureClientForLead(lead.id).catch(() => undefined);
 
     await prisma.leadFollowup.create({
       data: {

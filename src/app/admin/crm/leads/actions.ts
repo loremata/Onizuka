@@ -22,6 +22,7 @@ import { terminalStageForStatus } from "@/lib/lead-lifecycle";
 import { inferClientKind } from "@/lib/client-kind";
 import { normalizeFiscalCode, normalizeFiscalIdentity, normalizeVatNumber } from "@/lib/fiscal-normalize";
 import { runLeadCreatedAutomationRules } from "@/lib/automation-rules-run";
+import { ensureClientForLead } from "@/lib/ensure-client-for-lead";
 
 export type LeadActionResult = { error: string } | { ok: true } | null;
 
@@ -92,8 +93,15 @@ export async function createLead(_prev: LeadActionResult, formData: FormData): P
         convertedClientId,
         // Satellite coerente: se collegato a un cliente, clientId punta allo stesso.
         ...(convertedClientId ? { clientId: convertedClientId } : {}),
+        // Stato funnel iniziale coerente con gli altri percorsi d'ingresso.
+        ...(convertedClientId ? {} : { commercialProspectStage: "PROSPECT_ENTERED" as const }),
       },
     });
+    // Unificazione: ogni lead ha un Client (identità). Se non è già collegato a un
+    // cliente, garantiamo/creiamo il Client satellite (stato LEAD).
+    if (!convertedClientId) {
+      await ensureClientForLead(lead.id).catch(() => undefined);
+    }
     void logAuditEvent({
       actorUserId: session.user.id,
       action: "lead.create",
@@ -236,9 +244,11 @@ export async function convertLeadToClient(
   if (!companyName) return { error: "La ragione sociale è obbligatoria." };
   if (!contactEmail) return { error: "L'email di contatto è obbligatoria per creare il cliente." };
 
-  // Se esiste già una scheda per questa identità fiscale (es. il Client-prospect creato
-  // dall'audit), la PROMUOVIAMO invece di duplicare. Conversione = promozione, non creazione.
-  const existingClient = await findClientByFiscalIdentity({ vatNumber, fiscalCode });
+  // Conversione = promozione, non creazione. Preferisci il Client satellite già
+  // collegato al lead (modello unificato); in mancanza, cerca per identità fiscale.
+  const existingClient =
+    (lead.clientId ? await prisma.client.findUnique({ where: { id: lead.clientId } }) : null) ??
+    (await findClientByFiscalIdentity({ vatNumber, fiscalCode }));
   // Se il Client trovato è già convertito da un ALTRO lead, convertedClientId (@unique)
   // farebbe fallire la transazione con un errore fuorviante: blocchiamo prima, chiaro.
   if (existingClient) {
