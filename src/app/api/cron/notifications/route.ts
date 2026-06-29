@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
 
   const ticketSla = await step("ticketSla", () => runTicketSlaBreachCheck(), null);
 
-  let riskSignals = { overdueTasks: 0, churned: 0, slaTasks: 0 };
+  let riskSignals = { overdueTasks: 0, churned: 0, reactivated: 0, slaTasks: 0 };
   if (process.env.RISK_SIGNAL_CRON !== "0") {
     riskSignals = await step("riskSignals", () => runRiskSignalTasks(), riskSignals);
   }

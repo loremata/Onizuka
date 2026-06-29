@@ -56,7 +56,7 @@ export async function loadAdminDashboardStats(
       prisma.flowTask.count({
         where: { ownerUserId: ownerId, status: { in: [...openStatuses] } },
       }),
-      prisma.client.count(),
+      prisma.client.count({ where: { relationshipState: "CLIENTE" } }),
       prisma.memoryItem.count({ where: { ownerUserId: ownerId } }),
       prisma.flowTask.findMany({
         where: {
@@ -93,7 +93,7 @@ export async function loadAdminDashboardStats(
         where: { ownerUserId: ownerId, status: "OPEN" },
       }),
       prisma.lead.count({
-        where: { ownerUserId: ownerId, status: { in: ["NEW", "QUALIFIED"] } },
+        where: { ownerUserId: ownerId, status: { in: ["NEW", "COLD", "QUALIFIED", "CONTACTED"] } },
       }),
       prisma.clientTicket.count({
         where: { status: { in: ["OPEN", "IN_PROGRESS"] } },

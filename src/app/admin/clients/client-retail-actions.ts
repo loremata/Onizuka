@@ -5,6 +5,7 @@ import type { RetailContractKind, RetailContractStatus } from "@prisma/client";
 import { requireAdminArea } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
 import { syncFinanceEntryForRetailContract } from "@/lib/retail-contract-finance-sync";
+import { promoteClientToClienteIfNeeded } from "@/lib/client-promote";
 
 const KINDS: RetailContractKind[] = ["MOBILE", "FIBER", "ENERGY", "GAS", "SKY", "TELEPASS", "OTHER"];
 const SWITCH_OPTIONS = [6, 12, 24, 48];
@@ -68,6 +69,8 @@ export async function createClientRetailContract(clientId: string, formData: For
   });
 
   await syncFinanceEntryForRetailContract(created);
+  // Nuovo contratto attivo ⇒ è un cliente: promuovi se era prospect/ex.
+  await promoteClientToClienteIfNeeded(clientId);
 
   revalidatePath(`/admin/clients/${clientId}`);
   revalidatePath("/admin/finance");

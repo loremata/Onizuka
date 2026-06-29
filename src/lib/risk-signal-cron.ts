@@ -11,6 +11,7 @@ import { lifecycleForStatus } from "@/lib/client-lifecycle";
 export async function runRiskSignalTasks(): Promise<{
   overdueTasks: number;
   churned: number;
+  reactivated: number;
   slaTasks: number;
 }> {
   const owners = await prisma.user.findMany({
@@ -21,6 +22,7 @@ export async function runRiskSignalTasks(): Promise<{
 
   let overdueTasks = 0;
   let churned = 0;
+  let reactivated = 0;
   let slaTasks = 0;
 
   for (const o of owners) {
@@ -93,6 +95,33 @@ export async function runRiskSignalTasks(): Promise<{
     }
   }
 
+  // 2b) Riattivazione churn: un cliente DORMANTE che non ha più insoluti (sotto la
+  // soglia di churn) torna ATTIVO. Prima la transizione era a senso unico: chi
+  // saldava restava dormiente per sempre.
+  const dormant = await prisma.client.findMany({
+    where: { relationshipState: "CLIENTE", status: "DORMANT" },
+    select: { id: true },
+    take: 500,
+  });
+  if (dormant.length) {
+    const dormantIds = dormant.map((c) => c.id);
+    const overdueByDormant = await prisma.financeEntry.groupBy({
+      by: ["clientId"],
+      where: { clientId: { in: dormantIds }, status: "OVERDUE" },
+      _count: { _all: true },
+    });
+    const overdueCount = new Map(overdueByDormant.map((g) => [g.clientId, g._count._all]));
+    const toReactivate = dormant.filter((c) => (overdueCount.get(c.id) ?? 0) < 2).map((c) => c.id);
+    if (toReactivate.length) {
+      const lc = lifecycleForStatus("ACTIVE_CLIENT");
+      const res = await prisma.client.updateMany({
+        where: { id: { in: toReactivate } },
+        data: { status: lc.status, relationshipState: lc.relationshipState },
+      });
+      reactivated = res.count;
+    }
+  }
+
   // 3) SLA ticket sforata → task urgente (una volta, assegnata al primo admin).
   const firstOwner = owners[0]?.id;
   if (firstOwner) {
@@ -123,5 +152,5 @@ export async function runRiskSignalTasks(): Promise<{
     }
   }
 
-  return { overdueTasks, churned, slaTasks };
+  return { overdueTasks, churned, reactivated, slaTasks };
 }

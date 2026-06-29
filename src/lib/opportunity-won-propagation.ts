@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { lifecycleForRelationshipState } from "@/lib/client-lifecycle";
 
 export type OpportunityWonResult = {
   clientId: string | null;
@@ -51,11 +50,13 @@ export async function propagateOpportunityWon(opportunityId: string): Promise<Op
         select: { status: true, relationshipState: true },
       });
       if (client) {
-        const lc = lifecycleForRelationshipState("CLIENTE", client.status);
-        if (client.relationshipState !== "CLIENTE" || client.status !== lc.status) {
+        // WON ⇒ cliente ATTIVO: forziamo CLIENTE/ACTIVE_CLIENT. Così la vittoria
+        // RIATTIVA anche un DORMANT o un EX_CLIENTE (prima coherentStatusFor
+        // conservava DORMANT e il cliente restava bloccato in quello stato).
+        if (client.relationshipState !== "CLIENTE" || client.status !== "ACTIVE_CLIENT") {
           await prisma.client.update({
             where: { id: clientId },
-            data: { relationshipState: lc.relationshipState, status: lc.status },
+            data: { relationshipState: "CLIENTE", status: "ACTIVE_CLIENT" },
           });
           promotedClient = true;
         }

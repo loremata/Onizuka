@@ -6,6 +6,7 @@ import { requireAdminArea } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
 import { ensureCommercialCatalogSeeded } from "@/lib/commercial-catalog-seed";
 import { syncFinanceEntryForRetailContract } from "@/lib/retail-contract-finance-sync";
+import { promoteClientToClienteIfNeeded } from "@/lib/client-promote";
 
 /**
  * Toggle di una "casella" servizi digitali dalla snapshot: se almeno un servizio
@@ -42,6 +43,8 @@ export async function toggleClientServiceSlot(clientId: string, slugsCsv: string
       update: { active: true, inactiveReason: null, since: new Date() },
       create: { clientId, commercialServiceId: primary.id, active: true, since: new Date() },
     });
+    // Servizio attivato ⇒ promuovi a CLIENTE se era prospect/ex.
+    await promoteClientToClienteIfNeeded(clientId);
   }
 
   revalidatePath(`/admin/clients/${clientId}`);
@@ -64,6 +67,7 @@ export async function toggleClientRetailKind(
     orderBy: { createdAt: "desc" },
   });
 
+  let activated = false;
   if (existing) {
     const next = existing.status === "ACTIVE" ? "EXPIRED" : "ACTIVE";
     const updated = await prisma.clientRetailContract.update({
@@ -71,6 +75,7 @@ export async function toggleClientRetailKind(
       data: { status: next },
     });
     await syncFinanceEntryForRetailContract(updated);
+    activated = next === "ACTIVE";
   } else {
     const created = await prisma.clientRetailContract.create({
       data: {
@@ -84,7 +89,11 @@ export async function toggleClientRetailKind(
       },
     });
     await syncFinanceEntryForRetailContract(created);
+    activated = true;
   }
+
+  // Contratto attivato ⇒ promuovi a CLIENTE se era prospect/ex.
+  if (activated) await promoteClientToClienteIfNeeded(clientId);
 
   revalidatePath(`/admin/clients/${clientId}`);
 }

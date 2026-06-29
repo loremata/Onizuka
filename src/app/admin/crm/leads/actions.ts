@@ -239,6 +239,19 @@ export async function convertLeadToClient(
   // Se esiste già una scheda per questa identità fiscale (es. il Client-prospect creato
   // dall'audit), la PROMUOVIAMO invece di duplicare. Conversione = promozione, non creazione.
   const existingClient = await findClientByFiscalIdentity({ vatNumber, fiscalCode });
+  // Se il Client trovato è già convertito da un ALTRO lead, convertedClientId (@unique)
+  // farebbe fallire la transazione con un errore fuorviante: blocchiamo prima, chiaro.
+  if (existingClient) {
+    const otherLead = await prisma.lead.findFirst({
+      where: { convertedClientId: existingClient.id, id: { not: leadId } },
+      select: { title: true },
+    });
+    if (otherLead) {
+      return {
+        error: `Questo cliente è già collegato a un altro lead convertito («${otherLead.title}»). Scollegalo prima di convertire questo lead.`,
+      };
+    }
+  }
   // Macro-stato CLIENTE con funnel coerente (single source of truth dello stato).
   const lc = lifecycleForRelationshipState("CLIENTE", status);
 
