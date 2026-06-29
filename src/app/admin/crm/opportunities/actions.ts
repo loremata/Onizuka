@@ -49,20 +49,9 @@ async function commitOpportunityStatusChange(
   if (existing.status === status) return null;
 
   try {
-    await prisma.opportunity.update({
-      where: { id: opportunityId },
-      data: { status },
-    });
-    void logAuditEvent({
-      actorUserId: ownerUserId,
-      action: "opportunity.status",
-      entityType: "opportunity",
-      entityId: opportunityId,
-      summary: `Opportunità «${existing.title}» → ${status}`,
-    });
-
+    // WON/LOST: lo stato viene impostato ATOMICAMENTE dentro propagate (stato + effetti
+    // nella stessa transazione). Gli altri stati (OPEN…) si aggiornano direttamente.
     if (status === "WON") {
-      // Propagazione: promuove il cliente, attiva il servizio, converte il lead.
       await propagateOpportunityWon(opportunityId);
       void notifyAdminUsers({
         kind: "opportunity_won",
@@ -70,9 +59,17 @@ async function commitOpportunityStatusChange(
         href: `/admin/crm/opportunities/${opportunityId}/edit`,
       }).catch(() => {});
     } else if (status === "LOST") {
-      // Asse LOST: rimette il prospect in nurturing e crea il task di ri-proposta.
       await propagateOpportunityLost(opportunityId);
+    } else {
+      await prisma.opportunity.update({ where: { id: opportunityId }, data: { status } });
     }
+    void logAuditEvent({
+      actorUserId: ownerUserId,
+      action: "opportunity.status",
+      entityType: "opportunity",
+      entityId: opportunityId,
+      summary: `Opportunità «${existing.title}» → ${status}`,
+    });
   } catch (e) {
     console.error(e);
     return { error: "Aggiornamento stato non riuscito." };

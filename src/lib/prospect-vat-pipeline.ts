@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import type { CommercialProspectStage } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
@@ -56,20 +57,34 @@ export async function ensureBusinessClientByVat(params: {
   }
 
   const slug = await uniqueSlug(`piva-${vat}`);
-  const client = await prisma.client.create({
-    data: {
-      companyName: `Prospect P.IVA ${vat}`,
-      slug,
-      contactEmail: `prospect+${vat}@onizuka.local`,
-      status: "LEAD_QUALIFIED",
-      // Prospect da audit/sheet: stato LEAD → NON compare nella lista clienti veri.
-      relationshipState: "LEAD",
-      vatNumber: vat,
-      kind: "BUSINESS",
-      clientMacroCategory: params.macroCategory ?? "DIGITAL_AI",
-    },
+  const createData = (s: string) => ({
+    companyName: `Prospect P.IVA ${vat}`,
+    slug: s,
+    contactEmail: `prospect+${vat}@onizuka.local`,
+    status: "LEAD_QUALIFIED" as const,
+    // Prospect da audit/sheet: stato LEAD → NON compare nella lista clienti veri.
+    relationshipState: "LEAD" as const,
+    vatNumber: vat,
+    kind: "BUSINESS" as const,
+    clientMacroCategory: params.macroCategory ?? ("DIGITAL_AI" as const),
   });
-  return { clientId: client.id, created: true };
+  try {
+    const client = await prisma.client.create({ data: createData(slug) });
+    return { clientId: client.id, created: true };
+  } catch (e) {
+    // Race: un altro processo ha creato lo stesso Client in parallelo (vincolo unique
+    // P.IVA o slug). Invece di far crashare la pipeline, recuperiamo/riproviamo.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      const again = await findClientByFiscalIdentity({ vatNumber: vat });
+      if (again) return { clientId: again.id, created: false };
+      // Collisione di solo slug con un'azienda diversa: riprova con suffisso univoco.
+      const client = await prisma.client.create({
+        data: createData(`${slug}-${Date.now().toString(36)}`),
+      });
+      return { clientId: client.id, created: true };
+    }
+    throw e;
+  }
 }
 
 /** Workflow end-to-end: prospect digitale/AI da P.IVA (checklist §18.5). */
