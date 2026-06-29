@@ -7,8 +7,8 @@ const REL_STATES: ClientRelationshipState[] = ["LEAD", "CLIENTE", "EX_CLIENTE"];
 
 export type ClientListFilters = {
   q: string;
-  /** Stato relazione: default CLIENTE (la lista mostra i clienti veri). "all" = tutti. */
-  state: ClientRelationshipState | "all";
+  /** Stato relazione. "active" = clienti + prospect (anagrafica unificata); "all" = tutti. */
+  state: ClientRelationshipState | "all" | "active";
   kind: ClientKind | "";
   macro: ClientMacroCategory | "";
   tag: string;
@@ -26,8 +26,14 @@ export function parseClientListFilters(
   let q = normalizeQueryParam(searchParams.q);
   if (q.length > Q_MAX) q = q.slice(0, Q_MAX);
   const stateRaw = normalizeQueryParam(searchParams.state);
-  const state: ClientRelationshipState | "all" =
-    stateRaw === "all" ? "all" : REL_STATES.includes(stateRaw as ClientRelationshipState) ? (stateRaw as ClientRelationshipState) : "CLIENTE";
+  const state: ClientRelationshipState | "all" | "active" =
+    stateRaw === "all"
+      ? "all"
+      : stateRaw === "active"
+        ? "active"
+        : REL_STATES.includes(stateRaw as ClientRelationshipState)
+          ? (stateRaw as ClientRelationshipState)
+          : "CLIENTE";
   const kindRaw = normalizeQueryParam(searchParams.kind);
   const macroRaw = normalizeQueryParam(searchParams.macro);
   const kind = kindRaw === "PRIVATE" || kindRaw === "BUSINESS" ? kindRaw : "";
@@ -52,7 +58,8 @@ export function parseClientListFilters(
 /** Ricerca su campi scheda cliente + referenti collegati + tag/attributi. */
 export function buildClientSearchWhere(f: ClientListFilters): Prisma.ClientWhereInput {
   const and: Prisma.ClientWhereInput[] = [];
-  if (f.state !== "all") and.push({ relationshipState: f.state });
+  if (f.state === "active") and.push({ relationshipState: { in: ["CLIENTE", "LEAD"] } });
+  else if (f.state !== "all") and.push({ relationshipState: f.state });
   if (f.kind) and.push({ kind: f.kind });
   if (f.macro) and.push({ clientMacroCategory: f.macro });
   if (f.tag) and.push({ tags: { has: f.tag } });

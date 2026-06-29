@@ -16,9 +16,18 @@ type Props = {
   searchParams: Record<string, string | string[] | undefined>;
 };
 
+const relLabel: Record<string, string> = { LEAD: "Prospect", CLIENTE: "Cliente", EX_CLIENTE: "Ex cliente" };
+const relClass: Record<string, string> = {
+  LEAD: "bg-amber-500/15 text-amber-600",
+  CLIENTE: "bg-success/15 text-success",
+  EX_CLIENTE: "bg-muted text-muted-foreground",
+};
+
 export default async function AdminClientsPage({ searchParams }: Props) {
   const [wsWhere, db] = await Promise.all([clientWorkspaceWhere(undefined), getScopedPrisma()]);
   const filters = parseClientListFilters(searchParams);
+  // Anagrafica unificata: senza filtro esplicito mostra clienti + prospect (non gli ex).
+  if (searchParams.state == null) filters.state = "active";
   const searchWhere = buildClientSearchWhere(filters);
 
   const loaded = await runWithDb(() =>
@@ -125,8 +134,9 @@ export default async function AdminClientsPage({ searchParams }: Props) {
                 defaultValue={filters.state}
                 className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
-                <option value="CLIENTE">Clienti</option>
-                <option value="LEAD">Prospect / Lead</option>
+                <option value="active">Attivi (clienti + prospect)</option>
+                <option value="CLIENTE">Solo clienti</option>
+                <option value="LEAD">Solo prospect / lead</option>
                 <option value="EX_CLIENTE">Ex clienti</option>
                 <option value="all">Tutti</option>
               </Select>
@@ -250,7 +260,14 @@ export default async function AdminClientsPage({ searchParams }: Props) {
                 <tbody>
                   {clients.map((c) => (
                     <tr key={c.id} className="border-b last:border-0">
-                      <td className="py-3 text-sm text-muted-foreground">{clientStatusLabel[c.status]}</td>
+                      <td className="py-3">
+                        <span
+                          className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${relClass[c.relationshipState] ?? ""}`}
+                        >
+                          {relLabel[c.relationshipState] ?? c.relationshipState}
+                        </span>
+                        <span className="ml-2 text-xs text-muted-foreground">{clientStatusLabel[c.status]}</span>
+                      </td>
                       <td className="py-3 text-xs text-muted-foreground">
                         {clientKindLabel[clientKindBadge(c)]}
                         {c.clientMacroCategory
