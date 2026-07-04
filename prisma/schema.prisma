@@ -1806,3 +1806,42 @@ model WhatsAppPhoneLine {
 
   @@index([isDefault])
 }
+
+enum ScrapeJobStatus {
+  QUEUED
+  RUNNING
+  DONE
+  ERROR
+}
+
+/// Job di scraping aziende per comune. Creato dalla UI admin; eseguito da un worker
+/// esterno (gira sul PC dell'utente) che aggiorna progresso e contatori.
+model ScrapeJob {
+  id           String          @id @default(cuid())
+  ownerUserId  String // admin che lo ha avviato (no FK: è una tabella di coda)
+  provincia    String
+  comune       String
+  registroSlug String
+  status       ScrapeJobStatus @default(QUEUED)
+  phase        String? // "registro" | "places" | "merge" | "import"
+
+  progressCurrent Int @default(0)
+  progressTotal   Int @default(0)
+
+  totalFound     Int @default(0) // aziende totali nel registro
+  activeCount    Int @default(0) // attive
+  excludedCount  Int @default(0) // cessate / in liquidazione (escluse)
+  placesEnriched Int @default(0) // arricchite da Places
+  leadsCreated   Int @default(0) // nuovi Lead inseriti in Onizuka
+  dedupSkipped   Int @default(0) // saltate perché già presenti nel CRM
+
+  error       String?   @db.Text
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  heartbeatAt DateTime? // il worker lo aggiorna: rileva job orfani
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([ownerUserId])
+}
