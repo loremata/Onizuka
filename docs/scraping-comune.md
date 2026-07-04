@@ -52,6 +52,40 @@ usa `curl` (l'anti-bot di registroaziende blocca il fingerprint TLS di Node).
 3. La barra mostra: registro → Google → dedup → creazione Lead, con i contatori
    (trovate, attive, escluse, arricchite, lead creati, già presenti).
 
+## Auto-audit dopo lo scraping
+
+Ogni Lead attivo importato viene messo in **coda audit** (riusa `AuditSheetQueueItem`,
+marcato `sheetRowKey = "scraping:<leadId>"`). Un cron dedicato lo processa:
+
+- **Cron**: `/api/cron/scraping-audit` — ogni 3h (`vercel.json`).
+- **Tetto**: `SCRAPING_AUDIT_DAILY_CAP` (default **20 audit/giorno**), per non sovraccaricare.
+- **Per ogni audit**: PDF interno + PDF cliente, link report pubblico (`/report/[token]`),
+  bozza 1ª email (`PENDING_APPROVAL`), script call, DM LinkedIn. Stato lead →
+  **`AWAITING_SEND_APPROVAL`** (attende la tua approvazione per l'invio).
+- Dopo approvazione+invio → `FIRST_AUDIT_MAIL_SENT` + tracking apertura (pixel esistente).
+
+Il cron della coda Google Sheet (`/api/cron/audit-sheet-queue`) **ignora** gli item
+scraping (filtro dedicato): i due canali non si pestano i piedi.
+
+## Deploy in produzione (checklist)
+
+1. Merge del branch in `main`.
+2. **DB Supabase**: `npx prisma db push` (aggiunge solo la tabella `ScrapeJob`; l'audit
+   riusa tabelle esistenti — nessun altro nuovo model).
+3. **Env Vercel**: aggiungere `GOOGLE_PLACES_API_KEY`. `CRON_SECRET` esistente copre il
+   nuovo cron. Opzionale: `SCRAPING_AUDIT_DAILY_CAP` per cambiare il tetto.
+4. **Worker sul PC**: `.env.local` con `DATABASE_URL` (Supabase) + `GOOGLE_PLACES_API_KEY`,
+   poi `scripts/avvia-worker.bat`.
+
+## Canale Google Sheet (ritiro futuro)
+
+Lo scraping sostituisce il **canale di ingresso** "foglio Google", ma il **motore** della
+coda audit è condiviso e resta necessario. Non rimuovere `AuditSheetQueueItem`, il
+processore, né `runDigitalAuditUnified`. Quando lo scraping è consolidato in produzione,
+si può ritirare solo la parte *sheet-specific* (UI coda sheet, `audit-sheet-ingest`,
+writeback, e disattivare `GOOGLE_SHEET_AUTO_SYNC_CRON`/il cron `audit-sheet-queue`) in un
+intervento dedicato.
+
 ## Note
 
 - **Comuni**: dataset ISTAT in `src/lib/scraping/comuni-italia.ts` (7.904 comuni).
