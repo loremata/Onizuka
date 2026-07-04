@@ -6,8 +6,9 @@ import { DbUnavailableBanner } from "@/components/onizuka/db-unavailable-banner"
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { leadStatusLabel, leadStatusOptions } from "@/lib/crm-lead-status";
+import { commercialProspectStageLabel, commercialProspectStageOptions } from "@/lib/commercial-prospect-stage";
 import { buildListExportHref } from "@/lib/list-export-href";
-import { buildOwnedLeadWhere, parseLeadListFilters } from "@/lib/lead-list-filters";
+import { buildOwnedLeadWhere, parseLeadListFilters, LEADS_PAGE_SIZE } from "@/lib/lead-list-filters";
 import { LeadQuickStatusForm } from "./lead-quick-status-form";
 import { LeadCsvImportForm } from "@/components/onizuka/lead-csv-import-form";
 import { Select } from "@/components/ui/select";
@@ -21,16 +22,20 @@ export default async function AdminCrmLeadsPage({ searchParams }: Props) {
 
   const ownerId = session.user.id;
   const filters = parseLeadListFilters(searchParams);
+  const where = buildOwnedLeadWhere(ownerId, filters);
+  const skip = (filters.page - 1) * LEADS_PAGE_SIZE;
 
   const loaded = await runWithDb(() =>
     Promise.all([
       prisma.lead.findMany({
-        where: buildOwnedLeadWhere(ownerId, filters),
+        where,
         include: {
           convertedClient: { select: { id: true, companyName: true } },
           referrer: { select: { id: true, name: true } },
         },
         orderBy: { updatedAt: "desc" },
+        skip,
+        take: LEADS_PAGE_SIZE,
       }),
       prisma.lead.groupBy({
         by: ["status"],
@@ -42,6 +47,7 @@ export default async function AdminCrmLeadsPage({ searchParams }: Props) {
         orderBy: { name: "asc" },
         select: { id: true, name: true },
       }),
+      prisma.lead.count({ where }),
     ])
   );
 
@@ -57,31 +63,35 @@ export default async function AdminCrmLeadsPage({ searchParams }: Props) {
     );
   }
 
-  const [leads, statusCounts, referrers] = loaded.data;
+  const [leads, statusCounts, referrers, total] = loaded.data;
+  const totalPages = Math.max(1, Math.ceil(total / LEADS_PAGE_SIZE));
+  const from = total === 0 ? 0 : skip + 1;
+  const to = Math.min(skip + leads.length, total);
 
-  let referrerLabel: string | null = null;
-  if (filters.referrerId) {
-    const rf = await prisma.referrer.findFirst({
-      where: { id: filters.referrerId, ownerUserId: ownerId },
-      select: { name: true },
-    });
-    referrerLabel = rf?.name ?? null;
-  }
-
-  const leadQueryWithoutReferrer = (() => {
+  // Costruisce una query string dai filtri correnti, con override (reset pagina su cambio filtro).
+  const qs = (overrides: Record<string, string | undefined> = {}) => {
+    const base: Record<string, string | undefined> = {
+      q: filters.q || undefined,
+      status: filters.status ?? undefined,
+      stage: filters.stage ?? undefined,
+      referrerId: filters.referrerId ?? undefined,
+      source: filters.source ?? undefined,
+      city: filters.city ?? undefined,
+      hasWebsite: filters.hasWebsite === true ? "si" : filters.hasWebsite === false ? "no" : undefined,
+      page: filters.page > 1 ? String(filters.page) : undefined,
+    };
     const p = new URLSearchParams();
-    if (filters.q) p.set("q", filters.q);
-    if (filters.status) p.set("status", filters.status);
+    for (const [k, v] of Object.entries({ ...base, ...overrides })) if (v) p.set(k, v);
     const s = p.toString();
     return s ? `?${s}` : "";
-  })();
+  };
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="onizuka-page-title">CRM · Lead</h1>
-          <p className="text-muted-foreground">Pipeline acquisizione prima della conversione in cliente.</p>
+          <p className="text-muted-foreground">Database prospect: filtrabile per stato, stage audit, comune, città, sito.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
@@ -96,6 +106,9 @@ export default async function AdminCrmLeadsPage({ searchParams }: Props) {
             </a>
           </Button>
           <Button asChild variant="outline">
+            <Link href="/admin/crm/scraping">Scraping aziende</Link>
+          </Button>
+          <Button asChild variant="outline">
             <Link href="/admin/crm/leads/quick">Lead banco</Link>
           </Button>
           <Button asChild variant="outline">
@@ -107,91 +120,74 @@ export default async function AdminCrmLeadsPage({ searchParams }: Props) {
         </div>
       </div>
 
-      {filters.referrerId ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
-          <span>
-            Filtro segnalatore:{" "}
-            <strong>{referrerLabel ?? "— (non trovato o rimosso)"}</strong>
-          </span>
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/admin/crm/leads${leadQueryWithoutReferrer}`}>Rimuovi filtro</Link>
-          </Button>
-        </div>
-      ) : null}
-
       <div className="flex flex-wrap gap-2">
         {statusCounts.map((row) => (
           <Link
             key={row.status}
-            href={`/admin/crm/leads?status=${row.status}${filters.referrerId ? `&referrerId=${encodeURIComponent(filters.referrerId)}` : ""}${filters.q ? `&q=${encodeURIComponent(filters.q)}` : ""}`}
-            className="rounded-md border border-border/60 px-3 py-1.5 text-xs hover:bg-muted/50"
+            href={`/admin/crm/leads${qs({ status: row.status, page: undefined })}`}
+            className={`rounded-md border px-3 py-1.5 text-xs hover:bg-muted/50 ${filters.status === row.status ? "border-primary bg-primary/10" : "border-border/60"}`}
           >
             {leadStatusLabel[row.status]}: <strong>{row._count._all}</strong>
           </Link>
         ))}
       </div>
 
-      <Card className="max-w-3xl">
+      <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Filtri</CardTitle>
-          <CardDescription>Ricerca testuale e stato (query GET, condivisibile via URL).</CardDescription>
+          <CardDescription>Query GET, condivisibile via URL. I filtri si combinano.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form method="get" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-            <div className="flex min-w-[200px] flex-1 flex-col gap-1">
-              <label htmlFor="q" className="text-xs font-medium text-muted-foreground">
-                Testo (titolo, azienda, contatto, email…)
-              </label>
-              <input
-                id="q"
-                name="q"
-                type="search"
-                defaultValue={filters.q}
-                placeholder="Cerca…"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
+          <form method="get" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="q" className="text-xs font-medium text-muted-foreground">Testo (azienda, P.IVA, email…)</label>
+              <input id="q" name="q" type="search" defaultValue={filters.q} placeholder="Cerca…"
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" />
             </div>
-            <div className="flex min-w-[180px] flex-col gap-1">
-              <label htmlFor="status" className="text-xs font-medium text-muted-foreground">
-                Stato
-              </label>
-              <Select
-                id="status"
-                name="status"
-                defaultValue={filters.status ?? ""}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
+            <div className="flex flex-col gap-1">
+              <label htmlFor="status" className="text-xs font-medium text-muted-foreground">Stato</label>
+              <Select id="status" name="status" defaultValue={filters.status ?? ""} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                 <option value="">Tutti</option>
-                {leadStatusOptions.map((s) => (
-                  <option key={s} value={s}>
-                    {leadStatusLabel[s]}
-                  </option>
-                ))}
+                {leadStatusOptions.map((s) => <option key={s} value={s}>{leadStatusLabel[s]}</option>)}
               </Select>
             </div>
-            <div className="flex min-w-[200px] flex-col gap-1">
-              <label htmlFor="referrerId" className="text-xs font-medium text-muted-foreground">
-                Segnalatore
-              </label>
-              <Select
-                id="referrerId"
-                name="referrerId"
-                defaultValue={filters.referrerId ?? ""}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
+            <div className="flex flex-col gap-1">
+              <label htmlFor="stage" className="text-xs font-medium text-muted-foreground">Stage audit</label>
+              <Select id="stage" name="stage" defaultValue={filters.stage ?? ""} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                 <option value="">Tutti</option>
-                {referrers.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
+                {commercialProspectStageOptions.map((s) => <option key={s} value={s}>{commercialProspectStageLabel[s]}</option>)}
               </Select>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="source" className="text-xs font-medium text-muted-foreground">Origine / comune (es. scraping, Rosignano)</label>
+              <input id="source" name="source" defaultValue={filters.source ?? ""} placeholder="scraping…"
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="city" className="text-xs font-medium text-muted-foreground">Città</label>
+              <input id="city" name="city" defaultValue={filters.city ?? ""} placeholder="Città…"
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="hasWebsite" className="text-xs font-medium text-muted-foreground">Sito web</label>
+              <Select id="hasWebsite" name="hasWebsite" defaultValue={filters.hasWebsite === true ? "si" : filters.hasWebsite === false ? "no" : ""} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                <option value="">Tutti</option>
+                <option value="si">Ha sito</option>
+                <option value="no">Senza sito</option>
+              </Select>
+            </div>
+            {referrers.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <label htmlFor="referrerId" className="text-xs font-medium text-muted-foreground">Segnalatore</label>
+                <Select id="referrerId" name="referrerId" defaultValue={filters.referrerId ?? ""} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                  <option value="">Tutti</option>
+                  {referrers.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </Select>
+              </div>
+            )}
+            <div className="flex items-end gap-2">
               <Button type="submit">Applica</Button>
-              <Button asChild type="button" variant="outline">
-                <Link href="/admin/crm/leads">Azzera</Link>
-              </Button>
+              <Button asChild type="button" variant="outline"><Link href="/admin/crm/leads">Azzera</Link></Button>
             </div>
           </form>
         </CardContent>
@@ -211,63 +207,79 @@ export default async function AdminCrmLeadsPage({ searchParams }: Props) {
         <CardHeader>
           <CardTitle>Elenco lead</CardTitle>
           <CardDescription>
-            {leads.length === 0
-              ? "Nessun lead con questi filtri. Aggiungi il primo o modifica la ricerca."
-              : `${leads.length} lead.`}
+            {total === 0 ? "Nessun lead con questi filtri." : `${from}–${to} di ${total} · pagina ${filters.page}/${totalPages}`}
           </CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {leads.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Usa &quot;Nuovo lead&quot; o allarga i filtri.</p>
+            <p className="text-sm text-muted-foreground">Nessun risultato: usa &quot;Nuovo lead&quot; o allarga i filtri.</p>
           ) : (
-            <table className="w-full min-w-[960px] text-left text-sm">
-              <thead>
-                <tr className="border-b text-muted-foreground">
-                  <th className="pb-2 pr-4 font-medium">Titolo</th>
-                  <th className="pb-2 pr-4 font-medium">Stato</th>
-                  <th className="pb-2 pr-4 font-medium">Azienda / contatto</th>
-                  <th className="pb-2 pr-4 font-medium">Segnalatore</th>
-                  <th className="pb-2 pr-4 font-medium">Conversione</th>
-                  <th className="pb-2 text-right font-medium">Azioni</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leads.map((l) => (
-                  <tr key={l.id} className="border-b border-border/60 last:border-0">
-                    <td className="py-3 pr-4 font-medium">{l.title}</td>
-                    <td className="py-3 pr-4 align-top">
-                      <LeadQuickStatusForm leadId={l.id} current={l.status} />
-                    </td>
-                    <td className="py-3 pr-4 text-muted-foreground">
-                      {[l.businessName, l.contactName].filter(Boolean).join(" · ") || "—"}
-                    </td>
-                    <td className="py-3 pr-4 text-muted-foreground">
-                      {l.referrer ? (
-                        <Link className="text-primary hover:underline" href={`/admin/crm/leads?referrerId=${l.referrer.id}`}>
-                          {l.referrer.name}
-                        </Link>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="py-3 pr-4">
-                      {l.convertedClient ? (
-                        <Link className="text-primary hover:underline" href={`/admin/clients/${l.convertedClient.id}`}>
-                          {l.convertedClient.companyName}
-                        </Link>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="py-3 text-right">
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/admin/crm/leads/${l.id}/edit`}>Modifica</Link>
-                      </Button>
-                    </td>
+            <>
+              <table className="w-full min-w-[1100px] text-left text-sm">
+                <thead>
+                  <tr className="border-b text-muted-foreground">
+                    <th className="pb-2 pr-4 font-medium">Azienda</th>
+                    <th className="pb-2 pr-4 font-medium">Stato</th>
+                    <th className="pb-2 pr-4 font-medium">Stage audit</th>
+                    <th className="pb-2 pr-4 font-medium">Città</th>
+                    <th className="pb-2 pr-4 font-medium">Sito</th>
+                    <th className="pb-2 pr-4 font-medium">Origine</th>
+                    <th className="pb-2 pr-4 font-medium">Conversione</th>
+                    <th className="pb-2 text-right font-medium">Azioni</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {leads.map((l) => (
+                    <tr key={l.id} className="border-b border-border/60 last:border-0">
+                      <td className="py-3 pr-4">
+                        <div className="font-medium">{l.businessName || l.title}</div>
+                        {(l.contactName || l.vatNumber) && (
+                          <div className="text-xs text-muted-foreground">{[l.contactName, l.vatNumber].filter(Boolean).join(" · ")}</div>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4 align-top">
+                        <LeadQuickStatusForm leadId={l.id} current={l.status} />
+                      </td>
+                      <td className="py-3 pr-4 text-muted-foreground">
+                        {l.commercialProspectStage ? commercialProspectStageLabel[l.commercialProspectStage] : "—"}
+                      </td>
+                      <td className="py-3 pr-4 text-muted-foreground">{l.city || "—"}</td>
+                      <td className="py-3 pr-4">
+                        {l.website ? (
+                          <a className="text-primary hover:underline" href={l.website} target="_blank" rel="noopener noreferrer">sito</a>
+                        ) : (
+                          <span className="text-amber-600">senza</span>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4 text-xs text-muted-foreground">{l.source || "—"}</td>
+                      <td className="py-3 pr-4">
+                        {l.convertedClient ? (
+                          <Link className="text-primary hover:underline" href={`/admin/clients/${l.convertedClient.id}`}>{l.convertedClient.companyName}</Link>
+                        ) : "—"}
+                      </td>
+                      <td className="py-3 text-right">
+                        <Button asChild variant="outline" size="sm"><Link href={`/admin/crm/leads/${l.id}/edit`}>Apri</Link></Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {totalPages > 1 && (
+                <div className="mt-4 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{from}–{to} di {total}</span>
+                  <div className="flex gap-2">
+                    <Button asChild variant="outline" size="sm" disabled={filters.page <= 1}>
+                      <Link href={`/admin/crm/leads${qs({ page: filters.page > 2 ? String(filters.page - 1) : undefined })}`}>← Precedente</Link>
+                    </Button>
+                    <span className="px-2 py-1.5 text-muted-foreground">{filters.page}/{totalPages}</span>
+                    <Button asChild variant="outline" size="sm" disabled={filters.page >= totalPages}>
+                      <Link href={`/admin/crm/leads${qs({ page: String(filters.page + 1) })}`}>Successiva →</Link>
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
