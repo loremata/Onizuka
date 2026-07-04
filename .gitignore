@@ -38,3 +38,6 @@ npm-debug.log*
 .cache/
 
 .vercel
+
+# Worker scraping: credenziali prod separate
+.env.worker

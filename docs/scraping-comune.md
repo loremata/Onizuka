@@ -74,8 +74,9 @@ scraping (filtro dedicato): i due canali non si pestano i piedi.
    riusa tabelle esistenti — nessun altro nuovo model).
 3. **Env Vercel**: aggiungere `GOOGLE_PLACES_API_KEY`. `CRON_SECRET` esistente copre il
    nuovo cron. Opzionale: `SCRAPING_AUDIT_DAILY_CAP` per cambiare il tetto.
-4. **Worker sul PC**: `.env.local` con `DATABASE_URL` (Supabase) + `GOOGLE_PLACES_API_KEY`,
-   poi `scripts/avvia-worker.bat`.
+4. **Worker sul PC**: crea `.env.worker` (gitignorato) con `DATABASE_URL` = connessione
+   **prod** Supabase + `GOOGLE_PLACES_API_KEY`. Il worker lo carica con priorità sul
+   `.env` di dev, così il dev locale resta separato dalla produzione. Poi `scripts/avvia-worker.bat`.
 
 ## Canale Google Sheet (ritiro futuro)
 

@@ -4,8 +4,11 @@
 //
 // Avvio:  npx tsx scripts/scraper-worker.ts   (o il file .bat)
 // Env richieste in .env.local: DATABASE_URL (Supabase) + GOOGLE_PLACES_API_KEY.
-import { loadDotEnvFiles } from "./load-dotenv.mjs";
+import { loadDotEnvFiles, loadEnvFile } from "./load-dotenv.mjs";
 loadDotEnvFiles();
+// Override dedicato al worker (es. DATABASE_URL di PRODUZIONE + GOOGLE_PLACES_API_KEY),
+// tenuto separato da .env/.env.local usati dal dev. Opzionale: se non c'è, si usa .env.
+loadEnvFile(process.cwd(), ".env.worker", { override: true });
 
 const POLL_MS = 5000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
