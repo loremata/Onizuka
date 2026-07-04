@@ -1,40 +1,52 @@
+// Processore della coda audit da SCRAPING, con tetto giornaliero.
+// Gira solo lato server (cron su Vercel). Processa gli AuditSheetQueueItem marcati
+// "scraping:<leadId>" a piccoli lotti, fino a un massimo di N audit al giorno.
 import { prisma } from "@/lib/prisma";
 import { runDigitalAuditUnified } from "@/lib/audit-commercial-entry";
 import { processNonVatSheetQueueItem } from "@/lib/audit-sheet-domain-row";
 import { enrichAuditOutreach } from "@/lib/audit-sheet-queue-processor-enrich";
-import { writeAuditResultToSheet } from "@/lib/audit-sheet-writeback";
 
-export { enrichAuditOutreach } from "@/lib/audit-sheet-queue-processor-enrich";
-
-/** Oltre questa soglia un item "PROCESSING" è considerato orfano (run precedente interrotto). */
+export const SCRAPING_AUDIT_DAILY_CAP = Number(process.env.SCRAPING_AUDIT_DAILY_CAP) || 20;
 const STALE_PROCESSING_MS = 10 * 60_000;
+const SCRAPING_PREFIX = "scraping:";
 
-export async function processAuditSheetQueueBatch(limit = 5): Promise<{
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+export async function processScrapingAuditBatch(batchLimit = 4): Promise<{
   processed: number;
   done: number;
   failed: number;
   skipped: number;
-  reclaimed: number;
+  capReached: boolean;
+  doneToday: number;
 }> {
-  // Recupero righe rimaste bloccate in PROCESSING da un run precedente andato in
-  // timeout/crash: senza questo restano per sempre fuori dalla coda (il processore
-  // guarda solo i PENDING) e l'azienda non viene mai auditata. processedAt fa da
-  // timestamp di "claim": lo impostiamo quando segniamo PROCESSING (sotto).
-  const reclaim = await prisma.auditSheetQueueItem.updateMany({
+  // Recupero orfani (PROCESSING bloccati da un run precedente) tra gli item scraping.
+  await prisma.auditSheetQueueItem.updateMany({
     where: {
       status: "PROCESSING",
+      sheetRowKey: { startsWith: SCRAPING_PREFIX },
       OR: [{ processedAt: { lt: new Date(Date.now() - STALE_PROCESSING_MS) } }, { processedAt: null }],
     },
     data: { status: "PENDING" },
   });
-  const reclaimed = reclaim.count;
+
+  // Tetto giornaliero: quanti audit scraping sono già stati completati oggi.
+  const doneToday = await prisma.auditSheetQueueItem.count({
+    where: { sheetRowKey: { startsWith: SCRAPING_PREFIX }, status: "DONE", processedAt: { gte: startOfToday() } },
+  });
+  const remaining = Math.max(0, SCRAPING_AUDIT_DAILY_CAP - doneToday);
+  if (remaining === 0) {
+    return { processed: 0, done: 0, failed: 0, skipped: 0, capReached: true, doneToday };
+  }
 
   const items = await prisma.auditSheetQueueItem.findMany({
-    // Esclude gli item provenienti dallo scraping (sheetRowKey "scraping:<leadId>"):
-    // quelli hanno un cron dedicato con tetto giornaliero. Vedi scraping-audit-queue.ts.
-    where: { status: "PENDING", sheetRowKey: { not: { startsWith: "scraping:" } } },
+    where: { status: "PENDING", sheetRowKey: { startsWith: SCRAPING_PREFIX } },
     orderBy: { createdAt: "asc" },
-    take: limit,
+    take: Math.min(batchLimit, remaining),
   });
 
   let done = 0;
@@ -44,11 +56,11 @@ export async function processAuditSheetQueueBatch(limit = 5): Promise<{
   for (const item of items) {
     await prisma.auditSheetQueueItem.update({
       where: { id: item.id },
-      // processedAt qui = istante di "claim": serve al recupero degli orfani sopra.
       data: { status: "PROCESSING", processedAt: new Date() },
     });
 
     try {
+      // Aziende senza P.IVA (solo-Google): percorso non-VAT (match per dominio/nome).
       if (!item.vatNumber?.trim()) {
         const nonVat = await processNonVatSheetQueueItem(item);
         await prisma.auditSheetQueueItem.update({
@@ -61,12 +73,8 @@ export async function processAuditSheetQueueBatch(limit = 5): Promise<{
             errorDetail: nonVat.errorDetail?.slice(0, 2000) ?? null,
           },
         });
-        if (nonVat.status === "DONE") {
-          done++;
-          if (nonVat.auditId) {
-            await writeAuditResultToSheet(item.sheetRowKey, nonVat.auditId).catch(() => undefined);
-          }
-        } else if (nonVat.status === "SKIPPED") skipped++;
+        if (nonVat.status === "DONE") done++;
+        else if (nonVat.status === "SKIPPED") skipped++;
         else failed++;
         continue;
       }
@@ -100,20 +108,15 @@ export async function processAuditSheetQueueBatch(limit = 5): Promise<{
         },
       });
       done++;
-      await writeAuditResultToSheet(item.sheetRowKey, result.auditId).catch(() => undefined);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Errore sconosciuto";
       await prisma.auditSheetQueueItem.update({
         where: { id: item.id },
-        data: {
-          status: "FAILED",
-          errorDetail: msg.slice(0, 2000),
-          processedAt: new Date(),
-        },
+        data: { status: "FAILED", errorDetail: msg.slice(0, 2000), processedAt: new Date() },
       });
       failed++;
     }
   }
 
-  return { processed: items.length, done, failed, skipped, reclaimed };
+  return { processed: items.length, done, failed, skipped, capReached: false, doneToday: doneToday + done };
 }

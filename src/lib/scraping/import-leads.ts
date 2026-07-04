@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { normalizeFiscalIdentity } from "@/lib/fiscal-normalize";
 import { findClientByFiscalIdentity } from "@/lib/client-fiscal-identity";
 import { ensureClientForLead } from "@/lib/ensure-client-for-lead";
+import { enqueueLeadForAudit } from "@/lib/scraping-audit-enqueue";
 import type { ResolvedCompany, ProgressFn } from "./types";
 
 export interface ImportResult {
@@ -86,6 +87,17 @@ export async function importScrapedCompanies(
 
       // Crea il Client satellite come nel flusso ufficiale (no automazioni in bulk).
       await ensureClientForLead(lead.id);
+      // Mette il lead in coda per l'audit automatico (il cron dedicato lo processa
+      // a max 20/giorno). Se l'enqueue fallisce non deve rompere l'import.
+      await enqueueLeadForAudit({
+        id: lead.id,
+        ownerUserId,
+        vatNumber: vatNumber || null,
+        businessName: nome,
+        website: c.sitoWeb || null,
+        city: c.citta || comune,
+        email: null,
+      }).catch(() => undefined);
       res.created++;
     } catch {
       res.skippedInvalid++;
