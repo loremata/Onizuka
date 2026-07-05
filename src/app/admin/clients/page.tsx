@@ -10,6 +10,7 @@ import { clientKindBadge, clientKindLabel, clientMacroCategoryLabel } from "@/li
 import { buildClientSearchWhere, parseClientListFilters } from "@/lib/client-list-filters";
 import { clientWorkspaceWhere, getScopedPrisma } from "@/lib/workspace-scope";
 import { WorkspaceSwitcher } from "@/components/onizuka/workspace-switcher";
+import { CrmDirectoryTabs } from "@/components/onizuka/crm-directory-tabs";
 import { Select } from "@/components/ui/select";
 
 type Props = {
@@ -26,8 +27,8 @@ const relClass: Record<string, string> = {
 export default async function AdminClientsPage({ searchParams }: Props) {
   const [wsWhere, db] = await Promise.all([clientWorkspaceWhere(undefined), getScopedPrisma()]);
   const filters = parseClientListFilters(searchParams);
-  // Anagrafica unificata: senza filtro esplicito mostra clienti + prospect (non gli ex).
-  if (searchParams.state == null) filters.state = "active";
+  // "Clienti" = solo clienti veri di default (relationshipState=CLIENTE). I prospect
+  // stanno in Prospect/Lead e nella Rubrica; qui restano raggiungibili col filtro Stato.
   const searchWhere = buildClientSearchWhere(filters);
 
   const loaded = await runWithDb(() =>
@@ -86,6 +87,7 @@ export default async function AdminClientsPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
+      <CrmDirectoryTabs />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
           <h1 className="onizuka-page-title">Clienti</h1>

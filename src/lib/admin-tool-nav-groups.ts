@@ -24,8 +24,8 @@ export const ADMIN_TOOL_NAV_GROUPS: AdminToolNavGroup[] = [
       { href: "/admin/crm/leads", label: "Prospect / Lead" },
       { href: "/admin/crm/scraping", label: "Scraping aziende" },
       { href: "/admin/crm/pipeline", label: "Pipeline" },
-      // Hub Rubrica: contatti apre le schede Contatti/Persone/Segmenti & database.
-      { href: "/admin/crm/contacts", label: "Rubrica (hub)" },
+      // Rubrica: le schede (Clienti/Contatti/Persone/Segmenti) sono ora sull'hub
+      // raggiungibile da "Clienti" — voce di menu separata rimossa per deduplicare.
       { href: "/admin/crm/cross-sell", label: "Cross-sell" },
       { href: "/admin/crm/renewals", label: "Rinnovi retail" },
       { href: "/admin/crm/referrers", label: "Segnalatori" },
