@@ -18,7 +18,7 @@ import {
 } from "@/lib/client-fiscal-identity";
 import { formatFiscalUniqueViolation } from "@/lib/fiscal-unique-error";
 import { lifecycleForRelationshipState } from "@/lib/client-lifecycle";
-import { terminalStageForStatus } from "@/lib/lead-lifecycle";
+import { leadLifecycleForStage, representativeStageForStatus } from "@/lib/lead-lifecycle";
 import { inferClientKind } from "@/lib/client-kind";
 import { normalizeFiscalCode, normalizeFiscalIdentity, normalizeVatNumber } from "@/lib/fiscal-normalize";
 import { runLeadCreatedAutomationRules } from "@/lib/automation-rules-run";
@@ -412,13 +412,13 @@ export async function updateLeadStatus(
   });
   if (!existing) return { error: "Lead non trovato." };
   if (existing.status === status) return null;
-  const terminalStage = terminalStageForStatus(status);
 
   try {
     await prisma.lead.update({
       where: { id: leadId },
-      // Coerenza stato↔stage: stati terminali (CONVERTED→WON, LOST→LOST) allineano lo stage.
-      data: { status, ...(terminalStage ? { commercialProspectStage: terminalStage } : {}) },
+      // Coerenza status↔stage: un cambio manuale di status allinea SEMPRE anche lo
+      // stage (fonte di verità) al rappresentativo del bucket, evitando divergenze.
+      data: leadLifecycleForStage(representativeStageForStatus(status)),
     });
     if (status === "LOST") {
       await prisma.leadFollowup.updateMany({

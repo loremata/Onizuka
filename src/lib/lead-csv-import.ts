@@ -1,6 +1,7 @@
 import type { LeadStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizeVatNumber } from "@/lib/fiscal-normalize";
+import { representativeStageForStatus } from "@/lib/lead-lifecycle";
 
 const VALID_STATUS = new Set<LeadStatus>(["NEW", "COLD", "QUALIFIED", "CONTACTED", "CONVERTED", "LOST"]);
 
@@ -75,6 +76,8 @@ export async function importLeadsFromCsv(
             vatIdx >= 0 ? normalizeVatNumber(cols[vatIdx]?.trim()) ?? undefined : undefined,
           source: sourceIdx >= 0 ? cols[sourceIdx]?.trim() || "csv_import" : "csv_import",
           status,
+          // Coerenza status↔stage anche in import: stage rappresentativo del bucket.
+          commercialProspectStage: representativeStageForStatus(status),
         },
       });
       imported++;

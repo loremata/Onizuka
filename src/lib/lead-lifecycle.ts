@@ -22,11 +22,30 @@ const STAGE_TO_STATUS: Record<CommercialProspectStage, LeadStatus> = {
   IN_NEGOTIATION: "CONTACTED",
   WON: "CONVERTED",
   LOST: "LOST",
-  NURTURING: "QUALIFIED",
+  NURTURING: "COLD", // nurturing = lead freddo da riscaldare
 };
 
 export function statusForStage(stage: CommercialProspectStage): LeadStatus {
   return STAGE_TO_STATUS[stage];
+}
+
+/**
+ * Inverso coarse status → stage rappresentativo (il MENO avanzato del bucket).
+ * Serve quando si parte da uno status grossolano (cambio manuale, import CSV):
+ * garantisce che `status` e `stage` restino coerenti (round-trip:
+ * statusForStage(representativeStageForStatus(s)) === s).
+ */
+const STATUS_TO_REPRESENTATIVE_STAGE: Record<LeadStatus, CommercialProspectStage> = {
+  NEW: "PROSPECT_ENTERED",
+  COLD: "NURTURING",
+  QUALIFIED: "AUDIT_IN_PROGRESS",
+  CONTACTED: "AWAITING_SEND_APPROVAL",
+  CONVERTED: "WON",
+  LOST: "LOST",
+};
+
+export function representativeStageForStatus(status: LeadStatus): CommercialProspectStage {
+  return STATUS_TO_REPRESENTATIVE_STAGE[status];
 }
 
 /** Coppia coerente {status, commercialProspectStage} da usare ovunque si cambi lo stage. */
