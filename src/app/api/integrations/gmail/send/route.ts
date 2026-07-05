@@ -33,7 +33,10 @@ export async function POST(request: Request) {
 
   const draft = await prisma.outreachDraft.findFirst({
     where: { id: draftId, ownerUserId: session.user.id },
-    include: { client: { select: { contactEmail: true, companyName: true } } },
+    include: {
+      client: { select: { contactEmail: true, companyName: true } },
+      lead: { select: { email: true } },
+    },
   });
 
   if (!draft) {
@@ -46,7 +49,7 @@ export async function POST(request: Request) {
 
   const subject = pickOutreachSubject(draft, abVariant);
   const emailBody = pickOutreachBody(draft, abVariant);
-  const to = draft.client?.contactEmail?.trim() ?? "";
+  const to = (draft.client?.contactEmail?.trim() || draft.lead?.email?.trim()) ?? "";
   const mode = resolveGmailSendMode();
 
   if (to && (await isGmailConnected(session.user.id))) {

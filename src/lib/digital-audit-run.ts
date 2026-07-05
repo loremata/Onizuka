@@ -247,41 +247,45 @@ export async function runDigitalAuditForClient(params: {
     ? ` GBP: ${gbpEnriched.gbp.gbpPlaceName}${gbpEnriched.gbp.gbpRating != null ? ` ${gbpEnriched.gbp.gbpRating}/5` : ""}${gbpEnriched.gbp.gbpReviewCount != null ? ` (${gbpEnriched.gbp.gbpReviewCount} rec.)` : ""}.`
     : "";
 
-  const audit = await prisma.digitalAudit.create({
-    data: {
-      ownerUserId: params.ownerUserId,
-      clientId: client.id,
-      leadId,
-      vatNumber: params.vatNumber?.trim() || client.vatNumber,
-      businessName: client.companyName,
-      website: client.website,
-      status: "COMPLETED",
-      overallScore,
-      priorityProblem: rec.priorityProblem,
-      recommendedBrandId: brand?.id,
-      recommendedServiceId: service?.id,
-      gbpRating: gbpEnriched.gbp?.gbpRating ?? undefined,
-      gbpReviewCount: gbpEnriched.gbp?.gbpReviewCount ?? undefined,
-      gbpPlaceName: gbpEnriched.gbp?.gbpPlaceName ?? undefined,
-      internalNotes: `Audit automatico. Sezione più debole: ${weakest?.sectionKey ?? "—"}. ${probeNote}${gbpNote}`,
-      sections: {
-        create: sections.map((s) => ({
-          sectionKey: s.sectionKey,
-          score: s.score,
-          positives: s.positives || null,
-          issues: s.issues || null,
-        })),
+  // Un solo audit per azienda: create del nuovo + delete dei precedenti dello stesso
+  // cliente in UNA transazione atomica → niente audit duplicati se un crash o un
+  // re-audit concorrente cade tra le due operazioni. (sezioni in cascade-delete;
+  // bozze/sequenze outreach restano con riferimento azzerato.)
+  const audit = await prisma.$transaction(async (tx) => {
+    const created = await tx.digitalAudit.create({
+      data: {
+        ownerUserId: params.ownerUserId,
+        clientId: client.id,
+        leadId,
+        vatNumber: params.vatNumber?.trim() || client.vatNumber,
+        businessName: client.companyName,
+        website: client.website,
+        status: "COMPLETED",
+        overallScore,
+        priorityProblem: rec.priorityProblem,
+        recommendedBrandId: brand?.id,
+        recommendedServiceId: service?.id,
+        gbpRating: gbpEnriched.gbp?.gbpRating ?? undefined,
+        gbpReviewCount: gbpEnriched.gbp?.gbpReviewCount ?? undefined,
+        gbpPlaceName: gbpEnriched.gbp?.gbpPlaceName ?? undefined,
+        internalNotes: `Audit automatico. Sezione più debole: ${weakest?.sectionKey ?? "—"}. ${probeNote}${gbpNote}`,
+        sections: {
+          create: sections.map((s) => ({
+            sectionKey: s.sectionKey,
+            score: s.score,
+            positives: s.positives || null,
+            issues: s.issues || null,
+          })),
+        },
       },
-    },
-  });
+    });
 
-  // Un solo audit per azienda: il nuovo audit sovrascrive i precedenti dello stesso cliente.
-  // (le sezioni vanno in cascade-delete; bozze/sequenze outreach restano con riferimento azzerato).
-  await prisma.digitalAudit
-    .deleteMany({
-      where: { ownerUserId: params.ownerUserId, clientId: client.id, id: { not: audit.id } },
-    })
-    .catch(() => undefined);
+    await tx.digitalAudit.deleteMany({
+      where: { ownerUserId: params.ownerUserId, clientId: client.id, id: { not: created.id } },
+    });
+
+    return created;
+  });
 
   // Sicurezza: non creare outreach a freddo verso chi è già cliente reale.
   // L'audit resta utile (refresh interno), ma niente prima mail/sequenza.

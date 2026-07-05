@@ -20,7 +20,10 @@ export type OutreachSendResult = {
  * manuale (Telegram/Reach) e auto-invio dei follow-up. Destinatario: email del
  * cliente o, in mancanza, del lead.
  */
-export async function sendOutreachDraftNow(draftId: string): Promise<OutreachSendResult> {
+export async function sendOutreachDraftNow(
+  draftId: string,
+  opts?: { auto?: boolean }
+): Promise<OutreachSendResult> {
   const draft = await prisma.outreachDraft.findUnique({
     where: { id: draftId },
     include: {
@@ -32,6 +35,21 @@ export async function sendOutreachDraftNow(draftId: string): Promise<OutreachSen
   // Difesa anti doppio-invio: una bozza già inviata/annullata non si rispedisce.
   if (draft.status === "SENT" || draft.status === "CANCELLED") {
     return { sent: false, note: `Bozza già processata (${draft.status}).` };
+  }
+  // Invariante: la PRIMA mail (step 0 o bozza senza sequenza) esce SOLO su invio
+  // manuale approvato. Nessun percorso automatico (cron/sequenza) può spedirla:
+  // qui blocchiamo esplicitamente le chiamate auto su step non-follow-up, così
+  // l'invariante regge anche a fronte di modifiche future del chiamante.
+  if (opts?.auto) {
+    const stepIndex = draft.sequenceStepId
+      ? (await prisma.outreachSequenceStep.findUnique({
+          where: { id: draft.sequenceStepId },
+          select: { stepIndex: true },
+        }))?.stepIndex ?? 0
+      : 0;
+    if (stepIndex < 1) {
+      return { sent: false, note: "Prima mail: richiede invio manuale approvato." };
+    }
   }
 
   const to = (draft.client?.contactEmail ?? draft.lead?.email ?? "").trim();

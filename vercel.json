@@ -20,6 +20,14 @@
     {
       "path": "/api/cron/scraping-audit?limit=4",
       "schedule": "0 */3 * * *"
+    },
+    {
+      "path": "/api/cron/automation-queue",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/dedupe-training",
+      "schedule": "30 4 * * *"
     }
   ]
 }

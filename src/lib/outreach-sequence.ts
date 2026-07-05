@@ -338,7 +338,7 @@ export async function activateSequenceStep(stepId: string): Promise<{ draftId: s
 
   if (eligibleForAutoSend) {
     const { sendOutreachDraftNow } = await import("@/lib/outreach-send");
-    const result = await sendOutreachDraftNow(draft.id);
+    const result = await sendOutreachDraftNow(draft.id, { auto: true });
     if (result.sent) {
       // Notifica informativa (niente approvazione): solo lo Stop a portata di mano.
       await notifyAdminsViaTelegram(
