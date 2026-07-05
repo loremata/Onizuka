@@ -1,15 +1,22 @@
-// Worker di scraping — gira sul PC dell'utente (non su Vercel).
-// Polla i ScrapeJob in coda, esegue registro → Places → dedup → import Lead,
-// aggiornando progresso e contatori sul job. Usa curl (nativo) per il registro.
+// Worker di scraping — gira su GitHub Actions (o sul PC come fallback), NON su Vercel
+// (registroaziende blocca il TLS di Node → serve curl; e lo scraping supera il limite
+// 5 min delle funzioni serverless). Polla i ScrapeJob in coda, esegue registro →
+// Places → dedup → import Lead, aggiornando progresso e contatori sul job.
 //
-// Avvio:  npx tsx scripts/scraper-worker.ts   (o il file .bat)
-// Env richieste in .env.local: DATABASE_URL (Supabase) + GOOGLE_PLACES_API_KEY.
+// Avvio PC (loop continuo):  npx tsx scripts/scraper-worker.ts   (o il file .bat)
+// Avvio CI (single-pass):    WORKER_ONCE=1 tsx scripts/scraper-worker.ts
+//   → drena tutti i job QUEUED e poi ESCE (non resta in polling).
+// Env: DATABASE_URL (Supabase) + GOOGLE_PLACES_API_KEY (da .env.worker in locale,
+//      oppure dai secret dell'ambiente su GitHub Actions).
 import { loadDotEnvFiles, loadEnvFile } from "./load-dotenv.mjs";
 loadDotEnvFiles();
 // Override dedicato al worker (es. DATABASE_URL di PRODUZIONE + GOOGLE_PLACES_API_KEY),
-// tenuto separato da .env/.env.local usati dal dev. Opzionale: se non c'è, si usa .env.
+// tenuto separato da .env/.env.local usati dal dev. Opzionale: se non c'è (es. su CI),
+// si usano le env già presenti nel processo (secret Actions).
 loadEnvFile(process.cwd(), ".env.worker", { override: true });
 
+// Single-pass: su GitHub Actions vogliamo drenare la coda e uscire, non pollare all'infinito.
+const ONCE = process.env.WORKER_ONCE === "1";
 const POLL_MS = 5000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const mask = (u?: string) => (u ? u.replace(/:[^:@]+@/, ":***@") : "(mancante)");
@@ -36,6 +43,10 @@ async function main() {
       orderBy: { createdAt: "asc" },
     });
     if (!next) {
+      if (ONCE) {
+        console.log("[worker] nessun job in coda — esco (WORKER_ONCE).");
+        break;
+      }
       await sleep(POLL_MS);
       continue;
     }
@@ -105,6 +116,9 @@ async function main() {
       console.error(`[worker] job ${job.id} ERRORE:`, msg);
     }
   }
+
+  // Raggiunto solo in modalità ONCE (il break sopra): chiudi la connessione ed esci pulito.
+  await prisma.$disconnect().catch(() => undefined);
 }
 
 main().catch((e) => {

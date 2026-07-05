@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PROVINCE_ITALIA } from "@/lib/scraping/comuni-italia";
+import { triggerScraperWorkflow } from "@/lib/scraping/github-dispatch";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -37,7 +38,13 @@ export async function POST(request: Request) {
     orderBy: { createdAt: "desc" },
   });
   if (esistente) {
-    return NextResponse.json({ jobId: esistente.id, reused: true });
+    // Se è ancora in coda, ri-sveglia il worker su GitHub Actions (un dispatch
+    // precedente può essere andato perso); se già RUNNING non serve.
+    const dispatched =
+      esistente.status === "QUEUED"
+        ? await triggerScraperWorkflow({ jobId: esistente.id, comune, provincia })
+        : false;
+    return NextResponse.json({ jobId: esistente.id, reused: true, dispatched });
   }
 
   const job = await prisma.scrapeJob.create({
@@ -50,5 +57,9 @@ export async function POST(request: Request) {
     },
   });
 
-  return NextResponse.json({ jobId: job.id });
+  // Avvia il worker su GitHub Actions (best-effort: se non configurato/fallisce,
+  // il job resta QUEUED e si può lanciare a mano dalla tab Actions).
+  const dispatched = await triggerScraperWorkflow({ jobId: job.id, comune, provincia });
+
+  return NextResponse.json({ jobId: job.id, dispatched });
 }

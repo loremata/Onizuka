@@ -1,0 +1,52 @@
+name: Scraper aziende
+
+# Worker di scraping su GitHub Actions (indipendente dal PC dell'utente).
+# NON gira su Vercel: registroaziende blocca il TLS di Node (serve curl) e lo
+# scraping supera il limite 5 min delle funzioni serverless.
+#
+# Trigger:
+#  - repository_dispatch (type: scrape): lanciato dal pulsante "Avvia scraping"
+#    di Onizuka (API GitHub, vedi src/lib/scraping/github-dispatch.ts).
+#  - workflow_dispatch: avvio manuale dalla tab Actions (backup).
+# In entrambi i casi il worker drena TUTTI i ScrapeJob in stato QUEUED e poi esce.
+#
+# Secret richiesti (Settings → Secrets and variables → Actions):
+#  - SCRAPER_DATABASE_URL : DATABASE_URL di PRODUZIONE (pooler Supabase, pgbouncer)
+#  - GOOGLE_PLACES_API_KEY: chiave Google Places (arricchimento sito/recensioni)
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [scrape]
+
+# Un solo worker alla volta: il claim job non è del tutto atomico, evitiamo run paralleli.
+concurrency:
+  group: scraper-worker
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.3.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - run: pnpm install --no-frozen-lockfile
+
+      - run: pnpm exec prisma generate
+
+      - name: Run scraper worker (single pass)
+        env:
+          WORKER_ONCE: "1"
+          DATABASE_URL: ${{ secrets.SCRAPER_DATABASE_URL }}
+          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+        run: pnpm exec tsx scripts/scraper-worker.ts
