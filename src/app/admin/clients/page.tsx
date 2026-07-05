@@ -95,9 +95,6 @@ export default async function AdminClientsPage({ searchParams }: Props) {
           <WorkspaceSwitcher />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
-            <Link href="/admin/crm/database">Database / Segmenti</Link>
-          </Button>
           <Button asChild>
             <Link href="/admin/clients/new">Nuovo cliente</Link>
           </Button>

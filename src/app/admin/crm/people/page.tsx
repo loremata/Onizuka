@@ -20,11 +20,6 @@ export default async function CrmPeoplePage({ searchParams }: Props) {
       <AdminPageHeader
         title="Persone"
         lead="Entità persona fisica collegata a una o più aziende (ruoli su scheda cliente)."
-        actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/admin/crm/contacts">Contatti unificati</Link>
-          </Button>
-        }
       />
 
       <Card>
