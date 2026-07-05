@@ -18,7 +18,7 @@
       "schedule": "0 6 * * *"
     },
     {
-      "path": "/api/cron/scraping-audit?limit=4",
+      "path": "/api/cron/scraping-audit?limit=8",
       "schedule": "0 */3 * * *"
     },
     {

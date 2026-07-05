@@ -9,7 +9,10 @@ import type { AuditFinding } from "@/lib/audit-service-recommendations";
 function buildStructuredSalesEmail(params: {
   companyName: string;
   findings: AuditFinding[];
-}): { subject: string; body: string } {
+  hasWebsite?: boolean;
+  gbpReviewCount?: number | null;
+  gbpRating?: number | null;
+}): { subject: string; subjectAlt: string; body: string } {
   const { companyName, findings } = params;
   const n = findings.length;
 
@@ -18,27 +21,51 @@ function buildStructuredSalesEmail(params: {
     .join("\n");
   const solutionsBlock = findings.map((f) => `✓ ${capitalize(f.solution)}`).join("\n");
 
-  const subject = `${companyName}: ${n} ${n === 1 ? "area" : "aree"} che oggi vi fanno perdere clienti`;
+  // Apertura sul segnale più forte e concreto (= più credibile del generico "abbiamo analizzato").
+  const opener =
+    params.hasWebsite === false
+      ? `cercando online ${companyName} non ho trovato un sito web attivo: chi vi cerca oggi su Google rischia di non trovarvi — o di trovare prima un concorrente.`
+      : `ho analizzato la presenza online di ${companyName} e preparato un report dettagliato con le aree su cui potete crescere.`;
+
+  // Riferimento concreto al profilo Google, quando disponibile: dimostra che ho guardato davvero.
+  let gbpLine = "";
+  if (typeof params.gbpReviewCount === "number") {
+    gbpLine =
+      params.gbpReviewCount <= 1
+        ? "Ho anche notato che il profilo Google dell'attività ha pochissime recensioni: è un'occasione persa, perché in zona chi sceglie si fida prima di chi ne ha di più."
+        : `Ho visto che il vostro profilo Google ha ${params.gbpReviewCount} recensioni${
+            typeof params.gbpRating === "number" ? ` (${params.gbpRating}/5)` : ""
+          }: una buona base, su cui però si può costruire molto di più.`;
+  }
+
+  // Oggetto principale (benefit/curiosità) + variante A/B (loss-framing) per testare l'open rate.
+  const subject =
+    params.hasWebsite === false
+      ? `${companyName}: chi vi cerca su Google non trova il vostro sito`
+      : `${companyName}: ${n} ${n === 1 ? "area" : "aree"} da sistemare nella vostra presenza online`;
+  const subjectAlt = `${companyName}: ${n} ${n === 1 ? "area" : "aree"} che oggi vi fanno perdere clienti`;
 
   const body = `Buongiorno,
 
-abbiamo analizzato la presenza online di ${companyName} e preparato un report dettagliato. Sono emersi alcuni punti che, così come sono oggi, vi fanno perdere clienti:
+${opener}
+${gbpLine ? `\n${gbpLine}\n` : ""}
+Guardando più nel dettaglio, questi sono i punti che oggi vi fanno perdere clienti:
 
 ${gapsBlock}
 
-La buona notizia è che sono tutte situazioni che sappiamo risolvere. In concreto possiamo intervenire con:
+Sono tutte situazioni che sappiamo risolvere. In concreto:
 
 ${solutionsBlock}
 
-Abbiamo già pronto il report completo della vostra presenza online e saremmo felici di illustrarvelo in una consulenza gratuita, in call o di persona: vi mostriamo le priorità e i risultati che potete ottenere, dati alla mano.
+Ho già pronto il report completo della vostra presenza online: se vi va ve lo illustro in una consulenza gratuita, in call o di persona, con priorità e risultati ottenibili, dati alla mano.
 
-Quando preferite tra questa e la prossima settimana? Indicatemi il giorno e l'orario che vi sono più comodi e organizzo io l'incontro.
+Mi basta un vostro cenno con un paio di slot comodi tra questa e la prossima settimana e organizzo io l'incontro.
 
 Cordiali saluti,
 Lorenzo Matarazzo
 Online Station`;
 
-  return { subject, body };
+  return { subject, subjectAlt, body };
 }
 
 function capitalize(s: string): string {
@@ -67,13 +94,22 @@ export function buildFirstAuditOutreachEmail(params: {
   serviceName?: string | null;
   overallScore?: number | null;
   findings?: AuditFinding[];
-}): { subject: string; body: string } {
+  hasWebsite?: boolean;
+  gbpReviewCount?: number | null;
+  gbpRating?: number | null;
+}): { subject: string; body: string; subjectAlt?: string } {
   const companyName = params.companyName.trim() || "la vostra azienda";
 
   // Percorso principale: email personalizzata sui problemi reali emersi dall'audit.
   const findings = (params.findings ?? []).filter((f) => f.gap?.trim() && f.solution?.trim()).slice(0, 3);
   if (findings.length > 0) {
-    return buildStructuredSalesEmail({ companyName, findings });
+    return buildStructuredSalesEmail({
+      companyName,
+      findings,
+      hasWebsite: params.hasWebsite,
+      gbpReviewCount: params.gbpReviewCount,
+      gbpRating: params.gbpRating,
+    });
   }
 
   // Fallback (nessuna criticità sopra soglia): template brand o testo generico.

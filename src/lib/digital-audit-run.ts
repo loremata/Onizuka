@@ -319,6 +319,10 @@ export async function runDigitalAuditForClient(params: {
       serviceName: service?.name,
       overallScore,
       findings: buildAuditFindings(sections),
+      // Dati per la personalizzazione: aggancio "nessun sito" + recensioni Google reali.
+      hasWebsite: Boolean(client.website?.trim()),
+      gbpReviewCount: gbpEnriched.gbp?.gbpReviewCount ?? null,
+      gbpRating: gbpEnriched.gbp?.gbpRating ?? null,
     });
     const draft = await prisma.outreachDraft.create({
       data: {
@@ -327,6 +331,7 @@ export async function runDigitalAuditForClient(params: {
         leadId,
         digitalAuditId: audit.id,
         subject: emailDraft.subject,
+        subjectAlt: emailDraft.subjectAlt ?? null,
         body: emailDraft.body,
         status: "PENDING_APPROVAL",
       },

@@ -6,7 +6,7 @@ import { runDigitalAuditUnified } from "@/lib/audit-commercial-entry";
 import { processNonVatSheetQueueItem } from "@/lib/audit-sheet-domain-row";
 import { enrichAuditOutreach } from "@/lib/audit-sheet-queue-processor-enrich";
 
-export const SCRAPING_AUDIT_DAILY_CAP = Number(process.env.SCRAPING_AUDIT_DAILY_CAP) || 20;
+export const SCRAPING_AUDIT_DAILY_CAP = Number(process.env.SCRAPING_AUDIT_DAILY_CAP) || 50;
 const STALE_PROCESSING_MS = 10 * 60_000;
 const SCRAPING_PREFIX = "scraping:";
 
