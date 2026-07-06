@@ -215,7 +215,7 @@ export default async function PublicAuditReportPage({ params }: { params: Promis
         <section className="rounded-2xl border bg-gray-900 p-8 text-center text-white">
           <h2 className="text-lg font-bold">Trasformiamo questi punti in clienti in più</h2>
           <p className="mx-auto mt-2 max-w-xl text-sm text-gray-300">
-            Ogni area qui sopra è un'opportunità concreta. In una consulenza gratuita vi mostriamo le priorità e i
+            Ogni area qui sopra è un’opportunità concreta. In una consulenza gratuita vi mostriamo le priorità e i
             risultati ottenibili, dati alla mano. Rispondete a questa email o contattate Online Station.
           </p>
         </section>
