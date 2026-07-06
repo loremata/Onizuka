@@ -7,6 +7,8 @@ export type GbpPlaceInsights = {
   categories: string[];
   hasHours: boolean;
   photoCount: number;
+  website: string | null;
+  phone: string | null;
   source: "places_api" | "none";
 };
 
@@ -25,7 +27,10 @@ function extractPlaceIdFromUrl(url: string): string | null {
 async function fetchPlaceDetails(placeId: string, apiKey: string): Promise<GbpPlaceInsights | null> {
   const url = new URL("https://maps.googleapis.com/maps/api/place/details/json");
   url.searchParams.set("place_id", placeId);
-  url.searchParams.set("fields", "name,rating,user_ratings_total,types,opening_hours,photos,business_status");
+  url.searchParams.set(
+    "fields",
+    "name,rating,user_ratings_total,types,opening_hours,photos,business_status,website,formatted_phone_number"
+  );
   url.searchParams.set("key", apiKey);
 
   const res = await fetch(url.toString(), { next: { revalidate: 3600 } });
@@ -40,6 +45,8 @@ async function fetchPlaceDetails(placeId: string, apiKey: string): Promise<GbpPl
       opening_hours?: unknown;
       photos?: unknown[];
       business_status?: string;
+      website?: string;
+      formatted_phone_number?: string;
     };
   };
   if (data.status !== "OK" || !data.result) return null;
@@ -58,6 +65,8 @@ async function fetchPlaceDetails(placeId: string, apiKey: string): Promise<GbpPl
     categories,
     hasHours: Boolean(data.result.opening_hours),
     photoCount: Array.isArray(data.result.photos) ? data.result.photos.length : 0,
+    website: data.result.website?.trim() || null,
+    phone: data.result.formatted_phone_number?.trim() || null,
     source: "places_api",
   };
 }
@@ -103,6 +112,8 @@ async function findPlaceByInput(
     categories: [],
     hasHours: false,
     photoCount: 0,
+    website: null,
+    phone: null,
     source: "places_api",
   };
 }

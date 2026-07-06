@@ -9,6 +9,8 @@ export type GbpAuditSnapshot = {
   gbpCategories: string[];
   gbpHasHours: boolean;
   gbpPhotoCount: number;
+  gbpWebsite: string | null;
+  gbpPhone: string | null;
 };
 
 /** Recupera solo lo snapshot GBP (rating/recensioni/nome) — per il nuovo motore di scoring. */
@@ -42,6 +44,8 @@ export async function fetchGbpSnapshot(params: {
     gbpCategories: insights.categories,
     gbpHasHours: insights.hasHours,
     gbpPhotoCount: insights.photoCount,
+    gbpWebsite: insights.website,
+    gbpPhone: insights.phone,
   };
 }
 
@@ -80,6 +84,8 @@ export async function applyGbpEnrichmentToSections(params: {
     gbpCategories: insights.categories,
     gbpHasHours: insights.hasHours,
     gbpPhotoCount: insights.photoCount,
+    gbpWebsite: insights.website,
+    gbpPhone: insights.phone,
   };
 
   const sections = params.sections.map((s) => {

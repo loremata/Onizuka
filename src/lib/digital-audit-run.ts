@@ -66,6 +66,28 @@ export async function runDigitalAuditForClient(params: {
 
   if (!client) throw new Error("Cliente non trovato");
 
+  // Scheda Google PRIMA del probe: Google conosce spesso il SITO (e il telefono) anche
+  // di attività che nel registro risultano "senza sito" → li recuperiamo per auditarle
+  // davvero e per trovare l'email dal sito.
+  const gbpSnapshot = await fetchGbpSnapshot({
+    clientId: client.id,
+    businessName: client.companyName,
+    city: client.city,
+    phone: client.phone,
+  });
+  if (!client.website?.trim() && gbpSnapshot?.gbpWebsite) {
+    await prisma.client
+      .update({ where: { id: client.id }, data: { website: gbpSnapshot.gbpWebsite } })
+      .catch(() => undefined);
+    client.website = gbpSnapshot.gbpWebsite;
+  }
+  if (!client.phone?.trim() && gbpSnapshot?.gbpPhone) {
+    await prisma.client
+      .update({ where: { id: client.id }, data: { phone: gbpSnapshot.gbpPhone } })
+      .catch(() => undefined);
+    client.phone = gbpSnapshot.gbpPhone;
+  }
+
   const hasWebsiteUrl = Boolean(client.website?.trim());
   const probe = await probeWebsiteWithSubpages(client.website);
 
@@ -87,12 +109,6 @@ export async function runDigitalAuditForClient(params: {
   }
   // PageSpeed solo se il sito risponde (niente chiamate lente/inutili su siti giù o assenti).
   const psi = hasWebsiteUrl && probe?.ok && client.website ? await fetchPageSpeed(client.website) : null;
-  const gbpSnapshot = await fetchGbpSnapshot({
-    clientId: client.id,
-    businessName: client.companyName,
-    city: client.city,
-    phone: client.phone,
-  });
 
   const scored = scoreAudit({
     hasWebsite: hasWebsiteUrl,

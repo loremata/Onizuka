@@ -19,11 +19,6 @@ export async function notifyDigitalAuditCompleted(params: {
   const auditUrl = `${base}/admin/audit/digital/${params.auditId}`;
 
   const isPlaceholder = !params.recipientEmail || /@onizuka\.local$/i.test(params.recipientEmail);
-  const bodyPreview = params.draftBody
-    ? params.draftBody.length > 900
-      ? `${params.draftBody.slice(0, 900)}…`
-      : params.draftBody
-    : null;
 
   const lines = [
     "🔎 Onizuka · Audit completato",
@@ -34,13 +29,13 @@ export async function notifyDigitalAuditCompleted(params: {
     params.brandName && params.serviceName ? `Consigliato: ${params.brandName} — ${params.serviceName}` : "",
     params.publicReportUrl ? `\n📄 Report (mostralo al cliente):\n${params.publicReportUrl}` : "",
     params.outreachDraftId ? "\n✉️ Bozza email da approvare" : "",
+    params.draftSubject ? `Oggetto: ${params.draftSubject}` : "",
     params.outreachDraftId
       ? isPlaceholder
         ? "⚠️ Senza email valida → usa WhatsApp/telefono (Approva non invierà)"
         : `A: ${params.recipientEmail}`
       : "",
-    params.draftSubject ? `Oggetto: ${params.draftSubject}` : "",
-    bodyPreview ? `\n${bodyPreview}` : "",
+    params.outreachDraftId ? `👉 Leggi la bozza completa: ${base}/admin/reach?draft=${params.outreachDraftId}` : "",
     "",
     `Scheda audit: ${auditUrl}`,
   ].filter(Boolean);

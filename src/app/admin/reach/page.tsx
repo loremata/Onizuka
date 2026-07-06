@@ -44,6 +44,8 @@ export default async function AdminReachPage({
       prisma.outreachDraft.findMany({
         where: {
           ownerUserId: session.user.id,
+          // Link diretto a una bozza (da Telegram / scheda audit): mostra solo quella.
+          ...(typeof searchParams.draft === "string" ? { id: searchParams.draft } : {}),
           ...(listFilters.clientId ? { clientId: listFilters.clientId } : {}),
           // "Solo inviabili": esclude le bozze dei lead scrapati senza email vera
           // (contatto segnaposto @onizuka.local) che intaserebbero la lista.
