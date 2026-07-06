@@ -77,12 +77,12 @@ export default async function DigitalAuditDetailPage({ params }: { params: Promi
   const audit = await prisma.digitalAudit.findFirst({
     where: { id, ownerUserId: session.user.id },
     include: {
-      client: { select: { id: true, companyName: true, phone: true } },
-      lead: { select: { id: true, title: true, businessName: true, phone: true } },
+      client: { select: { id: true, companyName: true, phone: true, contactEmail: true } },
+      lead: { select: { id: true, title: true, businessName: true, phone: true, email: true } },
       recommendedBrand: true,
       recommendedService: true,
       sections: { orderBy: { sectionKey: "asc" } },
-      outreachDrafts: { select: { id: true, status: true, subject: true } },
+      outreachDrafts: { select: { id: true, status: true, subject: true, body: true } },
     },
   });
 
@@ -184,6 +184,7 @@ export default async function DigitalAuditDetailPage({ params }: { params: Promi
           publicReportUrl={publicReportUrl}
           publicExpiresAt={audit.publicReportExpiresAt}
           drafts={audit.outreachDrafts}
+          recipientEmail={audit.client?.contactEmail ?? audit.lead?.email ?? null}
         />
       </div>
 

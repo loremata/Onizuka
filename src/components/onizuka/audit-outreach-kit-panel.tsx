@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { rotateDigitalAuditPublicLink } from "@/app/admin/audit/digital/actions";
 
-type Draft = { id: string; status: string; subject: string };
+type Draft = { id: string; status: string; subject: string; body: string };
 
 type Props = {
   auditId: string;
@@ -18,6 +18,7 @@ type Props = {
   publicReportUrl: string | null;
   publicExpiresAt: Date | null;
   drafts: Draft[];
+  recipientEmail?: string | null;
 };
 
 function CopyBlock({ label, text }: { label: string; text: string }) {
@@ -56,6 +57,7 @@ export function AuditOutreachKitPanel({
   publicReportUrl,
   publicExpiresAt,
   drafts,
+  recipientEmail,
 }: Props) {
   const [reportUrl, setReportUrl] = useState(publicReportUrl);
   const [expires, setExpires] = useState(publicExpiresAt?.toISOString() ?? null);
@@ -69,16 +71,28 @@ export function AuditOutreachKitPanel({
       </CardHeader>
       <CardContent className="space-y-4">
         {drafts.length > 0 ? (
-          <ul className="text-sm">
-            {drafts.map((d) => (
-              <li key={d.id}>
-                <Link className="text-primary hover:underline" href={`/admin/reach?draft=${d.id}`}>
-                  {d.subject}
-                </Link>
-                <span className="ml-2 text-xs text-muted-foreground">{d.status}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-3">
+            {drafts.map((d) => {
+              const noEmail = !recipientEmail || /@onizuka\.local$/i.test(recipientEmail);
+              return (
+                <div key={d.id} className="space-y-2 rounded-md border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-medium">{d.subject}</span>
+                    <span className="text-xs text-muted-foreground">{d.status}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {noEmail
+                      ? "⚠️ Senza email valida → contatta via WhatsApp/telefono"
+                      : `Destinatario: ${recipientEmail}`}
+                  </p>
+                  <CopyBlock label="Corpo email" text={d.body} />
+                  <Button asChild size="sm" className="h-8 text-xs">
+                    <Link href={`/admin/reach?draft=${d.id}`}>Apri in Reach: approva e invia</Link>
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground">Nessuna bozza email. Riesegui audit con outreach attivo.</p>
         )}

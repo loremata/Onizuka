@@ -185,6 +185,9 @@ export async function runDigitalAuditForClient(params: {
   }
 
   let outreachDraftId: string | undefined;
+  let outreachReportUrl: string | undefined;
+  let outreachSubject: string | undefined;
+  let outreachBody: string | undefined;
   if (params.createOutreachDraft && !skipOutreachExistingClient) {
     // Re-audit: chiudi le sequenze ancora attive/in pausa dello stesso cliente,
     // così non restano due sequenze parallele a mandare doppi follow-up.
@@ -230,6 +233,9 @@ export async function runDigitalAuditForClient(params: {
       },
     });
     outreachDraftId = draft.id;
+    outreachReportUrl = reportUrl;
+    outreachSubject = emailDraft.subject;
+    outreachBody = emailDraft.body;
 
     await createAuditOutreachSequence({
       ownerUserId: params.ownerUserId,
@@ -290,6 +296,10 @@ export async function runDigitalAuditForClient(params: {
     outreachDraftId,
     internalReportDriveUrl: driveUrls.internalReportDriveUrl,
     clientReportDriveUrl: driveUrls.clientReportDriveUrl,
+    publicReportUrl: outreachReportUrl,
+    draftSubject: outreachSubject,
+    draftBody: outreachBody,
+    recipientEmail: client.contactEmail ?? null,
   }).catch(() => undefined);
 
   const kit = buildAuditOutreachKit({

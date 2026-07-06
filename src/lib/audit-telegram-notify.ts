@@ -10,24 +10,39 @@ export async function notifyDigitalAuditCompleted(params: {
   outreachDraftId?: string;
   internalReportDriveUrl?: string | null;
   clientReportDriveUrl?: string | null;
+  publicReportUrl?: string | null;
+  draftSubject?: string | null;
+  draftBody?: string | null;
+  recipientEmail?: string | null;
 }): Promise<void> {
   const base = process.env.NEXTAUTH_URL?.replace(/\/$/, "") ?? "https://onizuka.it";
   const auditUrl = `${base}/admin/audit/digital/${params.auditId}`;
 
+  const isPlaceholder = !params.recipientEmail || /@onizuka\.local$/i.test(params.recipientEmail);
+  const bodyPreview = params.draftBody
+    ? params.draftBody.length > 900
+      ? `${params.draftBody.slice(0, 900)}…`
+      : params.draftBody
+    : null;
+
   const lines = [
-    "Onizuka · Audit completato",
+    "🔎 Onizuka · Audit completato",
     "",
     `Cliente: ${params.businessName}`,
-    `Score: ${params.overallScore}/100`,
-    params.priorityProblem ? `Problema prioritario: ${params.priorityProblem}` : "",
-    params.brandName && params.serviceName ? `Servizio consigliato: ${params.brandName} — ${params.serviceName}` : "",
+    `Punteggio: ${params.overallScore}/100`,
+    params.priorityProblem ? `Priorità: ${params.priorityProblem}` : "",
+    params.brandName && params.serviceName ? `Consigliato: ${params.brandName} — ${params.serviceName}` : "",
+    params.publicReportUrl ? `\n📄 Report (mostralo al cliente):\n${params.publicReportUrl}` : "",
+    params.outreachDraftId ? "\n✉️ Bozza email da approvare" : "",
+    params.outreachDraftId
+      ? isPlaceholder
+        ? "⚠️ Senza email valida → usa WhatsApp/telefono (Approva non invierà)"
+        : `A: ${params.recipientEmail}`
+      : "",
+    params.draftSubject ? `Oggetto: ${params.draftSubject}` : "",
+    bodyPreview ? `\n${bodyPreview}` : "",
     "",
-    "Ho preparato:",
-    params.internalReportDriveUrl ? `- report interno (Drive)` : "- report interno (PDF in app)",
-    params.clientReportDriveUrl ? `- report cliente (Drive)` : "- report cliente (PDF in app)",
-    params.outreachDraftId ? "- bozza email in attesa approvazione" : "",
-    "",
-    `Dettaglio: ${auditUrl}`,
+    `Scheda audit: ${auditUrl}`,
   ].filter(Boolean);
 
   let keyboard: TelegramInlineKeyboard | undefined;
