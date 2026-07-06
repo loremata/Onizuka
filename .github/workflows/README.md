@@ -1,29 +1,20 @@
-# GitHub Actions — cron Onizuka
+# GitHub Actions — Onizuka
 
-Secrets da impostare in **Settings → Secrets and variables → Actions** (PASSI-MANCANTI #16).
+## Cron → sono su Vercel, NON qui
+I cron di produzione girano via **`vercel.json`** (Vercel Pro): `notifications`,
+`webhook-retry`, `reach-sequences`, `audit-sheet-queue`, `scraping-audit`,
+`automation-queue`, `dedupe-training`. **Unica fonte di verità = `vercel.json`.**
 
-| Secret | Esempio valore |
-|--------|----------------|
-| `CRON_SECRET` | Stesso valore di Vercel `CRON_SECRET` |
-| `ONIZUKA_CRON_URL` | `https://onizuka.it/api/cron/notifications` |
-| `ONIZUKA_CRON_WEBHOOK_RETRY_URL` | `https://onizuka.it/api/cron/webhook-retry` |
-| `ONIZUKA_CRON_REACH_URL` | `https://onizuka.it/api/cron/reach-sequences` |
-| `ONIZUKA_CRON_AUDIT_SHEET_URL` | `https://onizuka.it/api/cron/audit-sheet-queue` |
-| `ONIZUKA_CRON_DEDUPE_URL` | `https://onizuka.it/api/cron/dedupe-training` |
+I vecchi workflow `cron-*.yml` (backup manuali disabilitati) sono stati **rimossi**
+per evitare confusione: c'era una doppia configurazione senza alcun cron realmente
+schedulato da GitHub.
 
-Workflow:
+## Workflow attivi qui
+| File | Cosa fa | Trigger |
+|------|---------|---------|
+| `ci.yml` | Lint + test + build + e2e | push/PR su main |
+| `scraper.yml` | Worker scraping aziende (curl, no limite 5 min) | `repository_dispatch: scrape` (bottone "Avvia scraping" di Onizuka) + `workflow_dispatch` |
+| `migrate-production.yml` | `prisma migrate deploy` su prod | manuale (`SUPABASE_DIRECT_URL`) |
 
-| File | Schedule |
-|------|----------|
-| `cron-notifications.yml` | Solo manuale (`workflow_dispatch`) |
-| `cron-webhook-retry.yml` | Solo manuale (`workflow_dispatch`) |
-| `cron-reach-sequences.yml` | Solo manuale (`workflow_dispatch`) |
-| `cron-audit-sheet-queue.yml` | Solo manuale (`workflow_dispatch`) |
-| `cron-dedupe-training.yml` | Solo manuale (`workflow_dispatch`) |
-| `migrate-production.yml` | Manuale (`SUPABASE_DIRECT_URL`) |
-
-**I cron schedulati GitHub Actions sono disabilitati**: il progetto è su Vercel Pro
-e `vercel.json` copre `/api/cron/notifications`, `/api/cron/webhook-retry` e
-`/api/cron/reach-sequences`. I workflow restano lanciabili a mano (`workflow_dispatch`)
-come backup: in quel caso imposta i secret nella tabella sopra. Per riattivare lo
-schedule, ripristina il blocco `schedule:` nel relativo file.
+Secret per lo scraper: `SCRAPER_DATABASE_URL`, `GOOGLE_PLACES_API_KEY`
+(Settings → Secrets and variables → Actions).

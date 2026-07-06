@@ -13,6 +13,52 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { AuditOutreachKitPanel } from "@/components/onizuka/audit-outreach-kit-panel";
 import { publicReportPath } from "@/lib/public-report-token";
+import type { AuditMetrics } from "@/lib/audit/scoring";
+
+function parseAuditMetrics(json: string | null): AuditMetrics | null {
+  if (!json) return null;
+  try {
+    return JSON.parse(json) as AuditMetrics;
+  } catch {
+    return null;
+  }
+}
+
+/** Giudizio Google PageSpeed nella scheda audit admin (allineato al report pubblico). */
+function PageSpeedCard({ metricsJson }: { metricsJson: string | null }) {
+  const psi = parseAuditMetrics(metricsJson)?.pagespeed;
+  if (!psi || (psi.performance == null && psi.seo == null)) return null;
+  const Badge = ({ label, v }: { label: string; v: number | null }) => (
+    <div className="rounded-md border border-border/60 p-2 text-center">
+      <div className="text-xl font-bold tabular-nums">{v ?? "—"}</div>
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+    </div>
+  );
+  const cwv = [
+    psi.lcpMs != null ? `LCP ${(psi.lcpMs / 1000).toFixed(1)}s` : null,
+    psi.cls != null ? `CLS ${psi.cls.toFixed(2)}` : null,
+    psi.tbtMs != null ? `TBT ${psi.tbtMs}ms` : null,
+  ].filter(Boolean);
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Giudizio Google · PageSpeed (mobile)</CardTitle>
+        <CardDescription>Gli stessi punteggi che vede il prospect nel report pubblico.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <Badge label="Performance" v={psi.performance} />
+          <Badge label="SEO" v={psi.seo} />
+          <Badge label="Accessibilità" v={psi.accessibility} />
+          <Badge label="Best practices" v={psi.bestPractices} />
+        </div>
+        {cwv.length ? (
+          <p className="mt-3 text-xs text-muted-foreground">Core Web Vitals: {cwv.join(" · ")}</p>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
 
 /** Normalizza un telefono a internazionale (best-effort, default Italia) e crea il link wa.me. */
 function buildWaMeLink(phoneRaw: string | null, text: string | null): string | null {
@@ -140,6 +186,8 @@ export default async function DigitalAuditDetailPage({ params }: { params: Promi
           drafts={audit.outreachDrafts}
         />
       </div>
+
+      <PageSpeedCard metricsJson={audit.metricsJson} />
 
       <Card>
         <CardHeader>

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { getDeployCapabilities } from "@/lib/deploy-capabilities";
 import { isSmtpConfigured } from "@/lib/smtp-send";
 import { isWhatsAppConfigured } from "@/lib/whatsapp-cloud";
+import { isPageSpeedConfigured } from "@/lib/audit/pagespeed";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -18,6 +19,7 @@ export async function GET() {
     gmail: Boolean(process.env.GMAIL_CLIENT_ID),
     gmailSmtp: isSmtpConfigured(),
     telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN),
+    pagespeed: isPageSpeedConfigured(),
     voiceTts: process.env.VOICE_TTS_PROVIDER ?? null,
     n8n: caps.n8n,
     storage: caps.storage,

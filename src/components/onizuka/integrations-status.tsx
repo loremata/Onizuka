@@ -7,6 +7,7 @@ type StatusPayload = {
   gmail: boolean;
   gmailSmtp: boolean;
   telegram: boolean;
+  pagespeed: boolean;
   voiceTts: string | null;
   n8n: boolean;
   storage: string;
@@ -21,6 +22,7 @@ const labels: Record<keyof StatusPayload, string> = {
   gmail: "Gmail OAuth",
   gmailSmtp: "Gmail SMTP (Reach)",
   telegram: "Telegram",
+  pagespeed: "Google PageSpeed (audit)",
   voiceTts: "TTS provider",
   n8n: "n8n API",
   storage: "Storage media",

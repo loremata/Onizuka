@@ -45,12 +45,17 @@ export default async function AdminReachPage({
         where: {
           ownerUserId: session.user.id,
           ...(listFilters.clientId ? { clientId: listFilters.clientId } : {}),
+          // "Solo inviabili": esclude le bozze dei lead scrapati senza email vera
+          // (contatto segnaposto @onizuka.local) che intaserebbero la lista.
+          ...(searchParams.sendable === "1"
+            ? { client: { contactEmail: { not: { endsWith: "@onizuka.local" } } } }
+            : {}),
         },
         orderBy: { updatedAt: "desc" },
         take: 30,
         include: {
-          client: { select: { id: true, companyName: true } },
-          lead: { select: { id: true, title: true, businessName: true } },
+          client: { select: { id: true, companyName: true, contactEmail: true } },
+          lead: { select: { id: true, title: true, businessName: true, email: true } },
         },
       }),
       prisma.client.findMany({
@@ -246,19 +251,34 @@ export default async function AdminReachPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Bozze outreach</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle>Bozze outreach</CardTitle>
+            <Button asChild variant="link" size="sm" className="h-auto p-0 text-xs">
+              <Link href={searchParams.sendable === "1" ? "/admin/reach" : "/admin/reach?sendable=1"}>
+                {searchParams.sendable === "1" ? "Mostra tutte" : "Solo inviabili (con email)"}
+              </Link>
+            </Button>
+          </div>
           <CardDescription>Approvazione richiesta prima di segnare come inviata.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
           {drafts.length === 0 ? (
             <p className="text-muted-foreground">Nessuna bozza. Creane una sopra.</p>
           ) : (
-            drafts.map((d) => (
+            drafts.map((d) => {
+              const recipientEmail = (d.client?.contactEmail || d.lead?.email || "").trim();
+              const noEmail = !recipientEmail || /@onizuka\.local$/i.test(recipientEmail);
+              return (
               <div key={d.id} className="rounded-md border border-border/60 p-3">
                 <p className="font-medium">
                   {d.subject}
                   {hasOutreachAb(d) ? (
                     <span className="ml-2 rounded bg-muted px-1 text-[10px] font-normal">A/B</span>
+                  ) : null}
+                  {noEmail ? (
+                    <span className="ml-2 rounded bg-amber-100 px-1 text-[10px] font-normal text-amber-800">
+                      ⚠️ senza email · WhatsApp/tel
+                    </span>
                   ) : null}
                 </p>
                 <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -292,7 +312,8 @@ export default async function AdminReachPage({
                   />
                 </div>
               </div>
-            ))
+              );
+            })
           )}
         </CardContent>
       </Card>
