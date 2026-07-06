@@ -13,7 +13,8 @@ if (!token || !base) {
 }
 
 const url = `${base}/api/integrations/telegram`;
-const body = { url, allowed_updates: ["message"] };
+// Includere callback_query: senza, i tap sui pulsanti inline (Approva/Modifica/…) non arrivano al webhook.
+const body = { url, allowed_updates: ["message", "callback_query"] };
 if (secret) body.secret_token = secret;
 
 const res = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
