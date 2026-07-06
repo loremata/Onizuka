@@ -4,6 +4,7 @@ import { dateTimeFormatIt } from "@/lib/datetime-it";
 import PDFDocument from "pdfkit";
 import type { DigitalAuditSectionKey } from "@prisma/client";
 import { digitalAuditSectionLabel } from "@/lib/digital-audit-labels";
+import type { AuditMetrics } from "@/lib/audit/scoring";
 
 export type AuditPdfSection = {
   sectionKey: DigitalAuditSectionKey;
@@ -22,6 +23,7 @@ export type AuditPdfInput = {
   brandName: string | null;
   serviceName: string | null;
   sections: AuditPdfSection[];
+  metrics?: AuditMetrics | null;
   auditId: string;
 };
 
@@ -182,6 +184,43 @@ export function buildAuditPdfBuffer(input: AuditPdfInput): Promise<Buffer> {
     doc.y = boxY + boxH + 18;
     doc.x = pageLeft;
 
+    // --- Giudizio Google (PageSpeed): badge punteggi + Core Web Vitals ---
+    const psi = input.metrics?.pagespeed ?? null;
+    if (psi && (psi.performance != null || psi.seo != null)) {
+      doc.font(F.bold).fontSize(12).fillColor(c.primary).text("Il giudizio di Google sul sito (PageSpeed, mobile)");
+      doc.moveDown(0.4);
+      const psiY = doc.y;
+      const gap = 10;
+      const boxW = (contentWidth - gap * 3) / 4;
+      const psiItems: [string, number | null][] = [
+        ["Performance", psi.performance],
+        ["SEO", psi.seo],
+        ["Accessibilità", psi.accessibility],
+        ["Best practices", psi.bestPractices],
+      ];
+      psiItems.forEach(([lbl, val], i) => {
+        const x = pageLeft + i * (boxW + gap);
+        doc.roundedRect(x, psiY, boxW, 42, 6).fill(c.background);
+        doc
+          .font(F.bold)
+          .fontSize(19)
+          .fillColor(val == null ? c.muted : scoreColor(val))
+          .text(val == null ? "n/d" : String(val), x, psiY + 7, { width: boxW, align: "center" });
+        doc.font(F.regular).fontSize(7.5).fillColor(c.muted).text(lbl, x, psiY + 30, { width: boxW, align: "center" });
+      });
+      doc.y = psiY + 50;
+      doc.x = pageLeft;
+      const cwv: string[] = [];
+      if (psi.lcpMs != null) cwv.push(`Caricamento ${(psi.lcpMs / 1000).toFixed(1)}s`);
+      if (psi.cls != null) cwv.push(`Stabilità ${psi.cls.toFixed(2)}`);
+      if (psi.tbtMs != null) cwv.push(`Reattività ${psi.tbtMs} ms`);
+      if (cwv.length) {
+        doc.font(F.regular).fontSize(9).fillColor(c.muted).text(`Core Web Vitals:   ${cwv.join("   ·   ")}`, pageLeft, doc.y);
+      }
+      doc.moveDown(1);
+      doc.x = pageLeft;
+    }
+
     // --- Sezioni ---
     doc.font(F.bold).fontSize(13).fillColor(c.primary).text(isInternal ? "Analisi per sezione" : "Aree di miglioramento");
     doc.moveDown(0.5);
@@ -190,9 +229,17 @@ export function buildAuditPdfBuffer(input: AuditPdfInput): Promise<Buffer> {
     const toShow = isInternal ? sorted : sorted.filter((s) => s.score < 60).slice(0, 4);
 
     for (const s of toShow.length ? toShow : sorted.slice(0, 4)) {
+      // Salto pagina se non c'è spazio per la sezione (evita disegno nella fascia footer).
+      if (doc.y > doc.page.height - 150) doc.addPage();
       const label = digitalAuditSectionLabel[s.sectionKey];
       doc.font(F.semibold).fontSize(11).fillColor(c.text).text(`${label}  `, { continued: true });
       doc.font(F.bold).fillColor(scoreColor(s.score)).text(`${s.score}/100`);
+      // Barra punteggio (come nel report online).
+      const barY = doc.y + 2;
+      doc.roundedRect(pageLeft, barY, contentWidth, 4, 2).fill(c.border);
+      doc.roundedRect(pageLeft, barY, Math.max(4, contentWidth * (s.score / 100)), 4, 2).fill(scoreColor(s.score));
+      doc.y = barY + 9;
+      doc.x = pageLeft;
       if (s.positives && (isInternal || s.score >= 50)) {
         doc.font(F.regular).fontSize(9).fillColor(c.success).text(`+ ${s.positives}`, { width: contentWidth });
       }

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { auditPdfFilename, buildAuditPdfBuffer } from "@/lib/audit-pdf";
+import type { AuditMetrics } from "@/lib/audit/scoring";
 
 export const runtime = "nodejs";
 
@@ -29,6 +30,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Audit non trovato" }, { status: 404 });
   }
 
+  let metrics: AuditMetrics | null = null;
+  try {
+    metrics = audit.metricsJson ? (JSON.parse(audit.metricsJson) as AuditMetrics) : null;
+  } catch {
+    metrics = null;
+  }
+
   const buffer = await buildAuditPdfBuffer({
     variant,
     businessName: audit.businessName ?? "Cliente",
@@ -39,6 +47,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     brandName: audit.recommendedBrand?.name ?? null,
     serviceName: audit.recommendedService?.name ?? null,
     sections: audit.sections,
+    metrics,
     auditId: audit.id,
   });
 
