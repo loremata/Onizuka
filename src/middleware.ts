@@ -35,6 +35,11 @@ const authMiddleware = withAuth(
       return NextResponse.next();
     }
 
+    /** Webhook Telegram Bot: nessuna sessione, autenticato dal secret_token nella route. */
+    if (path === "/api/integrations/telegram") {
+      return NextResponse.next();
+    }
+
     /** Utente già autenticato: non mostrare di nuovo il form login. */
     if (path === "/login") {
       if (token) {
@@ -118,6 +123,10 @@ const authMiddleware = withAuth(
         const pathname = req.nextUrl.pathname;
         if (pathname.startsWith("/api/auth/")) return true;
         if (pathname === "/login") return true;
+        // Webhook pubblici: autenticati dal proprio secret nella route, non dalla sessione.
+        // Senza questa eccezione withAuth redirige a /api/auth/signin prima del corpo.
+        if (pathname === "/api/integrations/whatsapp/webhook") return true;
+        if (pathname === "/api/integrations/telegram") return true;
         return !!token;
       },
     },
