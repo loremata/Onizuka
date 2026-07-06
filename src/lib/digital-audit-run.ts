@@ -1,4 +1,4 @@
-import type { Client, DigitalAuditSectionKey } from "@prisma/client";
+import type { DigitalAuditSectionKey } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ensureCommercialCatalogSeeded } from "@/lib/commercial-catalog-seed";
 import { notifyDigitalAuditCompleted } from "@/lib/audit-telegram-notify";
@@ -9,9 +9,8 @@ import type { AuditMatchKind } from "@/lib/audit-commercial-match";
 import { buildFirstAuditOutreachEmail } from "@/lib/audit-outreach-draft";
 import { createAuditOutreachSequence } from "@/lib/outreach-sequence";
 import { ensureClientDriveStructure } from "@/lib/client-drive-structure";
-import { applyGbpEnrichmentToSections, fetchGbpSnapshot } from "@/lib/digital-audit-gbp-enrich";
-import { resolveGbpAuditSignals, type AssetGbpHint } from "@/lib/gbp-audit-signals";
-import { applyWebsiteProbeToSections, probeWebsiteWithSubpages } from "@/lib/website-probe";
+import { fetchGbpSnapshot } from "@/lib/digital-audit-gbp-enrich";
+import { probeWebsiteWithSubpages } from "@/lib/website-probe";
 import { buildAuditOutreachKit } from "@/lib/audit-outreach-kit";
 import { ensureDigitalAuditPublicReportToken } from "@/lib/public-report-token";
 import { fetchPageSpeed } from "@/lib/audit/pagespeed";
@@ -23,154 +22,6 @@ export type SectionAnalysis = {
   positives: string;
   issues: string;
 };
-
-const SECTION_KEYS: DigitalAuditSectionKey[] = [
-  "WEBSITE",
-  "SEO",
-  "LOCAL",
-  "REVIEWS",
-  "SOCIAL",
-  "ADV",
-  "UX",
-  "CONVERSION",
-  "TRACKING",
-  "BRAND",
-];
-
-type ClientSnapshot = Client & {
-  _count: { assets: number; contacts: number; posts: number };
-  assets: AssetGbpHint[];
-  commercialServices: { active: boolean; commercialService: { slug: string; name: string } }[];
-};
-
-function analyzeSections(client: ClientSnapshot, siteHasMapsLink = false): SectionAnalysis[] {
-  const hasWebsite = Boolean(client.website?.trim());
-  const assetCount = client._count.assets;
-  const hasSocial = client.commercialServices.some(
-    (cs) => cs.active && ["social-mgmt", "meta-ads"].includes(cs.commercialService.slug)
-  );
-  const hasSeo = client.commercialServices.some((cs) => cs.active && cs.commercialService.slug === "seo");
-  const hasAds =
-    client.commercialServices.some((cs) => cs.active && ["google-ads", "meta-ads"].includes(cs.commercialService.slug));
-  const gbp = resolveGbpAuditSignals(client.assets, siteHasMapsLink);
-  const hasGbpAsset = gbp.hasGbpAsset;
-  const hasStrongGbp = gbp.hasStrongGbp;
-  const hasLocalSignals =
-    Boolean(client.city?.trim()) &&
-    Boolean(client.address?.trim()) &&
-    Boolean(client.phone?.trim());
-
-  const websiteScore = hasWebsite ? 62 : 28;
-  const seoScore = hasSeo ? 70 : hasWebsite ? 45 : 25;
-  const localScore = hasStrongGbp
-    ? 78
-    : hasGbpAsset
-    ? 72
-    : hasLocalSignals
-      ? 62
-      : client.city && client.address
-        ? 55
-        : client.city
-          ? 48
-          : 32;
-  const reviewsScore = hasStrongGbp ? 58 : hasGbpAsset ? 52 : 40;
-  const socialScore = assetCount >= 2 || hasSocial ? 58 : assetCount === 1 ? 42 : 25;
-  const advScore = hasAds ? 65 : 30;
-  const uxScore = hasWebsite ? 50 : 22;
-  const conversionScore = hasWebsite && hasSeo ? 52 : hasWebsite ? 38 : 20;
-  const trackingScore = hasWebsite ? 35 : 18;
-  const brandScore = client.notes?.trim() || assetCount > 0 ? 48 : 30;
-
-  const scores: Record<DigitalAuditSectionKey, number> = {
-    WEBSITE: websiteScore,
-    SEO: seoScore,
-    LOCAL: localScore,
-    REVIEWS: reviewsScore,
-    SOCIAL: socialScore,
-    ADV: advScore,
-    UX: uxScore,
-    CONVERSION: conversionScore,
-    TRACKING: trackingScore,
-    BRAND: brandScore,
-  };
-
-  const messages: Record<DigitalAuditSectionKey, { pos: string; issue: string }> = {
-    WEBSITE: {
-      pos: hasWebsite ? "Sito web indicato in anagrafica." : "",
-      issue: hasWebsite ? "Verificare mobile, velocità e CTA." : "Nessun sito registrato: gap prioritario.",
-    },
-    SEO: {
-      pos: hasSeo ? "Servizio SEO attivo sul cliente." : "",
-      issue: hasSeo ? "Monitorare keyword e contenuti." : "SEO non tracciata come servizio attivo.",
-    },
-    LOCAL: {
-      pos: [
-        hasStrongGbp
-          ? "GBP collegato con URL profilo o link Maps sul sito."
-          : hasGbpAsset
-            ? "Asset Google Business Profile collegato in anagrafica."
-            : "",
-        hasLocalSignals ? "Anagrafica completa (indirizzo, telefono, città)." : "",
-        client.city && !hasLocalSignals ? `Presenza locale: ${client.city}.` : "",
-      ]
-        .filter(Boolean)
-        .join(" "),
-      issue: hasStrongGbp
-        ? "Ottimizzare categorie, orari, post e risposta recensioni su GBP."
-        : hasGbpAsset
-        ? "Aggiungere URL profilo GBP sull'asset e verificare NAP."
-        : hasLocalSignals
-          ? "Verificare coerenza NAP su directory e Google Maps."
-          : "Google Business Profile da verificare o collegare come asset.",
-    },
-    REVIEWS: {
-      pos: hasStrongGbp
-        ? "Profilo GBP collegato: monitoraggio recensioni consigliato."
-        : hasGbpAsset
-          ? "Canale recensioni potenzialmente attivo via GBP."
-          : "",
-      issue: hasStrongGbp
-        ? "Monitorare volume, valutazione media e tempi di risposta."
-        : hasGbpAsset
-        ? "Collegare URL profilo GBP per analisi recensioni (API in roadmap)."
-        : "Recensioni online: analisi esterna non automatizzata in questo MVP.",
-    },
-    SOCIAL: {
-      pos: assetCount > 0 ? `${assetCount} asset digitali collegati.` : "",
-      issue: socialScore < 45 ? "Presenza social debole o assente." : "Ottimizzare coerenza tra canali.",
-    },
-    ADV: {
-      pos: hasAds ? "Campagne ADV tracciate come attive." : "",
-      issue: hasAds ? "Ottimizzare ROI campagne." : "Nessuna campagna ADV attiva registrata.",
-    },
-    UX: {
-      pos: hasWebsite ? "Base sito presente per review UX." : "",
-      issue: "Audit UX approfondito richiede crawl esterno (roadmap).",
-    },
-    CONVERSION: {
-      pos: "",
-      issue:
-        conversionScore < 45
-          ? "Percorso conversione probabilmente debole (landing/CTA/form)."
-          : "Mantenere test A/B e lead magnet.",
-    },
-    TRACKING: {
-      pos: "",
-      issue: "Pixel/analytics da verificare su property reale.",
-    },
-    BRAND: {
-      pos: client.notes?.trim() ? "Note brand in scheda cliente." : "",
-      issue: "Coerenza visiva e messaggio da allineare tra touchpoint.",
-    },
-  };
-
-  return SECTION_KEYS.map((sectionKey) => ({
-    sectionKey,
-    score: scores[sectionKey],
-    positives: messages[sectionKey].pos,
-    issues: messages[sectionKey].issue,
-  }));
-}
 
 export async function runDigitalAuditForClient(params: {
   ownerUserId: string;
@@ -233,6 +84,9 @@ export async function runDigitalAuditForClient(params: {
       hasGbp: gbpSnapshot != null,
       rating: gbpSnapshot?.gbpRating ?? null,
       reviewCount: gbpSnapshot?.gbpReviewCount ?? null,
+      categories: gbpSnapshot?.gbpCategories ?? [],
+      hasHours: gbpSnapshot?.gbpHasHours ?? false,
+      photoCount: gbpSnapshot?.gbpPhotoCount ?? 0,
     },
     city: client.city,
   });

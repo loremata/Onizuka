@@ -17,6 +17,9 @@ export type AuditGbpSignals = {
   hasGbp: boolean;
   rating: number | null;
   reviewCount: number | null;
+  categories: string[];
+  hasHours: boolean;
+  photoCount: number;
 };
 
 export type AuditSignals = {
@@ -152,11 +155,32 @@ export function scoreAudit(signals: AuditSignals): {
     const iss: string[] = [];
     let base = 35;
     if (gbp.hasGbp) {
-      base = 66;
+      base = 60;
       pos.push("Scheda Google Business Profile presente.");
-      if (probe?.hasGoogleMapsLink) { base += 6; pos.push("Sito collegato alla scheda Google Maps."); }
-      else iss.push("La scheda Google non è collegata dal sito: si perde traffico e autorevolezza locale.");
-      iss.push("Verificare che categorie, orari, foto e servizi sulla scheda siano completi e aggiornati.");
+      if (gbp.categories.length) pos.push(`Categoria: ${gbp.categories.slice(0, 2).join(", ")}.`);
+      if (gbp.hasHours) {
+        base += 7;
+        pos.push("Orari di apertura pubblicati.");
+      } else {
+        base -= 6;
+        iss.push("Orari di apertura non pubblicati sulla scheda: chi cerca «aperto ora» rischia di non trovarvi.");
+      }
+      if (gbp.photoCount >= 5) {
+        base += 7;
+        pos.push(`${gbp.photoCount} foto sulla scheda.`);
+      } else if (gbp.photoCount > 0) {
+        base += 2;
+        iss.push(`Poche foto sulla scheda (${gbp.photoCount}): le schede con più foto ricevono più contatti.`);
+      } else {
+        base -= 5;
+        iss.push("Nessuna foto sulla scheda Google: le schede con foto ricevono molte più richieste.");
+      }
+      if (probe?.hasGoogleMapsLink) {
+        base += 6;
+        pos.push("Sito collegato alla scheda Maps.");
+      } else {
+        iss.push("La scheda Google non è collegata dal sito: si perde traffico e autorevolezza locale.");
+      }
     } else {
       iss.push("Google Business Profile assente o non ottimizzato: è lo strumento n.1 per farsi trovare in zona ed è probabilmente la vostra più grande occasione persa.");
       if (probe?.hasGoogleMapsLink) { base += 8; pos.push("Rilevato un riferimento a Google Maps sul sito."); }

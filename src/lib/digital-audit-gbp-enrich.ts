@@ -6,6 +6,9 @@ export type GbpAuditSnapshot = {
   gbpRating: number | null;
   gbpReviewCount: number | null;
   gbpPlaceName: string | null;
+  gbpCategories: string[];
+  gbpHasHours: boolean;
+  gbpPhotoCount: number;
 };
 
 /** Recupera solo lo snapshot GBP (rating/recensioni/nome) — per il nuovo motore di scoring. */
@@ -34,6 +37,9 @@ export async function fetchGbpSnapshot(params: {
     gbpRating: insights.rating,
     gbpReviewCount: insights.reviewCount,
     gbpPlaceName: insights.placeName,
+    gbpCategories: insights.categories,
+    gbpHasHours: insights.hasHours,
+    gbpPhotoCount: insights.photoCount,
   };
 }
 
@@ -69,6 +75,9 @@ export async function applyGbpEnrichmentToSections(params: {
     gbpRating: insights.rating,
     gbpReviewCount: insights.reviewCount,
     gbpPlaceName: insights.placeName,
+    gbpCategories: insights.categories,
+    gbpHasHours: insights.hasHours,
+    gbpPhotoCount: insights.photoCount,
   };
 
   const sections = params.sections.map((s) => {
@@ -99,7 +108,11 @@ export async function applyGbpEnrichmentToSections(params: {
   return { sections, gbp };
 }
 
-export function formatGbpAuditSummary(audit: GbpAuditSnapshot & { gbpPlaceName?: string | null }): string | null {
+export function formatGbpAuditSummary(audit: {
+  gbpRating: number | null;
+  gbpReviewCount: number | null;
+  gbpPlaceName?: string | null;
+}): string | null {
   if (!audit.gbpPlaceName && audit.gbpReviewCount == null) return null;
   const parts: string[] = [];
   if (audit.gbpPlaceName) parts.push(audit.gbpPlaceName);

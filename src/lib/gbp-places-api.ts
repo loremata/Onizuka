@@ -4,6 +4,9 @@ export type GbpPlaceInsights = {
   placeName: string;
   rating: number | null;
   reviewCount: number | null;
+  categories: string[];
+  hasHours: boolean;
+  photoCount: number;
   source: "places_api" | "none";
 };
 
@@ -22,22 +25,39 @@ function extractPlaceIdFromUrl(url: string): string | null {
 async function fetchPlaceDetails(placeId: string, apiKey: string): Promise<GbpPlaceInsights | null> {
   const url = new URL("https://maps.googleapis.com/maps/api/place/details/json");
   url.searchParams.set("place_id", placeId);
-  url.searchParams.set("fields", "name,rating,user_ratings_total");
+  url.searchParams.set("fields", "name,rating,user_ratings_total,types,opening_hours,photos,business_status");
   url.searchParams.set("key", apiKey);
 
   const res = await fetch(url.toString(), { next: { revalidate: 3600 } });
   if (!res.ok) return null;
   const data = (await res.json()) as {
     status?: string;
-    result?: { name?: string; rating?: number; user_ratings_total?: number };
+    result?: {
+      name?: string;
+      rating?: number;
+      user_ratings_total?: number;
+      types?: string[];
+      opening_hours?: unknown;
+      photos?: unknown[];
+      business_status?: string;
+    };
   };
   if (data.status !== "OK" || !data.result) return null;
+
+  // Categorie GBP leggibili (scarta i tipi tecnici generici di Google).
+  const generic = new Set(["point_of_interest", "establishment", "premise", "geocode", "food", "store"]);
+  const categories = (data.result.types ?? [])
+    .filter((t) => !generic.has(t))
+    .map((t) => t.replace(/_/g, " "));
 
   return {
     placeName: data.result.name ?? "Google Business",
     rating: typeof data.result.rating === "number" ? data.result.rating : null,
     reviewCount:
       typeof data.result.user_ratings_total === "number" ? data.result.user_ratings_total : null,
+    categories,
+    hasHours: Boolean(data.result.opening_hours),
+    photoCount: Array.isArray(data.result.photos) ? data.result.photos.length : 0,
     source: "places_api",
   };
 }
@@ -65,6 +85,9 @@ async function findPlaceFromText(query: string, apiKey: string): Promise<GbpPlac
     placeName: c.name ?? query,
     rating: typeof c.rating === "number" ? c.rating : null,
     reviewCount: typeof c.user_ratings_total === "number" ? c.user_ratings_total : null,
+    categories: [],
+    hasHours: false,
+    photoCount: 0,
     source: "places_api",
   };
 }

@@ -1,6 +1,7 @@
 import type { DigitalAuditSectionKey } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auditPdfFilename, buildAuditPdfBuffer } from "@/lib/audit-pdf";
+import type { AuditMetrics } from "@/lib/audit/scoring";
 import {
   AUDIT_DRIVE_SUBFOLDER,
   ensureClientDriveStructure,
@@ -47,6 +48,13 @@ export async function uploadDigitalAuditReportsToDrive(auditId: string): Promise
   const auditFolder = await createDriveSubfolder(rootId, AUDIT_DRIVE_SUBFOLDER);
   if (!auditFolder) return { internalReportDriveUrl: null, clientReportDriveUrl: null };
 
+  let metrics: AuditMetrics | null = null;
+  try {
+    metrics = audit.metricsJson ? (JSON.parse(audit.metricsJson) as AuditMetrics) : null;
+  } catch {
+    metrics = null;
+  }
+
   const pdfInput = {
     businessName: audit.businessName ?? "Cliente",
     vatNumber: audit.vatNumber,
@@ -61,6 +69,7 @@ export async function uploadDigitalAuditReportsToDrive(auditId: string): Promise
       positives: s.positives,
       issues: s.issues,
     })),
+    metrics,
     auditId: audit.id,
   };
 
