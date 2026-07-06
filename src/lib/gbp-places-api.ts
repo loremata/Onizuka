@@ -62,10 +62,25 @@ async function fetchPlaceDetails(placeId: string, apiKey: string): Promise<GbpPl
   };
 }
 
-async function findPlaceFromText(query: string, apiKey: string): Promise<GbpPlaceInsights | null> {
+/** Normalizza un telefono a formato internazionale (best-effort, default Italia +39). */
+function normalizePhoneIntl(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("+")) return "+" + trimmed.slice(1).replace(/\D/g, "");
+  let d = trimmed.replace(/\D/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  if (!d.startsWith("39") && (d.startsWith("3") || d.length === 9 || d.length === 10)) d = `39${d}`;
+  return d.length >= 11 ? `+${d}` : null;
+}
+
+/** Find Place per testo (nome+città) o telefono; se trova, arricchisce con i Details. */
+async function findPlaceByInput(
+  input: string,
+  inputtype: "textquery" | "phonenumber",
+  apiKey: string
+): Promise<GbpPlaceInsights | null> {
   const url = new URL("https://maps.googleapis.com/maps/api/place/findplacefromtext/json");
-  url.searchParams.set("input", query);
-  url.searchParams.set("inputtype", "textquery");
+  url.searchParams.set("input", input);
+  url.searchParams.set("inputtype", inputtype);
   url.searchParams.set("fields", "place_id,name,rating,user_ratings_total");
   url.searchParams.set("key", apiKey);
 
@@ -82,7 +97,7 @@ async function findPlaceFromText(query: string, apiKey: string): Promise<GbpPlac
     if (detailed) return detailed;
   }
   return {
-    placeName: c.name ?? query,
+    placeName: c.name ?? input,
     rating: typeof c.rating === "number" ? c.rating : null,
     reviewCount: typeof c.user_ratings_total === "number" ? c.user_ratings_total : null,
     categories: [],
@@ -96,10 +111,12 @@ export async function fetchGbpPlaceInsights(params: {
   profileUrl?: string | null;
   businessName?: string | null;
   city?: string | null;
+  phone?: string | null;
 }): Promise<GbpPlaceInsights | null> {
   const apiKey = placesApiKey();
   if (!apiKey) return null;
 
+  // 1) URL profilo (place_id): match esatto.
   if (params.profileUrl && textContainsGbpUrl(params.profileUrl)) {
     const placeId = extractPlaceIdFromUrl(params.profileUrl);
     if (placeId) {
@@ -108,10 +125,20 @@ export async function fetchGbpPlaceInsights(params: {
     }
   }
 
+  // 2) Telefono: match molto affidabile → riduce i falsi negativi del solo nome+città.
+  if (params.phone?.trim()) {
+    const intl = normalizePhoneIntl(params.phone);
+    if (intl) {
+      const byPhone = await findPlaceByInput(intl, "phonenumber", apiKey);
+      if (byPhone) return byPhone;
+    }
+  }
+
+  // 3) Nome + città: fallback.
   const name = params.businessName?.trim();
   if (!name) return null;
   const query = [name, params.city?.trim()].filter(Boolean).join(" ");
-  return findPlaceFromText(query, apiKey);
+  return findPlaceByInput(query, "textquery", apiKey);
 }
 
 export function isGbpPlacesApiConfigured(): boolean {

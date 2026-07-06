@@ -91,6 +91,7 @@ export async function runDigitalAuditForClient(params: {
     clientId: client.id,
     businessName: client.companyName,
     city: client.city,
+    phone: client.phone,
   });
 
   const scored = scoreAudit({

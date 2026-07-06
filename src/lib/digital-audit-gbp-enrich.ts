@@ -16,6 +16,7 @@ export async function fetchGbpSnapshot(params: {
   clientId: string | null;
   businessName: string | null;
   city: string | null;
+  phone?: string | null;
 }): Promise<GbpAuditSnapshot | null> {
   const assets = params.clientId
     ? await prisma.asset.findMany({
@@ -31,6 +32,7 @@ export async function fetchGbpSnapshot(params: {
     profileUrl,
     businessName: params.businessName,
     city: params.city,
+    phone: params.phone,
   });
   if (!insights || insights.source === "none") return null;
   return {

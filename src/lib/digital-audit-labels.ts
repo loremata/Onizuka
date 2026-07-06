@@ -13,9 +13,9 @@ export const digitalAuditSectionLabel: Record<DigitalAuditSectionKey, string> = 
   LOCAL: "Local presence",
   REVIEWS: "Recensioni",
   SOCIAL: "Social",
-  ADV: "ADV",
+  ADV: "Pubblicità & retargeting",
   UX: "UX",
   CONVERSION: "Conversione",
   TRACKING: "Tracking",
-  BRAND: "Brand",
+  BRAND: "Immagine & professionalità",
 };

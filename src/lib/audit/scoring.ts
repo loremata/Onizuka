@@ -181,9 +181,15 @@ export function scoreAudit(signals: AuditSignals): {
       } else {
         iss.push("La scheda Google non è collegata dal sito: si perde traffico e autorevolezza locale.");
       }
+    } else if (probe?.hasGoogleMapsLink) {
+      // Il sito rimanda a Google Maps → la scheda ESISTE, semplicemente non agganciata via API.
+      base = 55;
+      pos.push("Riferimento a Google Maps rilevato sul sito.");
+      iss.push("Scheda Google non agganciata automaticamente: da verificare completezza (categorie, orari, foto, risposta alle recensioni).");
     } else {
-      iss.push("Google Business Profile assente o non ottimizzato: è lo strumento n.1 per farsi trovare in zona ed è probabilmente la vostra più grande occasione persa.");
-      if (probe?.hasGoogleMapsLink) { base += 8; pos.push("Rilevato un riferimento a Google Maps sul sito."); }
+      // Match non riuscito: non possiamo affermare che la scheda sia assente.
+      base = 45;
+      iss.push("Scheda Google Business Profile non rilevata automaticamente: se assente è l'opportunità n.1 per farsi trovare in zona; se esiste, va ottimizzata e collegata al sito.");
     }
     sections.push({ sectionKey: "LOCAL", score: clamp(base), positives: join(pos), issues: join(iss) });
   }
@@ -206,8 +212,9 @@ export function scoreAudit(signals: AuditSignals): {
         else { base -= 8; iss.push(`Valutazione media da migliorare (${rating}/5): serve una strategia di gestione recensioni.`); }
       }
     } else {
-      base = 30;
-      iss.push("Nessuna recensione Google rilevabile: manca completamente la riprova sociale che oggi decide gli acquisti.");
+      // Scheda non agganciata: non possiamo affermare che non ci siano recensioni.
+      base = 45;
+      iss.push("Recensioni Google non rilevate automaticamente (scheda non agganciata): da verificare — le recensioni sono oggi la riprova sociale che decide gli acquisti.");
     }
     sections.push({ sectionKey: "REVIEWS", score: clamp(base), positives: join(pos), issues: join(iss) });
   }
@@ -216,15 +223,19 @@ export function scoreAudit(signals: AuditSignals): {
   {
     const pos: string[] = [];
     const iss: string[] = [];
+    // NB: misuriamo i canali COLLEGATI DAL SITO, non l'attività reale sui profili
+    // (non rilevabile senza le API dei social). Base neutra: assenza di link ≠ assenza di profili.
     const channels = [
       probe?.hasFacebookLink && "Facebook",
       probe?.hasInstagramLink && "Instagram",
       probe?.hasLinkedInLink && "LinkedIn",
+      probe?.hasTikTokLink && "TikTok",
+      probe?.hasYouTubeLink && "YouTube",
     ].filter(Boolean) as string[];
-    let base = 28;
-    if (channels.length >= 2) { base = 60; pos.push(`Canali social collegati dal sito: ${channels.join(", ")}.`); }
-    else if (channels.length === 1) { base = 44; pos.push(`Un canale social collegato (${channels[0]}).`); iss.push("Presenza social limitata a un solo canale."); }
-    else { base = 26; iss.push("Nessun canale social collegato dal sito: il marchio resta poco riconoscibile e perde occasioni di contatto."); }
+    let base = 40;
+    if (channels.length >= 2) { base = 62; pos.push(`Canali social collegati dal sito: ${channels.join(", ")}.`); }
+    else if (channels.length === 1) { base = 48; pos.push(`Un canale social collegato (${channels[0]}).`); iss.push("Un solo canale social collegato dal sito: valutare il presidio degli altri."); }
+    else { base = 38; iss.push("Nessun canale social collegato dal sito: se avete profili attivi collegateli (danno fiducia e traffico); se non ne avete, è un'occasione di visibilità in più."); }
     sections.push({ sectionKey: "SOCIAL", score: clamp(base), positives: join(pos), issues: join(iss) });
   }
 
@@ -232,14 +243,20 @@ export function scoreAudit(signals: AuditSignals): {
   {
     const pos: string[] = [];
     const iss: string[] = [];
-    const tools = probe?.analyticsTools ?? [];
-    const hasPixel = tools.includes("Meta Pixel");
-    const hasGads = tools.includes("Google Analytics 4") || tools.includes("Google Tag Manager");
-    let base = 30;
-    if (hasPixel) { base += 18; pos.push("Meta Pixel presente: infrastruttura per campagne e retargeting già installata."); }
-    if (hasGads) base += 8;
-    if (!hasPixel && !hasGads) iss.push("Nessuna infrastruttura pubblicitaria rilevata (pixel/tag): la crescita dipende solo dal passaparola, non è prevedibile né scalabile.");
-    else iss.push("Verificare che le campagne siano attive e ottimizzate sul ritorno (ROAS), non solo installate.");
+    // Onesto: dall'HTML NON si può sapere se ci sono campagne attive (Google Ads non lascia
+    // traccia rilevabile). Misuriamo la PREDISPOSIZIONE: infrastruttura di retargeting installata.
+    // Base neutra: l'assenza è un'opportunità, non una bocciatura.
+    const advTools = probe?.analyticsTools ?? [];
+    const hasPixel = advTools.includes("Meta Pixel");
+    const hasTagMgr = advTools.includes("Google Tag Manager");
+    let base = 45;
+    if (hasPixel) { base += 20; pos.push("Meta Pixel installato: potete fare campagne e retargeting su Meta senza ripartire da zero."); }
+    if (hasTagMgr) { base += 8; pos.push("Tag Manager presente: aggiungere tag pubblicitari è rapido."); }
+    if (!hasPixel && !hasTagMgr) {
+      iss.push("Nessuna base per il retargeting rilevata (pixel/tag): installarla è il primo passo per campagne misurabili — oggi la crescita dipende solo dal passaparola.");
+    } else {
+      iss.push("Base pubblicitaria presente: l'opportunità è attivare campagne mirate e ottimizzarle sul ritorno (ROAS).");
+    }
     sections.push({ sectionKey: "ADV", score: clamp(base), positives: join(pos), issues: join(iss) });
   }
 
@@ -311,7 +328,24 @@ export function scoreAudit(signals: AuditSignals): {
     sections.push({ sectionKey: "BRAND", score: clamp(base), positives: join(pos), issues: join(iss) });
   }
 
-  const overallScore = Math.round(sections.reduce((s, x) => s + x.score, 0) / sections.length);
+  // Media PESATA: il totale si appoggia sulle sezioni a segnale forte (Sito/SEO/Local/
+  // Recensioni/Conversione), meno sui proxy più deboli/meno misurabili (ADV/Social/Brand).
+  const SECTION_WEIGHTS: Record<DigitalAuditSectionKey, number> = {
+    WEBSITE: 1.3,
+    SEO: 1.2,
+    LOCAL: 1.2,
+    REVIEWS: 1.1,
+    CONVERSION: 1.1,
+    UX: 1.0,
+    TRACKING: 0.9,
+    SOCIAL: 0.7,
+    ADV: 0.6,
+    BRAND: 0.6,
+  };
+  const weightSum = sections.reduce((s, x) => s + (SECTION_WEIGHTS[x.sectionKey] ?? 1), 0);
+  const overallScore = Math.round(
+    sections.reduce((s, x) => s + x.score * (SECTION_WEIGHTS[x.sectionKey] ?? 1), 0) / weightSum
+  );
 
   const metrics: AuditMetrics = {
     hasWebsite: signals.hasWebsite,
@@ -344,6 +378,8 @@ export function scoreAudit(signals: AuditSignals): {
       probe?.hasFacebookLink && "Facebook",
       probe?.hasInstagramLink && "Instagram",
       probe?.hasLinkedInLink && "LinkedIn",
+      probe?.hasTikTokLink && "TikTok",
+      probe?.hasYouTubeLink && "YouTube",
     ].filter(Boolean) as string[],
     contact: {
       form: Boolean(probe?.hasForm),

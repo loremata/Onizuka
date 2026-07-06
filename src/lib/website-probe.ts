@@ -12,6 +12,8 @@ export type WebsiteProbeResult = {
   hasFacebookLink: boolean;
   hasInstagramLink: boolean;
   hasLinkedInLink: boolean;
+  hasTikTokLink?: boolean;
+  hasYouTubeLink?: boolean;
   hasGoogleMapsLink: boolean;
   hasRobotsTxt: boolean;
   hasSitemapXml: boolean;
@@ -41,12 +43,19 @@ export type WebsiteProbeResult = {
 
 export function detectSocialLinksFromHtml(html: string): Pick<
   WebsiteProbeResult,
-  "hasFacebookLink" | "hasInstagramLink" | "hasLinkedInLink" | "hasGoogleMapsLink"
+  | "hasFacebookLink"
+  | "hasInstagramLink"
+  | "hasLinkedInLink"
+  | "hasTikTokLink"
+  | "hasYouTubeLink"
+  | "hasGoogleMapsLink"
 > {
   return {
     hasFacebookLink: /facebook\.com\/|fb\.com\//i.test(html),
     hasInstagramLink: /instagram\.com\//i.test(html),
     hasLinkedInLink: /linkedin\.com\/(company|in)\//i.test(html),
+    hasTikTokLink: /tiktok\.com\/@/i.test(html),
+    hasYouTubeLink: /youtube\.com\/(channel|c\/|user\/|@)|youtu\.be\//i.test(html),
     hasGoogleMapsLink:
       /google\.[a-z.]+\/maps|maps\.google\.com|g\.page\/|business\.google\.com/i.test(html),
   };
@@ -414,6 +423,8 @@ function mergeProbeSignals(target: WebsiteProbeResult, sub: WebsiteProbeResult):
   target.hasFacebookLink = target.hasFacebookLink || sub.hasFacebookLink;
   target.hasInstagramLink = target.hasInstagramLink || sub.hasInstagramLink;
   target.hasLinkedInLink = target.hasLinkedInLink || sub.hasLinkedInLink;
+  target.hasTikTokLink = target.hasTikTokLink || sub.hasTikTokLink;
+  target.hasYouTubeLink = target.hasYouTubeLink || sub.hasYouTubeLink;
   target.hasGoogleMapsLink = target.hasGoogleMapsLink || sub.hasGoogleMapsLink;
   // Contatti: spesso sono nella pagina "Contatti", non in home.
   target.email = target.email || sub.email;
