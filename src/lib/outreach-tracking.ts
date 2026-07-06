@@ -107,24 +107,37 @@ export async function recordOutreachClick(draftId: string): Promise<void> {
   if (firstClick) await notifyOutreachIntent(draftId, "🖱️ Ha cliccato un link");
 }
 
+/** Finestra entro cui un "open" è quasi certo pre-fetch di un proxy (Gmail) o dello
+ * scanner/anteprima, non un'apertura umana. Le mail cold non si aprono in <2 min. */
+const OPEN_PREFETCH_WINDOW_MS = 120_000;
+
 export async function recordOutreachOpen(draftId: string): Promise<void> {
   const draft = await prisma.outreachDraft.findUnique({
     where: { id: draftId },
-    select: { id: true, openedAt: true, openCount: true },
+    select: { id: true, openedAt: true, sentAt: true },
   });
   if (!draft) return;
 
-  const firstOpen = !draft.openedAt;
+  // Conta comunque il fetch (utile come metrica grezza).
   await prisma.outreachDraft.update({
     where: { id: draftId },
-    data: {
-      openCount: { increment: 1 },
-      openedAt: draft.openedAt ?? new Date(),
-    },
+    data: { openCount: { increment: 1 } },
   });
-  // Prima apertura: notifica. NB: i proxy immagini (Gmail) possono pre-caricare il
-  // pixel → qualche apertura "anticipata"; per questo notifichiamo solo la 1ª volta.
-  if (firstOpen) await notifyOutreachIntent(draftId, "👀 Ha aperto la mail");
+
+  // Se il fetch avviene subito dopo l'invio è quasi sempre il proxy immagini che
+  // pre-carica il pixel (Gmail, scanner, anteprima notifica), NON un'apertura umana:
+  // non lo trattiamo come "aperta" e non notifichiamo (evita falsi "ha aperto").
+  const sentMs = draft.sentAt?.getTime();
+  if (sentMs != null && Date.now() - sentMs < OPEN_PREFETCH_WINDOW_MS) return;
+
+  // Apertura plausibilmente umana: registra e notifica una sola volta.
+  if (!draft.openedAt) {
+    await prisma.outreachDraft.update({
+      where: { id: draftId },
+      data: { openedAt: new Date() },
+    });
+    await notifyOutreachIntent(draftId, "👀 Ha aperto la mail");
+  }
 }
 
 export function outreachTrackingPixelBuffer(): Buffer {
