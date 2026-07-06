@@ -12,6 +12,7 @@ function buildStructuredSalesEmail(params: {
   hasWebsite?: boolean;
   gbpReviewCount?: number | null;
   gbpRating?: number | null;
+  reportUrl?: string;
 }): { subject: string; subjectAlt: string; body: string } {
   const { companyName, findings } = params;
   const n = findings.length;
@@ -57,7 +58,11 @@ Sono tutte situazioni che sappiamo risolvere. In concreto:
 
 ${solutionsBlock}
 
-Ho già pronto il report completo della vostra presenza online: se vi va ve lo illustro in una consulenza gratuita, in call o di persona, con priorità e risultati ottenibili, dati alla mano.
+${
+    params.reportUrl
+      ? `Ho preparato per voi l'analisi completa e gratuita, la trovate qui:\n${params.reportUrl}\n\nSe dopo averla vista vi va di approfondire, in una breve consulenza vi mostro le priorità e i risultati ottenibili, dati alla mano.`
+      : "Ho già pronto il report completo della vostra presenza online: se vi va ve lo illustro in una consulenza gratuita, in call o di persona, con priorità e risultati ottenibili, dati alla mano."
+  }
 
 Mi basta un vostro cenno con un paio di slot comodi tra questa e la prossima settimana e organizzo io l'incontro.
 
@@ -97,6 +102,7 @@ export function buildFirstAuditOutreachEmail(params: {
   hasWebsite?: boolean;
   gbpReviewCount?: number | null;
   gbpRating?: number | null;
+  reportUrl?: string;
 }): { subject: string; body: string; subjectAlt?: string } {
   const companyName = params.companyName.trim() || "la vostra azienda";
 
@@ -109,6 +115,7 @@ export function buildFirstAuditOutreachEmail(params: {
       hasWebsite: params.hasWebsite,
       gbpReviewCount: params.gbpReviewCount,
       gbpRating: params.gbpRating,
+      reportUrl: params.reportUrl,
     });
   }
 

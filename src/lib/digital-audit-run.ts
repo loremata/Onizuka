@@ -194,6 +194,14 @@ export async function runDigitalAuditForClient(params: {
       })
       .catch(() => undefined);
 
+    // Token report generato ORA (idempotente) per includere il link nella mail:
+    // così il prospect vede l'analisi e il click viene tracciato automaticamente.
+    const reportToken = await ensureDigitalAuditPublicReportToken(audit.id, params.ownerUserId)
+      .then((r) => r.token)
+      .catch(() => null);
+    const reportBase = (process.env.NEXTAUTH_URL ?? "https://onizuka.it").replace(/\/$/, "");
+    const reportUrl = reportToken ? `${reportBase}/report/${reportToken}` : undefined;
+
     const emailDraft = buildFirstAuditOutreachEmail({
       companyName: client.companyName,
       priorityProblem: rec.priorityProblem,
@@ -206,6 +214,7 @@ export async function runDigitalAuditForClient(params: {
       hasWebsite: Boolean(client.website?.trim()),
       gbpReviewCount: gbpSnapshot?.gbpReviewCount ?? null,
       gbpRating: gbpSnapshot?.gbpRating ?? null,
+      reportUrl,
     });
     const draft = await prisma.outreachDraft.create({
       data: {
