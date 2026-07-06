@@ -1,0 +1,1 @@
+ALTER TABLE "DigitalAudit" ADD COLUMN IF NOT EXISTS "metricsJson" TEXT;

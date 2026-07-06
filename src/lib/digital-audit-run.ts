@@ -9,11 +9,13 @@ import type { AuditMatchKind } from "@/lib/audit-commercial-match";
 import { buildFirstAuditOutreachEmail } from "@/lib/audit-outreach-draft";
 import { createAuditOutreachSequence } from "@/lib/outreach-sequence";
 import { ensureClientDriveStructure } from "@/lib/client-drive-structure";
-import { applyGbpEnrichmentToSections } from "@/lib/digital-audit-gbp-enrich";
+import { applyGbpEnrichmentToSections, fetchGbpSnapshot } from "@/lib/digital-audit-gbp-enrich";
 import { resolveGbpAuditSignals, type AssetGbpHint } from "@/lib/gbp-audit-signals";
 import { applyWebsiteProbeToSections, probeWebsiteWithSubpages } from "@/lib/website-probe";
 import { buildAuditOutreachKit } from "@/lib/audit-outreach-kit";
 import { ensureDigitalAuditPublicReportToken } from "@/lib/public-report-token";
+import { fetchPageSpeed } from "@/lib/audit/pagespeed";
+import { scoreAudit } from "@/lib/audit/scoring";
 
 export type SectionAnalysis = {
   sectionKey: DigitalAuditSectionKey;
@@ -213,20 +215,29 @@ export async function runDigitalAuditForClient(params: {
 
   if (!client) throw new Error("Cliente non trovato");
 
+  const hasWebsiteUrl = Boolean(client.website?.trim());
   const probe = await probeWebsiteWithSubpages(client.website);
-  const siteHasMapsLink = Boolean(probe?.hasGoogleMapsLink);
-  let sections = analyzeSections(client, siteHasMapsLink);
-  sections = applyWebsiteProbeToSections(sections, probe) as SectionAnalysis[];
-
-  const gbpEnriched = await applyGbpEnrichmentToSections({
+  // PageSpeed solo se il sito risponde (niente chiamate lente/inutili su siti giù o assenti).
+  const psi = hasWebsiteUrl && probe?.ok && client.website ? await fetchPageSpeed(client.website) : null;
+  const gbpSnapshot = await fetchGbpSnapshot({
     clientId: client.id,
     businessName: client.companyName,
     city: client.city,
-    sections,
   });
-  sections = gbpEnriched.sections;
 
-  const overallScore = Math.round(sections.reduce((s, x) => s + x.score, 0) / sections.length);
+  const scored = scoreAudit({
+    hasWebsite: hasWebsiteUrl,
+    probe,
+    psi,
+    gbp: {
+      hasGbp: gbpSnapshot != null,
+      rating: gbpSnapshot?.gbpRating ?? null,
+      reviewCount: gbpSnapshot?.gbpReviewCount ?? null,
+    },
+    city: client.city,
+  });
+  const sections = scored.sections;
+  const overallScore = scored.overallScore;
   const recPick = pickAuditRecommendationFromSections(sections);
   const rec = {
     priorityProblem: recPick.priorityProblem,
@@ -243,8 +254,8 @@ export async function runDigitalAuditForClient(params: {
     prisma.commercialService.findUnique({ where: { slug: rec.serviceSlug } }),
   ]);
 
-  const gbpNote = gbpEnriched.gbp?.gbpPlaceName
-    ? ` GBP: ${gbpEnriched.gbp.gbpPlaceName}${gbpEnriched.gbp.gbpRating != null ? ` ${gbpEnriched.gbp.gbpRating}/5` : ""}${gbpEnriched.gbp.gbpReviewCount != null ? ` (${gbpEnriched.gbp.gbpReviewCount} rec.)` : ""}.`
+  const gbpNote = gbpSnapshot?.gbpPlaceName
+    ? ` GBP: ${gbpSnapshot.gbpPlaceName}${gbpSnapshot.gbpRating != null ? ` ${gbpSnapshot.gbpRating}/5` : ""}${gbpSnapshot.gbpReviewCount != null ? ` (${gbpSnapshot.gbpReviewCount} rec.)` : ""}.`
     : "";
 
   // Un solo audit per azienda: create del nuovo + delete dei precedenti dello stesso
@@ -265,9 +276,10 @@ export async function runDigitalAuditForClient(params: {
         priorityProblem: rec.priorityProblem,
         recommendedBrandId: brand?.id,
         recommendedServiceId: service?.id,
-        gbpRating: gbpEnriched.gbp?.gbpRating ?? undefined,
-        gbpReviewCount: gbpEnriched.gbp?.gbpReviewCount ?? undefined,
-        gbpPlaceName: gbpEnriched.gbp?.gbpPlaceName ?? undefined,
+        gbpRating: gbpSnapshot?.gbpRating ?? undefined,
+        gbpReviewCount: gbpSnapshot?.gbpReviewCount ?? undefined,
+        gbpPlaceName: gbpSnapshot?.gbpPlaceName ?? undefined,
+        metricsJson: JSON.stringify(scored.metrics),
         internalNotes: `Audit automatico. Sezione più debole: ${weakest?.sectionKey ?? "—"}. ${probeNote}${gbpNote}`,
         sections: {
           create: sections.map((s) => ({
@@ -321,8 +333,8 @@ export async function runDigitalAuditForClient(params: {
       findings: buildAuditFindings(sections),
       // Dati per la personalizzazione: aggancio "nessun sito" + recensioni Google reali.
       hasWebsite: Boolean(client.website?.trim()),
-      gbpReviewCount: gbpEnriched.gbp?.gbpReviewCount ?? null,
-      gbpRating: gbpEnriched.gbp?.gbpRating ?? null,
+      gbpReviewCount: gbpSnapshot?.gbpReviewCount ?? null,
+      gbpRating: gbpSnapshot?.gbpRating ?? null,
     });
     const draft = await prisma.outreachDraft.create({
       data: {

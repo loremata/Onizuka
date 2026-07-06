@@ -1499,6 +1499,8 @@ model DigitalAudit {
   gbpRating               Float?
   gbpReviewCount          Int?
   gbpPlaceName            String?
+  /// Metriche misurate (PageSpeed, HTML, GBP) in JSON per il report premium.
+  metricsJson             String?            @db.Text
   /// Token URL-safe per report pubblico prospect (`/report/[token]`).
   publicReportToken       String?            @unique
   publicReportExpiresAt   DateTime?

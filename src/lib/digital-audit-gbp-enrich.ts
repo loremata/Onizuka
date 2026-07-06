@@ -8,6 +8,35 @@ export type GbpAuditSnapshot = {
   gbpPlaceName: string | null;
 };
 
+/** Recupera solo lo snapshot GBP (rating/recensioni/nome) — per il nuovo motore di scoring. */
+export async function fetchGbpSnapshot(params: {
+  clientId: string | null;
+  businessName: string | null;
+  city: string | null;
+}): Promise<GbpAuditSnapshot | null> {
+  const assets = params.clientId
+    ? await prisma.asset.findMany({
+        where: { clientId: params.clientId, platform: "GBP" },
+        select: { profileUrl: true, notes: true },
+      })
+    : [];
+  const profileUrl =
+    assets.find((a) => a.profileUrl?.trim())?.profileUrl ??
+    assets.find((a) => a.notes && /g\.page|google\.com\/maps/i.test(a.notes))?.notes ??
+    null;
+  const insights = await fetchGbpPlaceInsights({
+    profileUrl,
+    businessName: params.businessName,
+    city: params.city,
+  });
+  if (!insights || insights.source === "none") return null;
+  return {
+    gbpRating: insights.rating,
+    gbpReviewCount: insights.reviewCount,
+    gbpPlaceName: insights.placeName,
+  };
+}
+
 export async function applyGbpEnrichmentToSections(params: {
   clientId: string | null;
   businessName: string | null;

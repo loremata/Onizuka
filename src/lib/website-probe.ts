@@ -15,6 +15,26 @@ export type WebsiteProbeResult = {
   hasGoogleMapsLink: boolean;
   hasRobotsTxt: boolean;
   hasSitemapXml: boolean;
+  // --- Segnali profondi (analisi qualità, non solo presenza) ---
+  titleLength?: number;
+  metaDescriptionLength?: number;
+  h1Count?: number;
+  hasViewport?: boolean; // meta viewport = base del mobile-friendly
+  hasStructuredData?: boolean; // JSON-LD schema.org
+  structuredDataTypes?: string[];
+  hasOpenGraph?: boolean; // condivisione social
+  hasCanonical?: boolean;
+  langAttr?: string;
+  imgCount?: number;
+  imgWithAlt?: number;
+  hasTelLink?: boolean; // click-to-call
+  hasWhatsAppLink?: boolean;
+  hasMailto?: boolean;
+  hasPrivacyLink?: boolean;
+  hasCookieBanner?: boolean;
+  hasFavicon?: boolean;
+  analyticsTools?: string[]; // GA4, GTM, Meta Pixel…
+  wordCount?: number;
   error?: string;
 };
 
@@ -28,6 +48,77 @@ export function detectSocialLinksFromHtml(html: string): Pick<
     hasLinkedInLink: /linkedin\.com\/(company|in)\//i.test(html),
     hasGoogleMapsLink:
       /google\.[a-z.]+\/maps|maps\.google\.com|g\.page\/|business\.google\.com/i.test(html),
+  };
+}
+
+/** Estrae segnali di QUALITÀ (non solo presenza) da HTML grezzo + versione lowercase. */
+export function extractRichSignals(
+  rawHtml: string,
+  lower: string
+): Pick<
+  WebsiteProbeResult,
+  | "titleLength" | "metaDescriptionLength" | "h1Count" | "hasViewport"
+  | "hasStructuredData" | "structuredDataTypes" | "hasOpenGraph" | "hasCanonical"
+  | "langAttr" | "imgCount" | "imgWithAlt" | "hasTelLink" | "hasWhatsAppLink"
+  | "hasMailto" | "hasPrivacyLink" | "hasCookieBanner" | "hasFavicon"
+  | "analyticsTools" | "wordCount"
+> {
+  const title = rawHtml.match(/<title[^>]*>([^<]{1,300})/i)?.[1]?.trim();
+  const metaDesc = rawHtml
+    .match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']{1,400})/i)?.[1]
+    ?.trim();
+
+  // Dati strutturati JSON-LD (schema.org): raccogli i @type dichiarati.
+  const sdTypes = new Set<string>();
+  const ldRe = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = ldRe.exec(rawHtml)) !== null) {
+    for (const t of m[1].match(/"@type"\s*:\s*"([^"]+)"/gi) ?? []) {
+      const val = t.match(/"@type"\s*:\s*"([^"]+)"/i)?.[1];
+      if (val) sdTypes.add(val);
+    }
+  }
+
+  // Strumenti analytics/tracking identificati per nome.
+  const tools: string[] = [];
+  if (/gtag\(|googletagmanager\.com\/gtag|G-[A-Z0-9]{6,}/i.test(rawHtml)) tools.push("Google Analytics 4");
+  if (/googletagmanager\.com\/gtm|GTM-[A-Z0-9]{4,}/i.test(rawHtml)) tools.push("Google Tag Manager");
+  if (/fbq\(|connect\.facebook\.net\/[^"']*fbevents/i.test(rawHtml)) tools.push("Meta Pixel");
+  if (/hotjar\.com|static\.hotjar/i.test(rawHtml)) tools.push("Hotjar");
+  if (/clarity\.ms/i.test(rawHtml)) tools.push("Microsoft Clarity");
+
+  // Testo visibile approssimato → stima profondità contenuti.
+  const text = rawHtml
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const wordCount = text ? text.split(" ").length : 0;
+
+  const imgTags = rawHtml.match(/<img\b[^>]*>/gi) ?? [];
+  const imgWithAlt = imgTags.filter((t) => /\balt\s*=\s*["'][^"']+["']/i.test(t)).length;
+
+  return {
+    titleLength: title ? title.length : 0,
+    metaDescriptionLength: metaDesc ? metaDesc.length : 0,
+    h1Count: (rawHtml.match(/<h1\b/gi) ?? []).length,
+    hasViewport: /<meta[^>]+name=["']viewport["']/i.test(rawHtml),
+    hasStructuredData: sdTypes.size > 0,
+    structuredDataTypes: Array.from(sdTypes).slice(0, 12),
+    hasOpenGraph: /<meta[^>]+property=["']og:/i.test(rawHtml),
+    hasCanonical: /<link[^>]+rel=["']canonical["']/i.test(rawHtml),
+    langAttr: rawHtml.match(/<html[^>]+lang=["']([a-z-]{2,5})["']/i)?.[1]?.toLowerCase(),
+    imgCount: imgTags.length,
+    imgWithAlt,
+    hasTelLink: /href=["']tel:/i.test(rawHtml),
+    hasWhatsAppLink: /wa\.me\/|api\.whatsapp\.com|whatsapp:\/\//i.test(lower),
+    hasMailto: /href=["']mailto:/i.test(rawHtml),
+    hasPrivacyLink: /privacy|cookie policy|informativa/i.test(lower),
+    hasCookieBanner: /iubenda|cookiebot|onetrust|cookieyes|cookie-?consent|gdpr/i.test(lower),
+    hasFavicon: /<link[^>]+rel=["'][^"']*icon[^"']*["']/i.test(rawHtml),
+    analyticsTools: tools,
+    wordCount,
   };
 }
 
@@ -141,10 +232,11 @@ export async function probeWebsite(rawUrl: string | null | undefined): Promise<W
 
     const buf = await res.arrayBuffer();
     const slice = buf.byteLength > MAX_HTML_BYTES ? buf.slice(0, MAX_HTML_BYTES) : buf;
-    const html = new TextDecoder("utf-8", { fatal: false }).decode(slice).toLowerCase();
+    const rawHtml = new TextDecoder("utf-8", { fatal: false }).decode(slice);
+    const html = rawHtml.toLowerCase();
 
-    base.title = extractTag(html, /<title[^>]*>([^<]{1,200})/i);
-    base.metaDescription = extractTag(html, /<meta[^>]+name=["']description["'][^>]+content=["']([^"']{1,300})/i);
+    base.title = extractTag(rawHtml, /<title[^>]*>([^<]{1,200})/i);
+    base.metaDescription = extractTag(rawHtml, /<meta[^>]+name=["']description["'][^>]+content=["']([^"']{1,300})/i);
     base.hasForm = /<form[\s>]/i.test(html);
     base.hasCtaKeywords = /\b(contatt|prenota|richied|preventiv|acquista|iscriv|scarica|call to action|cta)\b/i.test(
       html
@@ -152,6 +244,7 @@ export async function probeWebsite(rawUrl: string | null | undefined): Promise<W
     base.hasAnalyticsHint =
       /googletagmanager|google-analytics|gtag\(|fbq\(|metapixel|analytics\.js/i.test(html);
     Object.assign(base, detectSocialLinksFromHtml(html));
+    Object.assign(base, extractRichSignals(rawHtml, html));
     Object.assign(base, await probeSeoFiles(url));
 
     if (!base.metaDescription) {
