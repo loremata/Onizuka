@@ -30,6 +30,7 @@ export type WebsiteProbeResult = {
   hasTelLink?: boolean; // click-to-call
   hasWhatsAppLink?: boolean;
   hasMailto?: boolean;
+  email?: string; // email aziendale estratta dal sito (per rendere inviabile l'outreach)
   hasPrivacyLink?: boolean;
   hasCookieBanner?: boolean;
   hasFavicon?: boolean;
@@ -61,7 +62,7 @@ export function extractRichSignals(
   | "hasStructuredData" | "structuredDataTypes" | "hasOpenGraph" | "hasCanonical"
   | "langAttr" | "imgCount" | "imgWithAlt" | "hasTelLink" | "hasWhatsAppLink"
   | "hasMailto" | "hasPrivacyLink" | "hasCookieBanner" | "hasFavicon"
-  | "analyticsTools" | "wordCount"
+  | "analyticsTools" | "wordCount" | "email"
 > {
   const title = rawHtml.match(/<title[^>]*>([^<]{1,300})/i)?.[1]?.trim();
   const metaDesc = rawHtml
@@ -99,6 +100,19 @@ export function extractRichSignals(
   const imgTags = rawHtml.match(/<img\b[^>]*>/gi) ?? [];
   const imgWithAlt = imgTags.filter((t) => /\balt\s*=\s*["'][^"']+["']/i.test(t)).length;
 
+  // Email aziendale: preferisci mailto:, poi email nel testo. Scarta i falsi positivi comuni.
+  const mailtoEmail = rawHtml.match(/mailto:([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/i)?.[1];
+  const textEmail = rawHtml.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/)?.[0];
+  let email = (mailtoEmail || textEmail || "").trim().toLowerCase();
+  if (
+    email &&
+    /(sentry|wixpress|example\.|@2x|\.(png|jpe?g|gif|svg|webp)|w3\.org|schema\.org|yourdomain|domain\.com|sitename|@email)/i.test(
+      email
+    )
+  ) {
+    email = "";
+  }
+
   return {
     titleLength: title ? title.length : 0,
     metaDescriptionLength: metaDesc ? metaDesc.length : 0,
@@ -114,6 +128,7 @@ export function extractRichSignals(
     hasTelLink: /href=["']tel:/i.test(rawHtml),
     hasWhatsAppLink: /wa\.me\/|api\.whatsapp\.com|whatsapp:\/\//i.test(lower),
     hasMailto: /href=["']mailto:/i.test(rawHtml),
+    email: email || undefined,
     hasPrivacyLink: /privacy|cookie policy|informativa/i.test(lower),
     hasCookieBanner: /iubenda|cookiebot|onetrust|cookieyes|cookie-?consent|gdpr/i.test(lower),
     hasFavicon: /<link[^>]+rel=["'][^"']*icon[^"']*["']/i.test(rawHtml),
@@ -400,6 +415,11 @@ function mergeProbeSignals(target: WebsiteProbeResult, sub: WebsiteProbeResult):
   target.hasInstagramLink = target.hasInstagramLink || sub.hasInstagramLink;
   target.hasLinkedInLink = target.hasLinkedInLink || sub.hasLinkedInLink;
   target.hasGoogleMapsLink = target.hasGoogleMapsLink || sub.hasGoogleMapsLink;
+  // Contatti: spesso sono nella pagina "Contatti", non in home.
+  target.email = target.email || sub.email;
+  target.hasTelLink = target.hasTelLink || sub.hasTelLink;
+  target.hasWhatsAppLink = target.hasWhatsAppLink || sub.hasWhatsAppLink;
+  target.hasMailto = target.hasMailto || sub.hasMailto;
 }
 
 async function discoverInnerPageUrls(baseUrl: string, max = 2): Promise<string[]> {

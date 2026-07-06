@@ -68,6 +68,23 @@ export async function runDigitalAuditForClient(params: {
 
   const hasWebsiteUrl = Boolean(client.website?.trim());
   const probe = await probeWebsiteWithSubpages(client.website);
+
+  // Recupero email dal sito (mailto/pagina contatti): i lead scrapati non hanno email
+  // dal registro/Places, quindi le bozze non sarebbero inviabili. Se il contatto è vuoto
+  // o segnaposto @onizuka.local e il sito espone un'email valida, la salvo sul cliente.
+  const currentEmail = client.contactEmail?.trim() ?? "";
+  const emailIsPlaceholder = !currentEmail || /@onizuka\.local$/i.test(currentEmail);
+  if (probe?.email && emailIsPlaceholder) {
+    await prisma.client
+      .update({ where: { id: client.id }, data: { contactEmail: probe.email } })
+      .catch(() => undefined);
+    client.contactEmail = probe.email;
+    if (leadId) {
+      await prisma.lead
+        .updateMany({ where: { id: leadId, OR: [{ email: null }, { email: "" }] }, data: { email: probe.email } })
+        .catch(() => undefined);
+    }
+  }
   // PageSpeed solo se il sito risponde (niente chiamate lente/inutili su siti giù o assenti).
   const psi = hasWebsiteUrl && probe?.ok && client.website ? await fetchPageSpeed(client.website) : null;
   const gbpSnapshot = await fetchGbpSnapshot({
