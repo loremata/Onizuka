@@ -115,7 +115,9 @@ export function extractRichSignals(
   let email = (mailtoEmail || textEmail || "").trim().toLowerCase();
   if (
     email &&
-    /(sentry|wixpress|example\.|@2x|\.(png|jpe?g|gif|svg|webp)|w3\.org|schema\.org|yourdomain|domain\.com|sitename|@email)/i.test(
+    // Falsi positivi tecnici + PEC (postacert/legalmail/pec.*): la PEC è per comunicazioni
+    // ufficiali, NON per cold outreach → la scartiamo.
+    /(sentry|wixpress|example\.|@2x|\.(png|jpe?g|gif|svg|webp)|w3\.org|schema\.org|yourdomain|domain\.com|sitename|@email|postacert|legalmail|@pec\.|\.pec\.|pecimprese|sicurezzapost|@ingpec|@gigapec|@pecconfcommercio)/i.test(
       email
     )
   ) {
