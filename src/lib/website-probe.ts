@@ -61,10 +61,87 @@ export function detectSocialLinksFromHtml(html: string): Pick<
   };
 }
 
+// Provider di posta gratuiti/consumer: legittimi per micro-imprese (info.trattoria@gmail.com),
+// quindi NON li scartiamo anche se il dominio è diverso da quello del sito.
+const FREE_MAIL_PROVIDERS = new Set([
+  "gmail.com", "googlemail.com", "hotmail.com", "hotmail.it", "outlook.com", "outlook.it",
+  "live.com", "live.it", "yahoo.com", "yahoo.it", "ymail.com", "icloud.com", "me.com",
+  "libero.it", "virgilio.it", "alice.it", "tin.it", "tiscali.it", "iol.it", "inwind.it",
+  "email.it", "fastwebnet.it", "teletu.it", "aruba.it",
+]);
+
+// Domini honeypot / spam-trap / usa-e-getta: inviare qui BRUCIA la reputazione del mittente.
+const SPAM_TRAP_RE =
+  /(mailtrap|ninjamailtrap|mailinator|guerrillamail|guerrilla|trashmail|tempmail|10minutemail|yopmail|sharklasers|getnada|dispostable|mytemp|throwaway|maildrop|fakeinbox|spam4|discard\.email|example\.(com|org|net)|test\.com)/i;
+
+// Falsi positivi tecnici + PEC (postacert/legalmail/pec.*): la PEC è per comunicazioni
+// ufficiali, NON per cold outreach → la scartiamo.
+const EMAIL_JUNK_RE =
+  /(sentry|wixpress|@2x|\.(png|jpe?g|gif|svg|webp)|w3\.org|schema\.org|yourdomain|domain\.com|sitename|@email\.|postacert|legalmail|@pec\.|\.pec\.|pecimprese|sicurezzapost|@ingpec|@gigapec|@pecconfcommercio)/i;
+
+/** Dominio registrabile (eTLD+1, best-effort): www.hotel-x.it → hotel-x.it, a.b.co.uk → b.co.uk. */
+function registrableDomain(host: string): string {
+  const h = host.toLowerCase().replace(/^www\./, "").split(/[:/]/)[0];
+  const parts = h.split(".").filter(Boolean);
+  if (parts.length <= 2) return parts.join(".");
+  const twoLevel = new Set(["co.uk", "org.uk", "com.au", "co.jp", "com.br", "co.nz", "co.it"]);
+  const lastTwo = parts.slice(-2).join(".");
+  return twoLevel.has(lastTwo) ? parts.slice(-3).join(".") : lastTwo;
+}
+
+/** Etichetta "brand" (SLD normalizzato): via non-alfanumerici e suffissi societari finali. */
+function brandLabel(regDom: string): string {
+  const sld = regDom.split(".")[0] ?? regDom;
+  return sld.replace(/[^a-z0-9]/g, "").replace(/(srls|srl|snc|sas|spa|sapa|coop)$/i, "");
+}
+
+/**
+ * Stesso soggetto? Vero se stesso dominio registrabile, oppure stesso brand su TLD/suffisso
+ * diverso (casaledelsole.it ↔ casaledelsolebeb.it, ente.org ↔ ente.it, xsrl.it ↔ xsnc.it).
+ * Così NON scartiamo l'email dell'azienda solo perché usa un secondo dominio proprio.
+ */
+function sameOwner(emailDomain: string, siteReg: string): boolean {
+  if (registrableDomain(emailDomain) === siteReg) return true;
+  const a = brandLabel(registrableDomain(emailDomain));
+  const b = brandLabel(siteReg);
+  if (a.length < 4 || b.length < 4) return a === b;
+  return a === b || a.includes(b) || b.includes(a);
+}
+
+/**
+ * Sceglie la migliore email aziendale dai candidati trovati sul sito.
+ * Regole: scarta junk/PEC/spam-trap; poi preferisci l'email dello STESSO dominio del
+ * sito (segnale forte che è davvero dell'azienda), poi i provider gratuiti; scarta le
+ * email su un dominio custom DIVERSO dal sito (tipicamente la web-agency che l'ha fatto).
+ */
+function pickBusinessEmail(candidates: string[], siteHost?: string): string | undefined {
+  const clean = candidates
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => e && !EMAIL_JUNK_RE.test(e) && !SPAM_TRAP_RE.test(e));
+  if (!clean.length) return undefined;
+
+  const siteReg = siteHost ? registrableDomain(siteHost) : null;
+  const sameDomain: string[] = [];
+  const freeMail: string[] = [];
+  const otherCustom: string[] = [];
+  for (const e of clean) {
+    const dom = e.split("@")[1] ?? "";
+    if (siteReg && sameOwner(dom, siteReg)) sameDomain.push(e);
+    else if (FREE_MAIL_PROVIDERS.has(dom)) freeMail.push(e);
+    else otherCustom.push(e);
+  }
+  // Con dominio del sito noto: same-domain > provider gratuito; le "otherCustom" (agenzia) si scartano.
+  // Senza dominio noto (fallback): accetta il primo candidato pulito.
+  if (sameDomain.length) return sameDomain[0];
+  if (freeMail.length) return freeMail[0];
+  return siteReg ? undefined : otherCustom[0];
+}
+
 /** Estrae segnali di QUALITÀ (non solo presenza) da HTML grezzo + versione lowercase. */
 export function extractRichSignals(
   rawHtml: string,
-  lower: string
+  lower: string,
+  siteHost?: string
 ): Pick<
   WebsiteProbeResult,
   | "titleLength" | "metaDescriptionLength" | "h1Count" | "hasViewport"
@@ -109,20 +186,17 @@ export function extractRichSignals(
   const imgTags = rawHtml.match(/<img\b[^>]*>/gi) ?? [];
   const imgWithAlt = imgTags.filter((t) => /\balt\s*=\s*["'][^"']+["']/i.test(t)).length;
 
-  // Email aziendale: preferisci mailto:, poi email nel testo. Scarta i falsi positivi comuni.
-  const mailtoEmail = rawHtml.match(/mailto:([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/i)?.[1];
-  const textEmail = rawHtml.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/)?.[0];
-  let email = (mailtoEmail || textEmail || "").trim().toLowerCase();
-  if (
-    email &&
-    // Falsi positivi tecnici + PEC (postacert/legalmail/pec.*): la PEC è per comunicazioni
-    // ufficiali, NON per cold outreach → la scartiamo.
-    /(sentry|wixpress|example\.|@2x|\.(png|jpe?g|gif|svg|webp)|w3\.org|schema\.org|yourdomain|domain\.com|sitename|@email|postacert|legalmail|@pec\.|\.pec\.|pecimprese|sicurezzapost|@ingpec|@gigapec|@pecconfcommercio)/i.test(
-      email
-    )
-  ) {
-    email = "";
-  }
+  // Email aziendale: raccogli TUTTI i candidati (mailto: prima, poi testo) e scegli la
+  // migliore preferendo il dominio del sito e scartando spam-trap / email di terzi (agenzia).
+  const mailtoEmails = Array.from(
+    rawHtml.matchAll(/mailto:([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/gi),
+    (mm) => mm[1]
+  );
+  const textEmails = Array.from(
+    rawHtml.matchAll(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g),
+    (mm) => mm[0]
+  );
+  const email = pickBusinessEmail([...mailtoEmails, ...textEmails].slice(0, 60), siteHost) ?? "";
 
   return {
     titleLength: title ? title.length : 0,
@@ -270,7 +344,14 @@ export async function probeWebsite(rawUrl: string | null | undefined): Promise<W
     base.hasAnalyticsHint =
       /googletagmanager|google-analytics|gtag\(|fbq\(|metapixel|analytics\.js/i.test(html);
     Object.assign(base, detectSocialLinksFromHtml(html));
-    Object.assign(base, extractRichSignals(rawHtml, html));
+    const siteHost = (() => {
+      try {
+        return new URL(url).hostname;
+      } catch {
+        return undefined;
+      }
+    })();
+    Object.assign(base, extractRichSignals(rawHtml, html, siteHost));
     Object.assign(base, await probeSeoFiles(url));
 
     if (!base.metaDescription) {
