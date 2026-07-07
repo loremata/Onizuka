@@ -43,11 +43,38 @@ export async function processScrapingAuditBatch(batchLimit = 4): Promise<{
     return { processed: 0, done: 0, failed: 0, skipped: 0, capReached: true, doneToday };
   }
 
-  const items = await prisma.auditSheetQueueItem.findMany({
+  // Prioritizzazione per CONTATTABILITÀ: prima i lead con un canale reale
+  // (sito / telefono / email), poi quelli senza. Evita di bruciare il tetto
+  // giornaliero su micro-lead solo-registro (nessun sito/tel/email → audit "morti").
+  // Si ordina in JS su una finestra di PENDING: sito ed email sono già sull'item,
+  // il telefono si legge dal Lead collegato (sheetRowKey = "scraping:<leadId>").
+  const take = Math.min(batchLimit, remaining);
+  const PRIORITIZE_WINDOW = 500;
+  const pending = await prisma.auditSheetQueueItem.findMany({
     where: { status: "PENDING", sheetRowKey: { startsWith: SCRAPING_PREFIX } },
     orderBy: { createdAt: "asc" },
-    take: Math.min(batchLimit, remaining),
+    take: PRIORITIZE_WINDOW,
   });
+
+  const isReal = (v?: string | null) => Boolean(v?.trim()) && !/@onizuka\.local$/i.test(v ?? "");
+  // Telefono dal Lead (non presente sull'item): una sola query per la finestra.
+  const leadIds = pending.map((i) => i.sheetRowKey.slice(SCRAPING_PREFIX.length)).filter(Boolean);
+  const leads = leadIds.length
+    ? await prisma.lead.findMany({ where: { id: { in: leadIds } }, select: { id: true, phone: true } })
+    : [];
+  const phoneByLead = new Map(leads.map((l) => [l.id, l.phone]));
+
+  const contactScore = (i: (typeof pending)[number]) => {
+    const phone = phoneByLead.get(i.sheetRowKey.slice(SCRAPING_PREFIX.length));
+    return (isReal(i.website) ? 2 : 0) + (isReal(phone) ? 1 : 0) + (isReal(i.contactEmail) ? 1 : 0);
+  };
+
+  // Ordine: contattabilità desc, poi FIFO (createdAt asc) a parità.
+  const items = pending
+    .map((i, idx) => ({ i, idx, s: contactScore(i) }))
+    .sort((a, b) => b.s - a.s || a.idx - b.idx)
+    .slice(0, take)
+    .map((x) => x.i);
 
   let done = 0;
   let failed = 0;
