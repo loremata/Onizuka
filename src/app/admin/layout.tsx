@@ -56,7 +56,7 @@ export default async function AdminLayout({
   return (
     <div className="min-h-screen onizuka-shell-bg">
       <NavLiveUpdates />
-      <div className="sticky top-0 z-20 border-b border-border/80 bg-card/90 shadow-sm shadow-black/5 backdrop-blur-md supports-[backdrop-filter]:bg-card/75">
+      <div className="static lg:sticky lg:top-0 z-20 border-b border-border/80 bg-card/90 shadow-sm shadow-black/5 backdrop-blur-md supports-[backdrop-filter]:bg-card/75">
         <header className="container mx-auto px-4">
           <div className="flex flex-col gap-3 py-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">

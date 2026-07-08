@@ -302,7 +302,18 @@ export default async function AdminReachPage({
                       : ""}
                   {d.clickedAt ? ` · click ${d.clickCount > 1 ? `(${d.clickCount}×)` : ""}` : ""}
                 </p>
-                <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-muted-foreground">{d.body}</p>
+                <details className="group mt-2">
+                  <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                    <span className="line-clamp-3 whitespace-pre-wrap text-muted-foreground group-open:hidden">
+                      {d.body}
+                    </span>
+                    <span className="mt-1 inline-block text-xs font-medium text-primary">
+                      <span className="group-open:hidden">Leggi tutta la bozza ▾</span>
+                      <span className="hidden group-open:inline">Comprimi ▴</span>
+                    </span>
+                  </summary>
+                  <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{d.body}</p>
+                </details>
                 <div className="mt-2">
                   <OutreachDraftActions
                     id={d.id}
