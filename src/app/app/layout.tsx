@@ -91,7 +91,7 @@ export default async function ClientAppLayout({
     <div className="min-h-screen onizuka-shell-bg">
       <NavLiveUpdates />
       {isPreview && client ? <ClientPreviewBanner companyName={client.companyName} /> : null}
-      <header className="sticky top-0 z-20 border-b border-border/80 bg-card/90 shadow-sm shadow-black/5 backdrop-blur-md supports-[backdrop-filter]:bg-card/75">
+      <header className="static lg:sticky lg:top-0 z-20 border-b border-border/80 bg-card/90 shadow-sm shadow-black/5 backdrop-blur-md supports-[backdrop-filter]:bg-card/75">
         <div className="container mx-auto px-4 py-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <ClientBrandMark companyName={client?.companyName} />
