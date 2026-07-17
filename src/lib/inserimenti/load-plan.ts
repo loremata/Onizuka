@@ -74,6 +74,8 @@ export async function loadPlan(
     lines,
     prizes,
     params,
+    label: plan.label,
+    status: plan.status,
   };
 }
 

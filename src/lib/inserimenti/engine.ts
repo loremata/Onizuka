@@ -102,6 +102,9 @@ export interface Plan {
   lines: Line[];
   prizes: Prize[];
   params: Params;
+  // meta opzionali (ignorati dal calcolo, utili alla UI)
+  label?: string;
+  status?: string;
 }
 
 /** Una vendita, ridotta ai campi che contano per il calcolo. */
