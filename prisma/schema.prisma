@@ -35,6 +35,31 @@ enum MediaType {
   VIDEO
 }
 
+/// Come è stato collegato l'account social del cliente (Publisher multi-tenant).
+enum SocialConnectionMode {
+  MANAGED // Lorenzo è admin del Business Manager del cliente e collega lui l'account
+  SELF // il cliente ha autorizzato via OAuth dal proprio account
+}
+
+enum SocialAccountStatus {
+  CONNECTED
+  EXPIRED
+  REVOKED
+}
+
+/// Fonte dati del modulo Analytics (social + sito + advertising).
+enum AnalyticsSource {
+  INSTAGRAM
+  FACEBOOK
+  LINKEDIN
+  GBP
+  TIKTOK
+  YOUTUBE
+  GA4
+  GOOGLE_ADS
+  META_ADS
+}
+
 enum WebhookEvent {
   POST_APPROVED
   POST_STATUS_CHANGED
@@ -49,6 +74,7 @@ enum OAuthProvider {
   GOOGLE_CALENDAR
   GMAIL
   GOOGLE_GBP
+  GOOGLE_ANALYTICS
   ZUCCHETTI_ERP
   SAP_ERP
 }
@@ -273,21 +299,21 @@ enum FinanceEntryStatus {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String?
-  email        String   @unique
-  passwordHash String?  // null if using OAuth later
-  role         Role
-  clientId     String?
+  id                       String   @id @default(cuid())
+  name                     String?
+  email                    String   @unique
+  passwordHash             String? // null if using OAuth later
+  role                     Role
+  clientId                 String?
   /// Moduli admin consentiti per STAFF (whitelist). Vuoto = policy predefinita.
-  staffAllowedModules String[] @default([])
+  staffAllowedModules      String[] @default([])
   /// Variante Reach predefinita dopo vincitore A/B (A o B).
-  reachAbDefaultVariant String?
-  timeZone     String?  // IANA es. Europe/Rome — recap Command Center / scadenze "oggi"
-  notifyDigestEmail Boolean @default(true)
-  mustChangePassword Boolean @default(false)
+  reachAbDefaultVariant    String?
+  timeZone                 String? // IANA es. Europe/Rome — recap Command Center / scadenze "oggi"
+  notifyDigestEmail        Boolean  @default(true)
+  mustChangePassword       Boolean  @default(false)
   /// STAFF: può approvare la 1ª firma su time entry (2ª resta solo ADMIN).
-  canApproveTimeEntries Boolean @default(false)
+  canApproveTimeEntries    Boolean  @default(false)
   /// Commesse (projectCode) che lo STAFF può approvare; vuoto = tutte (se canApproveTimeEntries).
   timeApproverProjectCodes String[] @default([])
   /// Clienti che lo STAFF può approvare (1ª firma); vuoto = tutti (se canApproveTimeEntries).
@@ -297,70 +323,70 @@ model User {
   workspaceId              String?  @default("ws_default")
   /// Azioni admin vietate esplicitamente (es. client.delete, finance.export).
   staffDeniedActions       String[] @default([])
-  notificationRev   Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  notificationRev          Int      @default(0)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 
-  client    Client?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  oauthConnections UserOAuthConnection[]
-  comments    Comment[]
-  flowTasks   FlowTask[]
-  memoryItems MemoryItem[]
-  leads       Lead[]
-  opportunities Opportunity[]
-  outreachDrafts OutreachDraft[]
-  opportunityQuotes OpportunityQuote[]
-  adminAuditLogs    AdminAuditLog[]
-  notifications     UserNotification[]
-  digitalAudits     DigitalAudit[]
-  auditSheetQueue   AuditSheetQueueItem[]
-  financeEntries    FinanceEntry[]
-  outreachSequences OutreachSequence[]
-  clientMilestones  ClientMilestone[]
-  referrers         Referrer[]
-  timeEntries       TimeEntry[]
-  timeEntriesApproved TimeEntry[] @relation("TimeEntryApprovedBy")
-  timeEntriesSecondApproved TimeEntry[] @relation("TimeEntrySecondApprovedBy")
-  automationRules   AutomationRule[]
-  automationRuleRevisions AutomationRuleRevision[]
-  automationFlowRuns AutomationFlowRun[]
-  workspaceAuditLogs WorkspaceAuditLog[]
-  automationRuleTemplates AutomationRuleTemplate[]
-  dedupeScanRuns    DedupeScanRun[]
-  regiaDailySheets  RegiaDailySheet[]
+  client                      Client?                      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  oauthConnections            UserOAuthConnection[]
+  comments                    Comment[]
+  flowTasks                   FlowTask[]
+  memoryItems                 MemoryItem[]
+  leads                       Lead[]
+  opportunities               Opportunity[]
+  outreachDrafts              OutreachDraft[]
+  opportunityQuotes           OpportunityQuote[]
+  adminAuditLogs              AdminAuditLog[]
+  notifications               UserNotification[]
+  digitalAudits               DigitalAudit[]
+  auditSheetQueue             AuditSheetQueueItem[]
+  financeEntries              FinanceEntry[]
+  outreachSequences           OutreachSequence[]
+  clientMilestones            ClientMilestone[]
+  referrers                   Referrer[]
+  timeEntries                 TimeEntry[]
+  timeEntriesApproved         TimeEntry[]                  @relation("TimeEntryApprovedBy")
+  timeEntriesSecondApproved   TimeEntry[]                  @relation("TimeEntrySecondApprovedBy")
+  automationRules             AutomationRule[]
+  automationRuleRevisions     AutomationRuleRevision[]
+  automationFlowRuns          AutomationFlowRun[]
+  workspaceAuditLogs          WorkspaceAuditLog[]
+  automationRuleTemplates     AutomationRuleTemplate[]
+  dedupeScanRuns              DedupeScanRun[]
+  regiaDailySheets            RegiaDailySheet[]
   intelligenceRecommendations IntelligenceRecommendation[]
-  retailContracts   ClientRetailContract[]
-  timeErpPushLogs   TimeErpPushLog[]
-  workspace         Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  whatsAppAssigned  WhatsAppInboundMessage[] @relation("WhatsAppAssignee")
-  clientOnboardingItems ClientOnboardingItem[]
-  clientCommitments     ClientCommitment[]
-  assistantChatThreads  AssistantChatThread[]
-  aiRuns                AiRun[]
-  people                Person[]
+  retailContracts             ClientRetailContract[]
+  timeErpPushLogs             TimeErpPushLog[]
+  workspace                   Workspace?                   @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  whatsAppAssigned            WhatsAppInboundMessage[]     @relation("WhatsAppAssignee")
+  clientOnboardingItems       ClientOnboardingItem[]
+  clientCommitments           ClientCommitment[]
+  assistantChatThreads        AssistantChatThread[]
+  aiRuns                      AiRun[]
+  people                      Person[]
 }
 
 /// Workspace / tenant leggero (MVP multi-agenzia).
 model Workspace {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  name      String
+  id                    String    @id @default(cuid())
+  slug                  String    @unique
+  name                  String
   /// Se true, query clienti filtrano strettamente per workspaceId (multi-agenzia).
-  isolated  Boolean  @default(false)
+  isolated              Boolean   @default(false)
   /// Slug per futuro schema DB dedicato (enterprise).
-  databaseSlug String? @unique
+  databaseSlug          String?   @unique
   /// Connection string PostgreSQL dedicata (override env map).
-  databaseUrl  String? @db.Text
+  databaseUrl           String?   @db.Text
   /// Ultimo `prisma migrate deploy` riuscito sul DB tenant.
   databaseProvisionedAt DateTime?
   /// supabase | rds — provisioning cloud automatico.
   databaseCloudProvider String?
   databaseCloudRef      String?
-  createdAt DateTime @default(now())
+  createdAt             DateTime  @default(now())
 
-  users      User[]
-  clients    Client[]
-  auditLogs  WorkspaceAuditLog[]
+  users     User[]
+  clients   Client[]
+  auditLogs WorkspaceAuditLog[]
 }
 
 enum DedupeTrainingJobStatus {
@@ -389,11 +415,11 @@ model DedupeTrainingJob {
 
 /// Certificazioni partner ERP (UI + override env).
 model AgencyPartnerSettings {
-  id                      String    @id @default("default")
-  zucchettiOfficial       Boolean   @default(false)
-  sapOfficial             Boolean   @default(false)
-  zucchettiPartnerRef     String?
-  sapPartnerRef           String?
+  id                        String    @id @default("default")
+  zucchettiOfficial         Boolean   @default(false)
+  sapOfficial               Boolean   @default(false)
+  zucchettiPartnerRef       String?
+  sapPartnerRef             String?
   zucchettiContractDriveUrl String?
   sapContractDriveUrl       String?
   legalArchiveNotes         String?   @db.Text
@@ -484,65 +510,74 @@ model UserOAuthConnection {
 }
 
 model Client {
-  id           String       @id @default(cuid())
-  companyName  String
-  slug         String       @unique
-  contactEmail String
-  status       ClientStatus @default(ACTIVE_CLIENT)
+  id                    String                       @id @default(cuid())
+  companyName           String
+  slug                  String                       @unique
+  contactEmail          String
+  status                ClientStatus                 @default(ACTIVE_CLIENT)
   /// Stato relazione (Lead/Cliente/Ex cliente): decide se compare tra i clienti veri. Cambiabile a mano.
   /// Default LEAD: un record senza stato esplicito è un prospect, non un finto cliente.
-  relationshipState ClientRelationshipState @default(LEAD)
+  relationshipState     ClientRelationshipState      @default(LEAD)
   /// Privato vs azienda (inferito da CF/P.IVA se assente).
-  kind               ClientKind?
-  fiscalCode         String?
-  clientMacroCategory ClientMacroCategory?
+  kind                  ClientKind?
+  fiscalCode            String?
+  clientMacroCategory   ClientMacroCategory?
   /// Tag liberi per segmentazione (es. "TIM", "no-rate", "sito-con-noi").
-  tags         String[]     @default([])
-  notes        String?      @db.Text
-  vatNumber    String?
-  phone        String?
-  website      String?
-  address      String?
-  city         String?
-  country        String       @default("IT")
-  driveFolderUrl String?
+  tags                  String[]                     @default([])
+  /// True per i brand PROPRI di Lorenzo (Online Station, negozio TIM, CIBA…): schedulabili nel Publisher come i clienti.
+  isOwnBrand            Boolean                      @default(false)
+  notes                 String?                      @db.Text
+  vatNumber             String?
+  phone                 String?
+  website               String?
+  address               String?
+  city                  String?
+  country               String                       @default("IT")
+  driveFolderUrl        String?
   /// Conto PDC gestionale per export finance (es. 4105001)
-  accountingCode String?
+  accountingCode        String?
   /// Embedding OpenAI per dedupe ML persistente (float[]).
-  dedupeEmbedding  Float[]  @default([])
+  dedupeEmbedding       Float[]                      @default([])
   /// ANN pgvector (sync da dedupeEmbedding quando ONIZUKA_PGVECTOR attivo).
   dedupeEmbeddingVector Unsupported("vector(1536)")?
   /// Ore SLA ticket portale per questo cliente (override globale TICKET_SLA_HOURS).
-  ticketSlaHours   Int?
-  workspaceId      String?  @default("ws_default")
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  ticketSlaHours        Int?
+  workspaceId           String?                      @default("ws_default")
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
 
-  workspace    Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  users        User[]
-  posts        PostItem[]
-  webhooks     WebhookSubscription[]
-  flowTasks    FlowTask[]
-  memoryItems  MemoryItem[]
-  opportunities Opportunity[]
-  convertedFromLead Lead? @relation("LeadConversion")
-  leadDossier  Lead[] @relation("ClientLeadDossier")
-  assets       Asset[]
-  contacts     ClientContact[]
-  tickets         ClientTicket[]
-  outreachDrafts  OutreachDraft[]
-  outreachSequences OutreachSequence[]
-  commercialServices ClientCommercialService[]
-  digitalAudits      DigitalAudit[]
-  financeEntries     FinanceEntry[]
-  milestones         ClientMilestone[]
-  onboardingItems    ClientOnboardingItem[]
-  commitments        ClientCommitment[]
-  timeEntries        TimeEntry[]
-  retailContracts    ClientRetailContract[]
+  workspace           Workspace?                @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  users               User[]
+  posts               PostItem[]
+  webhooks            WebhookSubscription[]
+  flowTasks           FlowTask[]
+  memoryItems         MemoryItem[]
+  opportunities       Opportunity[]
+  convertedFromLead   Lead?                     @relation("LeadConversion")
+  leadDossier         Lead[]                    @relation("ClientLeadDossier")
+  assets              Asset[]
+  contacts            ClientContact[]
+  tickets             ClientTicket[]
+  outreachDrafts      OutreachDraft[]
+  outreachSequences   OutreachSequence[]
+  commercialServices  ClientCommercialService[]
+  digitalAudits       DigitalAudit[]
+  financeEntries      FinanceEntry[]
+  milestones          ClientMilestone[]
+  onboardingItems     ClientOnboardingItem[]
+  commitments         ClientCommitment[]
+  timeEntries         TimeEntry[]
+  retailContracts     ClientRetailContract[]
   socialInboxComments SocialInboxComment[]
-  personRoles        PersonClientRole[]
-  attributes         ClientAttribute[]
+  socialAccounts      SocialAccount[]
+  socialInsightReport SocialInsightReport?
+  analyticsMetrics    AnalyticsMetric[]
+  analyticsConnections AnalyticsConnection[]
+  competitors         Competitor[]
+  personRoles         PersonClientRole[]
+  attributes          ClientAttribute[]
+  // NB: unique parziali normalizzati su vatNumber/fiscalCode applicati via migration
+  // 20260711120000 (espressione non rappresentabile in Prisma — non rimuovere con migrate dev).
 
   @@index([status])
   @@index([kind])
@@ -550,8 +585,6 @@ model Client {
   @@index([vatNumber])
   @@index([fiscalCode])
   @@index([relationshipState])
-  // NB: unique parziali normalizzati su vatNumber/fiscalCode applicati via migration
-  // 20260711120000 (espressione non rappresentabile in Prisma — non rimuovere con migrate dev).
 }
 
 /// Attributo chiave-valore libero del cliente, per segmentazione (es. carrier=TIM, rateizzazione=no).
@@ -588,31 +621,31 @@ enum RetailContractStatus {
 
 /// Contratto retail (telefonia, energia, Sky…) collegato al cliente.
 model ClientRetailContract {
-  id             String               @id @default(cuid())
-  clientId       String
-  ownerUserId    String
-  kind           RetailContractKind   @default(OTHER)
-  label          String
-  monthlyEur     Decimal              @db.Decimal(12, 2)
-  renewalDate    DateTime?
-  status         RetailContractStatus @default(ACTIVE)
+  id                String               @id @default(cuid())
+  clientId          String
+  ownerUserId       String
+  kind              RetailContractKind   @default(OTHER)
+  label             String
+  monthlyEur        Decimal              @db.Decimal(12, 2)
+  renewalDate       DateTime?
+  status            RetailContractStatus @default(ACTIVE)
   /// Brand/operatore del contratto (Fastweb, Enel, Sky, TIM…).
-  operator       String?
+  operator          String?
   /// Nome offerta sottoscritta (es. "Fastweb Mobile Start").
-  offerName      String?
+  offerName         String?
   /// Modalità pagamento del cliente: IBAN, Carta, Bollettino, Bonifico.
-  paymentMethod  String?
+  paymentMethod     String?
   /// Data attivazione/firma del contratto (base per il reminder cambio compagnia).
-  signedAt       DateTime?
+  signedAt          DateTime?
   /// Dopo quanti mesi proporre il cambio compagnia (6/12/24/48).
   switchAfterMonths Int?
   /// Quando proporre il cambio compagnia (= signedAt + switchAfterMonths).
   switchReminderAt  DateTime?
   /// Voce Finance MRR collegata (sync automatico).
-  financeEntryId String?
-  notes          String?              @db.Text
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
+  financeEntryId    String?
+  notes             String?              @db.Text
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
   owner  User   @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
@@ -625,28 +658,28 @@ model ClientRetailContract {
 
 /// Registro tempo lavorato (MVP timesheet interno).
 model TimeEntry {
-  id          String   @id @default(cuid())
-  ownerUserId String
-  clientId    String?
-  description String   @db.Text
-  minutes     Int
-  workedAt    DateTime @default(now())
-  billable          Boolean   @default(true)
-  hourlyRateEur     Decimal?  @db.Decimal(10, 2)
+  id                     String    @id @default(cuid())
+  ownerUserId            String
+  clientId               String?
+  description            String    @db.Text
+  minutes                Int
+  workedAt               DateTime  @default(now())
+  billable               Boolean   @default(true)
+  hourlyRateEur          Decimal?  @db.Decimal(10, 2)
   /// Codice commessa / progetto per export gestionale.
-  projectCode       String?
-  approvedAt        DateTime?
-  approvedByUserId  String?
+  projectCode            String?
+  approvedAt             DateTime?
+  approvedByUserId       String?
   /// Seconda approvazione (four-eyes): deve essere un ADMIN diverso dal primo.
   secondApprovedAt       DateTime?
   secondApprovedByUserId String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
-  owner      User    @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
-  client     Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  approvedBy User?   @relation("TimeEntryApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
-  secondApprovedBy User? @relation("TimeEntrySecondApprovedBy", fields: [secondApprovedByUserId], references: [id], onDelete: SetNull)
+  owner            User    @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  client           Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  approvedBy       User?   @relation("TimeEntryApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  secondApprovedBy User?   @relation("TimeEntrySecondApprovedBy", fields: [secondApprovedByUserId], references: [id], onDelete: SetNull)
 
   @@index([ownerUserId, workedAt])
   @@index([approvedAt])
@@ -655,45 +688,45 @@ model TimeEntry {
 
 /// Regole automazione in-app (MVP: post approvato → Telegram).
 model AutomationRule {
-  id               String                 @id @default(cuid())
-  ownerUserId      String
-  name             String
-  trigger          AutomationRuleTrigger
+  id                     String                @id @default(cuid())
+  ownerUserId            String
+  name                   String
+  trigger                AutomationRuleTrigger
   /// Ordine esecuzione: valori minori = prima.
-  priority         Int                    @default(100)
-  enabled          Boolean                @default(true)
-  notifyTelegram   Boolean                @default(false)
+  priority               Int                   @default(100)
+  enabled                Boolean               @default(true)
+  notifyTelegram         Boolean               @default(false)
   /// Condizione if/then base (uguaglianza): es. key=platform, value=FACEBOOK.
-  conditionKey     String?
+  conditionKey           String?
   /// Operatore condizione (EQ, NEQ, GT, GTE, LT, LTE, CONTAINS, STARTS_WITH, ENDS_WITH, IN, DATE_BEFORE, DATE_AFTER).
-  conditionOperator String                @default("EQ")
-  conditionValue   String?
+  conditionOperator      String                @default("EQ")
+  conditionValue         String?
   /// Invia email SMTP (best-effort) al destinatario specificato.
-  notifyEmail      Boolean                @default(false)
-  notifyEmailTo    String?
+  notifyEmail            Boolean               @default(false)
+  notifyEmailTo          String?
   /// Template opzionali con placeholder {{key}} (es. {{trigger}}, {{clientName}}).
-  emailSubjectTemplate String?            @db.Text
-  emailBodyTemplate    String?            @db.Text
+  emailSubjectTemplate   String?               @db.Text
+  emailBodyTemplate      String?               @db.Text
   /// POST JSON (trigger + payload) verso URL esterno (n8n / Zapier).
-  webhookUrl       String?                @db.Text
+  webhookUrl             String?               @db.Text
   /// Payload JSON opzionale (template) per webhook; fallback = payload base.
-  webhookPayloadTemplate String?          @db.Text
+  webhookPayloadTemplate String?               @db.Text
   /// Retry azioni (email/webhook): tentativi extra oltre al primo invio.
-  actionRetryAttempts Int                 @default(0)
+  actionRetryAttempts    Int                   @default(0)
   /// Secondi base per backoff esponenziale (1,2,4,...) sui retry.
-  actionRetryBackoffSec Int               @default(2)
+  actionRetryBackoffSec  Int                   @default(2)
   /// Crea un task Flow collegato al cliente (solo trigger con clientId: ticket/lead; non usato per snapshot finance).
-  createFlowTask   Boolean                @default(false)
-  flowTaskTitle    String?                @db.Text
+  createFlowTask         Boolean               @default(false)
+  flowTaskTitle          String?               @db.Text
   /// Branch multipli stile n8n (JSON: { branches: [{ id, label, conditionKey, ... }] }).
-  flowBranchesJson String?                @db.Text
+  flowBranchesJson       String?               @db.Text
   /// Grafo visuale flow builder (versionamento flusso).
-  visualFlowJson   String?                @db.Text
-  ruleVersion      Int                    @default(1)
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
+  visualFlowJson         String?               @db.Text
+  ruleVersion            Int                   @default(1)
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
 
-  owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  owner      User                      @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
   executions AutomationRuleExecution[]
   revisions  AutomationRuleRevision[]
   flowRuns   AutomationFlowRun[]
@@ -773,7 +806,7 @@ model DedupeScanRun {
   errorDetail         String?          @db.Text
   startedAt           DateTime         @default(now())
   completedAt         DateTime?
-  alertEmailSentAt      DateTime?
+  alertEmailSentAt    DateTime?
 
   owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
 
@@ -872,11 +905,11 @@ model PersonClientRole {
 
 /// Presenza digitale / brand collegato a un cliente (social, GBP, sito gestito…).
 model Asset {
-  id          String    @id @default(cuid())
-  clientId    String
-  name        String
-  slug        String
-  platform    Platform?
+  id              String    @id @default(cuid())
+  clientId        String
+  name            String
+  slug            String
+  platform        Platform?
   profileUrl      String?
   /// Resource name GBP: accounts/…/locations/… (risposte recensioni per asset).
   gbpLocationName String?
@@ -884,10 +917,10 @@ model Asset {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  client          Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  opportunities   Opportunity[]
-  memoryItems     MemoryItem[]
-  financeEntries    FinanceEntry[]
+  client         Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  opportunities  Opportunity[]
+  memoryItems    MemoryItem[]
+  financeEntries FinanceEntry[]
 
   @@unique([clientId, slug])
   @@index([clientId])
@@ -895,32 +928,32 @@ model Asset {
 
 /// Segnalatore / referral (servizi office).
 model Referrer {
-  id              String   @id @default(cuid())
-  ownerUserId     String
-  name            String
-  email           String?
-  phone           String?
-  commissionNotes String?  @db.Text
+  id                String   @id @default(cuid())
+  ownerUserId       String
+  name              String
+  email             String?
+  phone             String?
+  commissionNotes   String?  @db.Text
   /// Percentuale provvigione su valore opportunità WON collegate ai clienti convertiti dai lead del segnalatore (0–100).
   commissionPercent Decimal? @db.Decimal(5, 2)
   /// PIN portale segnalatore (hash bcrypt) per accesso dashboard oltre al token URL.
-  portalPinHash   String?
+  portalPinHash     String?
   /// IBAN per liquidazioni provvigioni (mostrato mascherato sul portale).
-  payoutIban      String?
-  active          Boolean  @default(true)
+  payoutIban        String?
+  active            Boolean  @default(true)
   /// Token opzionale per form pubblico segnalatore (`/refer?t=…`).
-  submissionToken String?  @unique
+  submissionToken   String?  @unique
   /// Email Google collegata per SSO portale (`/api/refer/oauth/google`).
   googleEmail       String?  @unique
   /// Email Microsoft collegata per SSO portale (`/api/refer/oauth/microsoft`).
   microsoftEmail    String?  @unique
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  owner   User             @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
-  leads   Lead[]
-  payouts ReferrerPayout[]
-  magicLinks ReferrerMagicLink[]
+  owner             User                       @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  leads             Lead[]
+  payouts           ReferrerPayout[]
+  magicLinks        ReferrerMagicLink[]
   pushSubscriptions ReferrerPushSubscription[]
 
   @@index([ownerUserId])
@@ -956,19 +989,19 @@ model ReferrerPushSubscription {
 
 /// Liquidazione provvigioni verso segnalatore.
 model ReferrerPayout {
-  id          String               @id @default(cuid())
-  referrerId  String
-  amountEur   Decimal              @db.Decimal(12, 2)
-  status      ReferrerPayoutStatus @default(PENDING)
-  periodLabel String?
-  paidAt      DateTime?
+  id               String               @id @default(cuid())
+  referrerId       String
+  amountEur        Decimal              @db.Decimal(12, 2)
+  status           ReferrerPayoutStatus @default(PENDING)
+  periodLabel      String?
+  paidAt           DateTime?
   /// Riferimento bonifico / CRO.
   paymentReference String?
   /// URL ricevuta o documento liquidazione (Drive, PDF hosted).
   documentUrl      String?
-  notes       String?              @db.Text
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+  notes            String?              @db.Text
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
 
   referrer Referrer @relation(fields: [referrerId], references: [id], onDelete: Cascade)
 
@@ -976,41 +1009,41 @@ model ReferrerPayout {
 }
 
 model Lead {
-  id                  String     @id @default(cuid())
-  title               String
-  contactName         String?
-  businessName        String?
-  email               String?
-  phone               String?
-  vatNumber           String?
-  fiscalCode          String?
-  clientMacroCategory ClientMacroCategory?
+  id                      String                   @id @default(cuid())
+  title                   String
+  contactName             String?
+  businessName            String?
+  email                   String?
+  phone                   String?
+  vatNumber               String?
+  fiscalCode              String?
+  clientMacroCategory     ClientMacroCategory?
   commercialProspectStage CommercialProspectStage?
-  source              String?
-  referrerId          String?
-  status              LeadStatus @default(NEW)
-  notes               String?    @db.Text
-  ownerUserId         String
-  convertedClientId   String?    @unique
+  source                  String?
+  referrerId              String?
+  status                  LeadStatus               @default(NEW)
+  notes                   String?                  @db.Text
+  ownerUserId             String
+  convertedClientId       String?                  @unique
   /// Satellite: Client proprietario del fascicolo funnel. L'identità unica è il Client;
   /// il Lead è il suo dossier (stage, audit, outreach). Null per lead manuali pre-cliente.
-  clientId            String?
-  website             String?
-  city                String?
+  clientId                String?
+  website                 String?
+  city                    String?
   /// Google Places place_id (segnale forte, non sostituto P.IVA).
-  googlePlaceId       String?
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
+  googlePlaceId           String?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
 
-  owner            User      @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
-  referrer         Referrer? @relation(fields: [referrerId], references: [id], onDelete: SetNull)
-  convertedClient  Client?   @relation("LeadConversion", fields: [convertedClientId], references: [id], onDelete: SetNull)
-  dossierClient    Client?   @relation("ClientLeadDossier", fields: [clientId], references: [id], onDelete: SetNull)
-  outreachDrafts   OutreachDraft[]
+  owner             User               @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  referrer          Referrer?          @relation(fields: [referrerId], references: [id], onDelete: SetNull)
+  convertedClient   Client?            @relation("LeadConversion", fields: [convertedClientId], references: [id], onDelete: SetNull)
+  dossierClient     Client?            @relation("ClientLeadDossier", fields: [clientId], references: [id], onDelete: SetNull)
+  outreachDrafts    OutreachDraft[]
   outreachSequences OutreachSequence[]
   followups         LeadFollowup[]
-  digitalAudits     DigitalAudit[] @relation("AuditLead")
-  opportunities    Opportunity[]
+  digitalAudits     DigitalAudit[]     @relation("AuditLead")
+  opportunities     Opportunity[]
 
   @@index([ownerUserId])
   @@index([status])
@@ -1022,14 +1055,14 @@ model Lead {
 
 /// Follow-up programmato su lead (walk-in, enrichment).
 model LeadFollowup {
-  id           String    @id @default(cuid())
-  leadId       String
-  type         String    @default("general")
-  scheduledAt  DateTime
-  notes        String?   @db.Text
-  outcome      String?   @default("pending")
-  completedAt  DateTime?
-  createdAt    DateTime  @default(now())
+  id          String    @id @default(cuid())
+  leadId      String
+  type        String    @default("general")
+  scheduledAt DateTime
+  notes       String?   @db.Text
+  outcome     String?   @default("pending")
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
 
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
@@ -1039,13 +1072,13 @@ model LeadFollowup {
 
 /// Agenda giornaliera regia operativa (port StationHQ).
 model RegiaDailySheet {
-  id           String    @id @default(cuid())
-  ownerUserId  String
-  day          DateTime  @db.Date
-  payload      Json      @default("{}")
-  closedAt     DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id          String    @id @default(cuid())
+  ownerUserId String
+  day         DateTime  @db.Date
+  payload     Json      @default("{}")
+  closedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
 
@@ -1077,30 +1110,30 @@ model IntelligenceRecommendation {
 /// in ogni migration che tocca Opportunity). Esclusione mutua applicata anche in
 /// assertOpportunityParty (opportunity-party.ts).
 model Opportunity {
-  id              String              @id @default(cuid())
-  clientId        String?
-  leadId          String?
-  assetId         String?
-  title           String
-  description     String?             @db.Text
-  status          OpportunityStatus   @default(OPEN)
-  priority        OpportunityPriority @default(MEDIUM)
-  estimatedValue  Decimal?            @db.Decimal(12, 2)
-  probability     Int?
-  nextAction      String?
-  dueDate         DateTime?
-  ownerUserId     String
+  id             String              @id @default(cuid())
+  clientId       String?
+  leadId         String?
+  assetId        String?
+  title          String
+  description    String?             @db.Text
+  status         OpportunityStatus   @default(OPEN)
+  priority       OpportunityPriority @default(MEDIUM)
+  estimatedValue Decimal?            @db.Decimal(12, 2)
+  probability    Int?
+  nextAction     String?
+  dueDate        DateTime?
+  ownerUserId    String
   /// Origine (es. DIGITAL_AUDIT).
-  source          String?
+  source         String?
   /// Audit che ha generato l'opportunità.
-  digitalAuditId  String?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  digitalAuditId String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
-  owner  User   @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
-  client Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  lead   Lead?  @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  asset  Asset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  owner  User               @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  client Client?            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  lead   Lead?              @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  asset  Asset?             @relation(fields: [assetId], references: [id], onDelete: SetNull)
   quotes OpportunityQuote[]
 
   @@index([ownerUserId])
@@ -1114,20 +1147,20 @@ model Opportunity {
 
 /// Preventivo commerciale collegato a un'opportunità (MVP).
 model OpportunityQuote {
-  id            String      @id @default(cuid())
-  opportunityId String
-  ownerUserId   String
-  title         String
-  status        QuoteStatus @default(DRAFT)
-  linesJson     String      @db.Text
-  taxPercent    Int         @default(22)
-  notes         String?     @db.Text
-  validUntil    DateTime?
-  sentAt        DateTime?
+  id              String      @id @default(cuid())
+  opportunityId   String
+  ownerUserId     String
+  title           String
+  status          QuoteStatus @default(DRAFT)
+  linesJson       String      @db.Text
+  taxPercent      Int         @default(22)
+  notes           String?     @db.Text
+  validUntil      DateTime?
+  sentAt          DateTime?
   /// Reminder «proposta non risposta» (giorni lavorativi dopo invio).
   noResponseDueAt DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
   owner       User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
@@ -1139,38 +1172,170 @@ model OpportunityQuote {
 }
 
 model PostItem {
-  id                    String     @id @default(cuid())
-  clientId              String
-  platform              Platform
-  captionText           String     @default("")
-  status                PostStatus @default(PENDING)
-  scheduledFor          DateTime?
-  publishedAt           DateTime?  // Set when n8n marks as published
-  publishUrl            String?    // URL post live (Social Pro)
-  impressions           Int?
-  reach                 Int?
-  engagement            Int?
-  externalRef           String?    // External ID from n8n/social platform
-  awaitingClientReview  Boolean    @default(true)
-  createdAt             DateTime   @default(now())
-  updatedAt             DateTime   @updatedAt
-  createdByUserId       String?
+  id                   String     @id @default(cuid())
+  clientId             String
+  platform             Platform
+  captionText          String     @default("")
+  status               PostStatus @default(PENDING)
+  scheduledFor         DateTime?
+  publishedAt          DateTime? // Set when n8n marks as published
+  publishUrl           String? // URL post live (Social Pro)
+  impressions          Int?
+  reach                Int?
+  engagement           Int?
+  externalRef          String? // External ID from n8n/social platform
+  awaitingClientReview Boolean    @default(true)
+  /// Account social (multi-tenant) su cui pubblicare. Null = flusso legacy (env singolo / n8n).
+  socialAccountId      String?
+  /// Ultimo errore di pubblicazione nativa (per diagnosi in UI/cron).
+  errorDetail          String?    @db.Text
+  /// Tentativi di pubblicazione nativa dal cron scheduler (cap anti-loop).
+  publishAttempts      Int        @default(0)
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+  createdByUserId      String?
 
-  client   Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  media    MediaAsset[]
-  comments Comment[]
+  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount? @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+  media         MediaAsset[]
+  comments      Comment[]
+
+  @@index([socialAccountId])
+}
+
+/// Account social collegato di un cliente/brand (Publisher multi-tenant).
+/// Sostituisce i token singoli in env: ogni post viene pubblicato col token del SUO account.
+model SocialAccount {
+  id                  String               @id @default(cuid())
+  clientId            String
+  platform            Platform
+  externalAccountId   String // page id / ig business id / li urn / gbp location
+  displayName         String // nome pagina/profilo mostrato in UI
+  connectionMode      SocialConnectionMode @default(MANAGED)
+  status              SocialAccountStatus  @default(CONNECTED)
+  /// Bundle token CIFRATO (encryptJson): { accessToken, refreshToken? }. Mai in chiaro.
+  tokenCipher         String?              @db.Text
+  tokenExpiresAt      DateTime?
+  scopes              String[]             @default([])
+  // Metadati specifici piattaforma (valorizzati per canale)
+  pageId              String? // Facebook Page id
+  igBusinessAccountId String? // Instagram business account id
+  locationName        String? // GBP: accounts/{id}/locations/{id}
+  authorUrn           String? // LinkedIn: urn:li:organization:123 / urn:li:person:...
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  client Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  posts  PostItem[]
+
+  @@unique([clientId, platform, externalAccountId])
+  @@index([clientId])
+  @@index([status])
+}
+
+/// Report insight social generato dal "team di esperti" AI, persistito per cliente
+/// così le raccomandazioni sono sempre disponibili e aggiornate senza ricalcolo.
+model SocialInsightReport {
+  id              String   @id @default(cuid())
+  clientId        String   @unique
+  windowDays      Int      @default(90)
+  aiGenerated     Boolean  @default(false)
+  model           String? // es. gpt-4o-mini
+  statsJson       String   @db.Text // snapshot compatto degli insight deterministici
+  narrative       String   @db.Text // sintesi finale del "direttore"
+  lensesJson      String?  @db.Text // output dei singoli esperti (ruoli)
+  suggestionsJson String?  @db.Text // suggerimenti strutturati (regole)
+  generatedAt     DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+/// Fatto "serie storica" del modulo Analytics: un valore per (cliente, fonte, metrica, dimensione, giorno).
+/// Spina dorsale unica su cui scrivono TUTTI i collector (social, GA4, ads) e da cui legge dashboard + AI.
+model AnalyticsMetric {
+  id        String          @id @default(cuid())
+  clientId  String
+  source    AnalyticsSource
+  /// es. followers, followersGained, reach, impressions, engagement, sessions, pageviews, avgDuration, spend, clicks, conversions
+  metricKey String
+  date      DateTime        @db.Date
+  value     Float
+  /// "" = totale; oppure breakdown es. "age:25-34", "gender:F", "country:IT", "channel:organic", "page:/home"
+  dimension String          @default("")
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, source, metricKey, dimension, date])
+  @@index([clientId, source, date])
+  @@index([clientId, metricKey, date])
+}
+
+/// Connessione di una fonte dati NON-social (GA4, ads) a un cliente/brand.
+/// Il token OAuth vive in UserOAuthConnection (per-utente); qui si mappa quale property/account
+/// appartiene a quale cliente e con quale token va interrogato.
+model AnalyticsConnection {
+  id                String              @id @default(cuid())
+  clientId          String
+  source            AnalyticsSource
+  externalId        String // GA4: "properties/123456789"; ads: account id
+  displayName       String
+  connectedByUserId String? // GA4: di chi è il token Google (UserOAuthConnection)
+  /// Token cifrato per fonti self-contained (ads): { accessToken }. GA4 usa UserOAuthConnection.
+  tokenCipher       String?             @db.Text
+  status            SocialAccountStatus @default(CONNECTED)
+  lastSyncAt        DateTime?
+  lastError         String?             @db.Text
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, source, externalId])
+  @@index([clientId])
+}
+
+/// Competitor monitorato manualmente (le API ufficiali non permettono il tracking di account altrui):
+/// si annotano i follower nel tempo e si confronta la crescita col cliente.
+model Competitor {
+  id        String          @id @default(cuid())
+  clientId  String
+  platform  AnalyticsSource
+  name      String
+  handle    String?
+  createdAt DateTime        @default(now())
+
+  client    Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  snapshots CompetitorSnapshot[]
+
+  @@index([clientId])
+}
+
+model CompetitorSnapshot {
+  id           String   @id @default(cuid())
+  competitorId String
+  date         DateTime @db.Date
+  followers    Int
+  createdAt    DateTime @default(now())
+
+  competitor Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+
+  @@unique([competitorId, date])
+  @@index([competitorId, date])
 }
 
 model MediaAsset {
-  id          String    @id @default(cuid())
-  postItemId  String
-  type        MediaType
-  url         String
+  id           String    @id @default(cuid())
+  postItemId   String
+  type         MediaType
+  url          String
   thumbnailUrl String?
-  filename    String
-  mimeType    String
-  sizeBytes   Int
-  createdAt   DateTime  @default(now())
+  filename     String
+  mimeType     String
+  sizeBytes    Int
+  createdAt    DateTime  @default(now())
 
   postItem PostItem @relation(fields: [postItemId], references: [id], onDelete: Cascade)
 }
@@ -1188,7 +1353,7 @@ model Comment {
 
 model WebhookSubscription {
   id        String       @id @default(cuid())
-  clientId  String?      // null = all clients (admin-level)
+  clientId  String? // null = all clients (admin-level)
   event     WebhookEvent
   targetUrl String
   secret    String
@@ -1245,23 +1410,23 @@ model FlowTask {
 }
 
 model MemoryItem {
-  id              String             @id @default(cuid())
-  scope           MemoryScope
-  title           String
-  content         String             @db.Text
-  tags            String[]           @default([])
-  relatedClientId String?
-  relatedAssetId  String?
-  sensitivity     MemorySensitivity  @default(LOW)
-  source          MemorySource       @default(MANUAL)
-  ownerUserId     String
-  contentEncrypted Boolean           @default(false)
+  id               String                       @id @default(cuid())
+  scope            MemoryScope
+  title            String
+  content          String                       @db.Text
+  tags             String[]                     @default([])
+  relatedClientId  String?
+  relatedAssetId   String?
+  sensitivity      MemorySensitivity            @default(LOW)
+  source           MemorySource                 @default(MANUAL)
+  ownerUserId      String
+  contentEncrypted Boolean                      @default(false)
   /// Embedding OpenAI (text-embedding-3-small) per ricerca semantica.
-  embedding       Float[]
+  embedding        Float[]
   /// pgvector (1536 dim) — sincronizzato da embedding[] se extension attiva.
-  embeddingVector Unsupported("vector(1536)")?
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  embeddingVector  Unsupported("vector(1536)")?
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
 
   owner  User    @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
   client Client? @relation(fields: [relatedClientId], references: [id], onDelete: SetNull)
@@ -1390,19 +1555,19 @@ model OutreachSequence {
 }
 
 model OutreachSequenceStep {
-  id              String                     @id @default(cuid())
-  sequenceId      String
-  stepIndex       Int
-  delayDays       Int
-  subject         String
-  subjectAlt      String?
-  body            String                     @db.Text
-  bodyAlt         String?                    @db.Text
-  status          OutreachSequenceStepStatus @default(SCHEDULED)
-  scheduledFor    DateTime
-  activatedAt     DateTime?
-  createdAt       DateTime                   @default(now())
-  updatedAt       DateTime                   @updatedAt
+  id           String                     @id @default(cuid())
+  sequenceId   String
+  stepIndex    Int
+  delayDays    Int
+  subject      String
+  subjectAlt   String?
+  body         String                     @db.Text
+  bodyAlt      String?                    @db.Text
+  status       OutreachSequenceStepStatus @default(SCHEDULED)
+  scheduledFor DateTime
+  activatedAt  DateTime?
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
 
   sequence      OutreachSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
   outreachDraft OutreachDraft?
@@ -1414,24 +1579,24 @@ model OutreachSequenceStep {
 
 /// Brand dell'ecosistema Lorenzo (LabSeven, StudioPop…) — memoria commerciale strutturata.
 model EcosystemBrand {
-  id                        String   @id @default(cuid())
-  slug                      String   @unique
-  name                      String
-  domain                    String?
-  mission                   String?  @db.Text
-  positioning               String?  @db.Text
-  toneOfVoice               String?  @db.Text
+  id                           String   @id @default(cuid())
+  slug                         String   @unique
+  name                         String
+  domain                       String?
+  mission                      String?  @db.Text
+  positioning                  String?  @db.Text
+  toneOfVoice                  String?  @db.Text
   /// Template oggetto email proposta (placeholder: {{companyName}}, {{brandName}}).
   proposalEmailSubjectTemplate String?
   proposalEmailBodyTemplate    String?  @db.Text
-  commercialLeversJson      String?  @db.Text
-  idealUseCasesJson         String?  @db.Text
-  differencesFromOthersJson String?  @db.Text
-  ecosystemRole             String?  @db.Text
-  notes                     String?  @db.Text
-  sortOrder                 Int      @default(0)
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime @updatedAt
+  commercialLeversJson         String?  @db.Text
+  idealUseCasesJson            String?  @db.Text
+  differencesFromOthersJson    String?  @db.Text
+  ecosystemRole                String?  @db.Text
+  notes                        String?  @db.Text
+  sortOrder                    Int      @default(0)
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
 
   commercialServices CommercialService[]
   digitalAudits      DigitalAudit[]
@@ -1441,17 +1606,17 @@ model EcosystemBrand {
 
 /// Servizio vendibile nel catalogo Onizuka.
 model CommercialService {
-  id                 String                    @id @default(cuid())
-  slug               String                    @unique
-  name               String
-  category           CommercialServiceCategory @default(OTHER)
-  ecosystemBrandId   String?
-  description        String?                   @db.Text
-  sortOrder          Int                       @default(0)
-  createdAt          DateTime                  @default(now())
-  updatedAt          DateTime                  @updatedAt
+  id               String                    @id @default(cuid())
+  slug             String                    @unique
+  name             String
+  category         CommercialServiceCategory @default(OTHER)
+  ecosystemBrandId String?
+  description      String?                   @db.Text
+  sortOrder        Int                       @default(0)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
 
-  ecosystemBrand EcosystemBrand?          @relation(fields: [ecosystemBrandId], references: [id], onDelete: SetNull)
+  ecosystemBrand EcosystemBrand?           @relation(fields: [ecosystemBrandId], references: [id], onDelete: SetNull)
   clientLinks    ClientCommercialService[]
   digitalAudits  DigitalAudit[]
 
@@ -1461,16 +1626,16 @@ model CommercialService {
 
 /// Servizio attivo o mancante per un cliente (scheda 360°).
 model ClientCommercialService {
-  id                  String   @id @default(cuid())
+  id                  String    @id @default(cuid())
   clientId            String
   commercialServiceId String
-  active              Boolean  @default(false)
+  active              Boolean   @default(false)
   /// Se non attivo con noi: motivo (per targeting promo). Es. non_proposto, vincolo_operatore…
   inactiveReason      String?
-  notes               String?  @db.Text
+  notes               String?   @db.Text
   since               DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   client            Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
   commercialService CommercialService @relation(fields: [commercialServiceId], references: [id], onDelete: Cascade)
@@ -1481,40 +1646,40 @@ model ClientCommercialService {
 
 /// Audit digitale da P.IVA / scheda cliente (protocollo marketing).
 model DigitalAudit {
-  id                    String             @id @default(cuid())
-  ownerUserId           String
-  clientId              String?
-  leadId                String?
-  vatNumber             String?
-  businessName          String?
-  website               String?
-  status                DigitalAuditStatus @default(PENDING)
-  overallScore          Int?
-  priorityProblem       String?            @db.Text
-  recommendedBrandId    String?
-  recommendedServiceId  String?
-  internalNotes           String?            @db.Text
-  internalReportDriveUrl  String?
-  clientReportDriveUrl    String?
-  gbpRating               Float?
-  gbpReviewCount          Int?
-  gbpPlaceName            String?
+  id                     String             @id @default(cuid())
+  ownerUserId            String
+  clientId               String?
+  leadId                 String?
+  vatNumber              String?
+  businessName           String?
+  website                String?
+  status                 DigitalAuditStatus @default(PENDING)
+  overallScore           Int?
+  priorityProblem        String?            @db.Text
+  recommendedBrandId     String?
+  recommendedServiceId   String?
+  internalNotes          String?            @db.Text
+  internalReportDriveUrl String?
+  clientReportDriveUrl   String?
+  gbpRating              Float?
+  gbpReviewCount         Int?
+  gbpPlaceName           String?
   /// Metriche misurate (PageSpeed, HTML, GBP) in JSON per il report premium.
-  metricsJson             String?            @db.Text
+  metricsJson            String?            @db.Text
   /// Token URL-safe per report pubblico prospect (`/report/[token]`).
-  publicReportToken       String?            @unique
-  publicReportExpiresAt   DateTime?
-  outreachLinkedInBody    String?            @db.Text
-  outreachCallScript      String?            @db.Text
-  outreachWhatsAppBody    String?            @db.Text
-  createdAt               DateTime           @default(now())
-  updatedAt               DateTime           @updatedAt
+  publicReportToken      String?            @unique
+  publicReportExpiresAt  DateTime?
+  outreachLinkedInBody   String?            @db.Text
+  outreachCallScript     String?            @db.Text
+  outreachWhatsAppBody   String?            @db.Text
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
 
   owner              User                  @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
   client             Client?               @relation(fields: [clientId], references: [id], onDelete: SetNull)
   lead               Lead?                 @relation("AuditLead", fields: [leadId], references: [id], onDelete: SetNull)
-  recommendedBrand   EcosystemBrand?     @relation(fields: [recommendedBrandId], references: [id], onDelete: SetNull)
-  recommendedService CommercialService?  @relation(fields: [recommendedServiceId], references: [id], onDelete: SetNull)
+  recommendedBrand   EcosystemBrand?       @relation(fields: [recommendedBrandId], references: [id], onDelete: SetNull)
+  recommendedService CommercialService?    @relation(fields: [recommendedServiceId], references: [id], onDelete: SetNull)
   sections           DigitalAuditSection[]
   outreachDrafts     OutreachDraft[]
   outreachSequence   OutreachSequence?
@@ -1528,21 +1693,21 @@ model DigitalAudit {
 
 /// Riga importata da Google Sheet in coda per audit digitale (EP03).
 model AuditSheetQueueItem {
-  id              String                @id @default(cuid())
-  ownerUserId     String
-  vatNumber       String?
-  businessName    String?
-  contactEmail    String?
-  website         String?
-  city            String?
+  id             String                @id @default(cuid())
+  ownerUserId    String
+  vatNumber      String?
+  businessName   String?
+  contactEmail   String?
+  website        String?
+  city           String?
   /// Chiave stabile riga (P.IVA / dominio / nome+città) per dedupe import.
-  sheetRowKey     String
-  status          AuditSheetQueueStatus @default(PENDING)
-  errorDetail     String?               @db.Text
-  digitalAuditId  String?
-  clientId        String?
-  createdAt       DateTime              @default(now())
-  processedAt     DateTime?
+  sheetRowKey    String
+  status         AuditSheetQueueStatus @default(PENDING)
+  errorDetail    String?               @db.Text
+  digitalAuditId String?
+  clientId       String?
+  createdAt      DateTime              @default(now())
+  processedAt    DateTime?
 
   owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
 
@@ -1568,26 +1733,26 @@ model DigitalAuditSection {
 
 /// Voce finanziaria (entrate/uscite) — complemento alla pipeline CRM.
 model FinanceEntry {
-  id          String             @id @default(cuid())
-  ownerUserId String
-  clientId    String?
-  assetId     String?
-  type        FinanceEntryType
-  status      FinanceEntryStatus @default(PLANNED)
-  label         String
-  amountEur     Decimal            @db.Decimal(12, 2)
+  id                      String             @id @default(cuid())
+  ownerUserId             String
+  clientId                String?
+  assetId                 String?
+  type                    FinanceEntryType
+  status                  FinanceEntryStatus @default(PLANNED)
+  label                   String
+  amountEur               Decimal            @db.Decimal(12, 2)
   /// Se true e tipo INCOME: importo conteggiato nel MRR/forecast ricorrente.
-  recurringMonthly Boolean         @default(false)
+  recurringMonthly        Boolean            @default(false)
   /// Prossimo rinnovo contratto/ricorrenza (forecast).
-  renewalDate      DateTime?
-  invoiceNumber String?
-  dueDate       DateTime?
-  paidAt        DateTime?
+  renewalDate             DateTime?
+  invoiceNumber           String?
+  dueDate                 DateTime?
+  paidAt                  DateTime?
   sdiExportedAt           DateTime?
   stripeCheckoutSessionId String?
   notes                   String?            @db.Text
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
 
   owner  User    @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
   client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
@@ -1711,13 +1876,13 @@ model ClientMilestone {
 
 /// Log push ore verso ERP esterno.
 model TimeErpPushLog {
-  id         String   @id @default(cuid())
+  id          String   @id @default(cuid())
   ownerUserId String
-  vendor     String
-  entryCount Int
-  ok         Boolean
-  errorDetail String? @db.Text
-  createdAt  DateTime @default(now())
+  vendor      String
+  entryCount  Int
+  ok          Boolean
+  errorDetail String?  @db.Text
+  createdAt   DateTime @default(now())
 
   owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
 
@@ -1757,8 +1922,8 @@ model WhatsAppInboundMessage {
   receivedAt     DateTime  @default(now())
   rawJson        String?   @db.Text
 
-  phoneLine WhatsAppPhoneLine?       @relation(fields: [phoneLineId], references: [id], onDelete: SetNull)
-  assignee  User?                    @relation("WhatsAppAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  phoneLine WhatsAppPhoneLine?        @relation(fields: [phoneLineId], references: [id], onDelete: SetNull)
+  assignee  User?                     @relation("WhatsAppAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
   outbound  WhatsAppOutboundMessage[]
 
   @@index([receivedAt])

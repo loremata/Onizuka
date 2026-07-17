@@ -5,7 +5,10 @@ const TABS = [
   { href: "/admin/social", label: "Panoramica" },
   { href: "/admin/posts", label: "Contenuti" },
   { href: "/admin/social/calendar", label: "Calendario" },
+  { href: "/admin/social/accounts", label: "Account" },
+  { href: "/admin/analytics", label: "Analytics" },
   { href: "/admin/social/engagement", label: "Engagement" },
+  { href: "/admin/social/insights", label: "Insight AI" },
   { href: "/admin/social/inbox", label: "Inbox commenti" },
 ];
 

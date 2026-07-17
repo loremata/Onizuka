@@ -7,11 +7,14 @@ export function isLinkedInNativePublishConfigured(): boolean {
 export async function publishPostToLinkedIn(params: {
   text: string;
   mediaUrl?: string;
+  /// Override per-account (Publisher multi-tenant). Se assenti, fallback ai token env.
+  accessToken?: string;
+  authorUrn?: string;
 }): Promise<{ externalId: string } | { error: string }> {
-  const token = process.env.LINKEDIN_ACCESS_TOKEN?.trim();
-  const author = process.env.LINKEDIN_AUTHOR_URN?.trim();
+  const token = params.accessToken?.trim() || process.env.LINKEDIN_ACCESS_TOKEN?.trim();
+  const author = params.authorUrn?.trim() || process.env.LINKEDIN_AUTHOR_URN?.trim();
   if (!token || !author) {
-    return { error: "Configura LINKEDIN_ACCESS_TOKEN e LINKEDIN_AUTHOR_URN (es. urn:li:organization:123)." };
+    return { error: "LinkedIn publish non configurato (account senza token/authorUrn o env LINKEDIN_ACCESS_TOKEN/LINKEDIN_AUTHOR_URN)." };
   }
 
   const body: Record<string, unknown> = {

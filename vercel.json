@@ -28,6 +28,30 @@
     {
       "path": "/api/cron/dedupe-training",
       "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/social-publish?limit=10",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/social-metrics?limit=20",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/social-insights?limit=15",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/analytics-ga4",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/social-snapshots",
+      "schedule": "30 5 * * *"
+    },
+    {
+      "path": "/api/cron/analytics-ads",
+      "schedule": "0 6 * * *"
     }
   ]
 }

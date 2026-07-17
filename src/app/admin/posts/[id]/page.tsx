@@ -24,6 +24,13 @@ export default async function AdminPostDetailPage({
 
   if (!post) notFound();
 
+  // Account collegati compatibili col post (stesso cliente + piattaforma) per lo scheduler.
+  const socialAccounts = await prisma.socialAccount.findMany({
+    where: { clientId: post.clientId, platform: post.platform, status: "CONNECTED" },
+    orderBy: { displayName: "asc" },
+    select: { id: true, displayName: true },
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -102,6 +109,8 @@ export default async function AdminPostDetailPage({
             publishedAt={post.publishedAt}
             platform={post.platform}
             nativePublishAvailable={nativePublishAvailableForPlatform(post.platform)}
+            socialAccountId={post.socialAccountId}
+            socialAccounts={socialAccounts}
           />
         </CardContent>
       </Card>

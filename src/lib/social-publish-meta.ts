@@ -13,11 +13,14 @@ export function isMetaNativePublishConfigured(): boolean {
 export async function publishPostToMetaPage(params: {
   message: string;
   link?: string;
+  /// Override per-account (Publisher multi-tenant). Se assenti, fallback ai token env.
+  accessToken?: string;
+  pageId?: string;
 }): Promise<{ externalId: string; permalink?: string } | { error: string }> {
-  const token = metaAccessToken();
-  const pageId = metaPageId();
+  const token = params.accessToken?.trim() || metaAccessToken();
+  const pageId = params.pageId?.trim() || metaPageId();
   if (!token || !pageId) {
-    return { error: "Configura META_PAGE_ACCESS_TOKEN e META_PAGE_ID." };
+    return { error: "Meta publish non configurato (account senza token o env META_PAGE_ACCESS_TOKEN/META_PAGE_ID)." };
   }
 
   const body = new URLSearchParams({
