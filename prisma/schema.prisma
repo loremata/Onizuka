@@ -364,6 +364,10 @@ model User {
   assistantChatThreads        AssistantChatThread[]
   aiRuns                      AiRun[]
   people                      Person[]
+  incentivePlans              IncentivePlan[]
+  storeSales                  StoreSale[]
+  storeOffers                 StoreOffer[]
+  storeMonthlyInputs          StoreMonthlyInput[]
 }
 
 /// Workspace / tenant leggero (MVP multi-agenzia).
@@ -568,6 +572,7 @@ model Client {
   commitments         ClientCommitment[]
   timeEntries         TimeEntry[]
   retailContracts     ClientRetailContract[]
+  storeSales          StoreSale[]
   socialInboxComments SocialInboxComment[]
   socialAccounts      SocialAccount[]
   socialInsightReport SocialInsightReport?
@@ -2011,4 +2016,361 @@ model ScrapeJob {
 
   @@index([status, createdAt])
   @@index([ownerUserId])
+}
+
+// ============================================================================
+// ONIZUKA - INSERIMENTI — incentivazione dealer del negozio (TIM & multibrand)
+// Spec: Ecosistema Commerciale/Onizuka-Inserimenti_Spec-e-Roadmap.md
+//
+// Modello: una "pista" (IncentiveLine) è una gara TIM a soglie oppure una voce
+// a compenso lineare (Fastweb/Enel/Eni/Iliad). Stessa struttura: la pista
+// lineare ha un solo IncentiveTier a minQty 0. Il piano è MENSILE per brand,
+// perché le regole TIM cambiano ogni mese — anche nella struttura, non solo
+// nei valori. Per questo cancelli, KPI e bonus sono RIGHE, non campi fissi.
+// ============================================================================
+
+/// Brand vendibili al banco del negozio. Kena non è in uso (non lo vende),
+/// ma il modello lo regge senza modifiche se un giorno servisse.
+enum StoreBrand {
+  TIM
+  KENA
+  FASTWEB
+  ENEL
+  ENI
+  ILIAD
+}
+
+/// Stato del piano provvigionale del mese.
+enum IncentivePlanStatus {
+  /// Duplicato dal mese precedente: la lettera di gara non è ancora arrivata.
+  /// Succede ogni mese (arriva a mese iniziato) — i compensi sono STIME e la UI lo dichiara.
+  PROVISIONAL
+  /// Confermato sulla lettera/avanzamento del mese.
+  ACTIVE
+  ARCHIVED
+}
+
+/// Come si calcola il compenso di una pista.
+enum IncentiveUnit {
+  /// TIM: moltiplicatore applicato alla SOMMA DEI CANONI (non ai pezzi).
+  MULTIPLIER_ON_FEE
+  /// Gettone fisso per pezzo.
+  EUR_PER_PIECE
+}
+
+/// Abilitazione della pista: distingue "0 perché non ho venduto" da
+/// "0 perché non posso ancora vendere". Le piste non ATTIVA escono dal focus.
+enum IncentiveLineStatus {
+  ATTIVA
+  IN_ABILITAZIONE
+  NON_ABILITATA
+  BLOCCATA
+}
+
+/// Premi a punteggio con cancelli d'accesso (Top Club, Customer Base).
+enum IncentivePrizeKey {
+  TOP_CLUB
+  CUSTOMER_BASE
+}
+
+/// Da dove arriva il punteggio di un KPI.
+enum IncentiveKpiSource {
+  /// Contato dalle vendite registrate.
+  DERIVED
+  /// Inserito a mano dal consuntivo TIM (M+1).
+  MANUAL
+}
+
+/// Provenienza di una MNP (operatore di origine): alcune gare la pesano.
+enum StoreProvenance {
+  ILIAD
+  COOP
+  POSTE
+  FASTWEB
+  KENA
+  ALTRO
+}
+
+/// Da dove viene il canone di una vendita: tracciare l'override serve a
+/// capire se il listino è incompleto (troppi MANUALE = listino da aggiornare).
+enum StoreFeeSource {
+  LISTINO
+  MANUALE
+}
+
+/// Piano provvigionale di un brand per un mese. Le regole TIM cambiano ogni
+/// mese: si duplica il precedente come PROVISIONAL e si corregge all'arrivo
+/// della lettera. Il ricalcolo è automatico perché i compensi sono sempre
+/// derivati, mai congelati sulla vendita.
+model IncentivePlan {
+  id          String              @id @default(cuid())
+  ownerUserId String
+  brand       StoreBrand
+  /// Mese di calendario "YYYY-MM".
+  month       String
+  label       String
+  /// Nome della lettera/documento di origine, se esiste.
+  sourceDoc   String?
+  status      IncentivePlanStatus @default(PROVISIONAL)
+  /// Quale percorso di calcolo applicare: "tim-2026-07" | "linear".
+  engineVersion String
+  /// Piano da cui è stato duplicato (tracciabilità del provvisorio).
+  copiedFromPlanId String?
+  notes       String?             @db.Text
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  owner      User            @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  copiedFrom IncentivePlan?  @relation("IncentivePlanCopy", fields: [copiedFromPlanId], references: [id], onDelete: SetNull)
+  copies     IncentivePlan[] @relation("IncentivePlanCopy")
+  lines      IncentiveLine[]
+  prizes     IncentivePrize[]
+  params     IncentiveParam[]
+
+  @@unique([ownerUserId, brand, month])
+  @@index([ownerUserId, month])
+}
+
+/// Una "pista": gara TIM a soglie, oppure voce a compenso lineare.
+model IncentiveLine {
+  id       String              @id @default(cuid())
+  planId   String
+  /// TIM: "MNP" | "AL_PP" | "ACCESSO_FISSO" | "CONTENUTI" | "TIMFIN" | "ENERGIA" |
+  /// "TELEPASS_FAMILY" | "TIM_UNICA" | extra ("TELEPASS_TWIN", "ACCESSO_MOROSO"...).
+  /// Altri brand: "MOBILE" | "FISSO" | "TEL_INC" | "ENERGIA" | "TELEPASS"...
+  key      String
+  label    String
+  category String?
+  unit     IncentiveUnit
+  /// true solo per le gare a soglia (TIM/Kena): abilita soglie, target e focus.
+  hasTiers Boolean             @default(false)
+  /// Obiettivo personale del mese (solo se hasTiers).
+  target   Int?
+  /// Fatturato al banco per unità, se esiste.
+  revenueEur Decimal?          @db.Decimal(12, 2)
+  status   IncentiveLineStatus @default(ATTIVA)
+  /// Perché non è attiva: "dispositivi in spedizione", "abilitazione a giorni"...
+  statusNote String?
+  /// Cosa conta e cosa no, in italiano, da mostrare ACCANTO al numero.
+  /// Non è documentazione: è la parte che fa vendere le cose giuste.
+  rules    String?             @db.Text
+  sortOrder Int                @default(0)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  plan  IncentivePlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  tiers IncentiveTier[]
+
+  @@unique([planId, key])
+  @@index([planId])
+}
+
+/// Scaglione di una pista. Una pista lineare ha UN solo tier con minQty = 0.
+model IncentiveTier {
+  id     String  @id @default(cuid())
+  lineId String
+  /// Pezzi minimi nel mese per attivare questo scaglione.
+  minQty Int
+  /// Moltiplicatore sul canone (MULTIPLIER_ON_FEE) o € per pezzo (EUR_PER_PIECE).
+  value  Decimal @db.Decimal(12, 4)
+
+  line IncentiveLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+
+  @@unique([lineId, minQty])
+  @@index([lineId])
+}
+
+/// Premio a punteggio (Top Club, Customer Base): interpolazione lineare fra
+/// due estremi, subordinata a cancelli in AND.
+model IncentivePrize {
+  id        String            @id @default(cuid())
+  planId    String
+  key       IncentivePrizeKey
+  label     String
+  minPoints Decimal           @db.Decimal(12, 2)
+  maxPoints Decimal           @db.Decimal(12, 2)
+  minPrize  Decimal           @db.Decimal(12, 2)
+  maxPrize  Decimal           @db.Decimal(12, 2)
+  rules     String?           @db.Text
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  plan      IncentivePlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  gates     IncentiveGate[]
+  scoreKpis IncentiveScoreKpi[]
+  bonuses   IncentiveBonus[]
+  halvings  IncentiveHalving[]
+
+  @@unique([planId, key])
+  @@index([planId])
+}
+
+/// Cancello d'accesso a un premio. Sono in AND: mancarne UNO azzera il premio,
+/// non lo riduce. Lista di righe perché il loro numero cambia da un mese
+/// all'altro (giugno 2026: 2 cancelli — luglio: 3, si aggiunge Telepass).
+model IncentiveGate {
+  id      String @id @default(cuid())
+  prizeId String
+  /// Pista da cui dipende (IncentiveLine.key).
+  lineKey String
+  minQty  Int
+
+  prize IncentivePrize @relation(fields: [prizeId], references: [id], onDelete: Cascade)
+
+  @@unique([prizeId, lineKey])
+  @@index([prizeId])
+}
+
+/// Riga della tabella punteggi di un premio. Anche questa è un dato: a luglio
+/// 2026 un KPI del Customer Base si è spaccato in due rispetto a giugno.
+model IncentiveScoreKpi {
+  id        String             @id @default(cuid())
+  prizeId   String
+  key       String
+  label     String
+  points    Decimal            @db.Decimal(12, 2)
+  source    IncentiveKpiSource @default(DERIVED)
+  sortOrder Int                @default(0)
+
+  prize IncentivePrize @relation(fields: [prizeId], references: [id], onDelete: Cascade)
+
+  @@unique([prizeId, key])
+  @@index([prizeId])
+}
+
+/// Bonus percentuale su un premio, condizionato dal volume di un'ALTRA pista.
+/// Luglio 2026: Energia >=4 -> +30% sul Top Club. A giugno non esisteva.
+model IncentiveBonus {
+  id               String  @id @default(cuid())
+  prizeId          String
+  conditionLineKey String
+  conditionMinQty  Int
+  /// Frazione: 0.30 = +30%.
+  pct              Decimal @db.Decimal(6, 4)
+  label            String?
+
+  prize IncentivePrize @relation(fields: [prizeId], references: [id], onDelete: Cascade)
+
+  @@unique([prizeId, conditionLineKey])
+  @@index([prizeId])
+}
+
+/// Condizione che dimezza un premio se un input mensile resta sotto soglia.
+/// Customer Base: Volume Up-Selling < 8 -> premio x 0,5.
+model IncentiveHalving {
+  id       String  @id @default(cuid())
+  prizeId  String
+  /// Chiave di StoreMonthlyInput da confrontare.
+  inputKey String
+  minValue Decimal @db.Decimal(12, 2)
+  /// Frazione applicata se la condizione NON è soddisfatta (0.5 = premio dimezzato).
+  factor   Decimal @default(0.5) @db.Decimal(6, 4)
+  label    String?
+
+  prize IncentivePrize @relation(fields: [prizeId], references: [id], onDelete: Cascade)
+
+  @@unique([prizeId, inputKey])
+  @@index([prizeId])
+}
+
+/// Regole strutturali del piano, tipizzate per chiave (bill size, penalità
+/// incrociate, extra/PxQ). Restano JSON perché sono eterogenee e stabili:
+/// da giugno a luglio 2026 non ne è cambiata una.
+model IncentiveParam {
+  id        String @id @default(cuid())
+  planId    String
+  /// "billSize" | "alPpPenalty" | "extras" | ...
+  key       String
+  valueJson Json
+
+  plan IncentivePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, key])
+  @@index([planId])
+}
+
+/// Listino offerte: sorgente del canone al momento della registrazione.
+/// NON è la fonte a display — il canone vive come snapshot su StoreSale, così
+/// se TIM cambia un canone a settembre i compensi di luglio non si muovono.
+model StoreOffer {
+  id          String     @id @default(cuid())
+  ownerUserId String
+  brand       StoreBrand
+  /// Codice offerta ("ODULG"...). Univoco per brand.
+  code        String
+  name        String
+  feeEur      Decimal    @db.Decimal(12, 2)
+  /// Pista suggerita: scegliendo l'offerta si precompila anche quella.
+  lineKey     String?
+  category    String?
+  target      String?
+  active      Boolean    @default(true)
+  sortOrder   Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerUserId, brand, code])
+  @@index([ownerUserId, brand])
+}
+
+/// Una vendita al banco: 1 riga = 1 pezzo. Nessuna quantità, perché il canone
+/// è per-riga e le gare TIM sommano i canoni.
+///
+/// NB: lineKey è una STRINGA, non una FK a IncentiveLine. I piani sono mensili
+/// e la pista "MNP" di luglio è una riga diversa da quella di agosto: legare
+/// la vendita al piano la incatenerebbe a un mese. La vendita dichiara COSA è
+/// stato venduto; il piano del suo mese dice QUANTO vale. Così si può anche
+/// registrare prima che il piano del mese esista — che è la norma, visto che
+/// la lettera di gara arriva sempre a mese già iniziato.
+model StoreSale {
+  id          String         @id @default(cuid())
+  ownerUserId String
+  date        DateTime       @db.Date
+  /// "YYYY-MM" derivato da date: indicizzato per le query di mese.
+  month       String
+  brand       StoreBrand
+  lineKey     String
+  /// Codice offerta scelto dal listino. Null se fuori listino.
+  offerCode   String?
+  /// Canone del cliente. Snapshot: mai risolto dal listino a display.
+  /// Serve solo alle piste MULTIPLIER_ON_FEE. Il bill size scatta sui centesimi.
+  feeEur      Decimal?       @db.Decimal(12, 2)
+  feeSource   StoreFeeSource @default(LISTINO)
+  domiciled   Boolean        @default(false)
+  /// Solo per le MNP: operatore di provenienza.
+  provenance  StoreProvenance?
+  /// "STANDARD" | "DAZN10" | "MYCLUB" | "PRIME" | "FWA5G" | "WIFIGO" | "PMI" | "RATA_BASSA".
+  subtype     String?
+  notes       String?        @db.Text
+  /// Aggancio opzionale al CRM: se valorizzato si ottiene gratis
+  /// "quali clienti ho attivato". Mai obbligatorio: rallenterebbe il banco.
+  clientId    String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  owner  User    @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([ownerUserId, month])
+  @@index([ownerUserId, month, brand])
+  @@index([clientId])
+}
+
+/// Input mensili che NON derivano dalle vendite: arrivano dal consuntivo TIM
+/// (M+1) o da conteggi manuali. Es. i 17 KPI del Customer Base, la % attivo
+/// dei Contenuti, il volume Up-Selling.
+model StoreMonthlyInput {
+  id          String   @id @default(cuid())
+  ownerUserId String
+  month       String
+  key         String
+  value       Decimal  @db.Decimal(12, 2)
+  updatedAt   DateTime @updatedAt
+
+  owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerUserId, month, key])
+  @@index([ownerUserId, month])
 }
