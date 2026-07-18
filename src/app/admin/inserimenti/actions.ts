@@ -122,7 +122,7 @@ export async function deleteSale(id: string): Promise<{ error: string } | null> 
 /** Aggiorna un'offerta di listino (canone, pista suggerita, attiva). */
 export async function updateOffer(
   id: string,
-  patch: { feeEur?: string; lineKey?: string; active?: boolean },
+  patch: { feeEur?: string; compensoEur?: string; lineKey?: string; active?: boolean },
 ): Promise<{ error: string } | null> {
   const session = await requireFullAdmin();
   const offer = await prisma.storeOffer.findFirst({ where: { id, ownerUserId: session.user.id } });
@@ -131,10 +131,19 @@ export async function updateOffer(
   const fee = patch.feeEur == null ? null : num(patch.feeEur);
   if (patch.feeEur != null && (fee == null || fee < 0)) return { error: "Canone non valido." };
 
+  // compenso vuoto = torna a usare quello della pista
+  let compenso: Prisma.Decimal | null | undefined;
+  if (patch.compensoEur !== undefined) {
+    const c = patch.compensoEur.trim() ? num(patch.compensoEur) : null;
+    if (patch.compensoEur.trim() && (c == null || c < 0)) return { error: "Compenso non valido." };
+    compenso = c == null ? null : new Prisma.Decimal(c);
+  }
+
   await prisma.storeOffer.update({
     where: { id },
     data: {
       ...(fee != null ? { feeEur: new Prisma.Decimal(fee) } : {}),
+      ...(compenso !== undefined ? { compensoEur: compenso } : {}),
       ...(patch.lineKey !== undefined ? { lineKey: patch.lineKey || null } : {}),
       ...(patch.active !== undefined ? { active: patch.active } : {}),
     },

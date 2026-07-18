@@ -359,3 +359,85 @@ describe("focusNow", () => {
     expect(focusNow(plan, r)).toHaveLength(0);
   });
 });
+
+// --------------------------------------------------------------------------
+// Percorso lineare esteso (18/07/2026): moltiplicatore sul canone e compenso
+// per singola offerta.
+// --------------------------------------------------------------------------
+
+describe("computeLinear — moltiplicatore sul canone (Fastweb business, Iliad)", () => {
+  const planMult: Plan = {
+    brand: "FASTWEB",
+    month: "2026-07",
+    engineVersion: "linear",
+    params: {},
+    prizes: [],
+    lines: [
+      {
+        key: "FISSO_BUSINESS",
+        label: "Fisso business",
+        unit: "MULTIPLIER_ON_FEE",
+        hasTiers: false,
+        tiers: [{ minQty: 0, value: 5 }],
+      },
+    ],
+  };
+
+  test("compenso = moltiplicatore × somma dei canoni", () => {
+    const r = computeMonth(planMult, [
+      { lineKey: "FISSO_BUSINESS", feeEur: 40, domiciled: false },
+      { lineKey: "FISSO_BUSINESS", feeEur: 60, domiciled: false },
+    ]);
+    expect(r.lines[0].compenso).toBe(500); // 5 × (40+60)
+    expect(r.lines[0].eligibleFee).toBe(100);
+  });
+
+  test("nessun bill size sul percorso lineare: un canone basso conta comunque", () => {
+    const r = computeMonth(planMult, [{ lineKey: "FISSO_BUSINESS", feeEur: 5, domiciled: false }]);
+    expect(r.lines[0].compenso).toBe(25); // 5 × 5, non escluso
+  });
+
+  test("Iliad: moltiplicatore 1 = il compenso è la spesa mensile", () => {
+    const iliad: Plan = {
+      ...planMult,
+      brand: "ILIAD",
+      lines: [{ key: "MNP", label: "Iliad", unit: "MULTIPLIER_ON_FEE", hasTiers: false, tiers: [{ minQty: 0, value: 1 }] }],
+    };
+    const r = computeMonth(iliad, [
+      { lineKey: "MNP", feeEur: 9.99, domiciled: false },
+      { lineKey: "MNP", feeEur: 11.99, domiciled: false },
+    ]);
+    expect(r.total).toBe(21.98);
+  });
+});
+
+describe("computeLinear — compenso per singola offerta", () => {
+  const plan: Plan = {
+    brand: "FASTWEB",
+    month: "2026-07",
+    engineVersion: "linear",
+    params: {},
+    prizes: [],
+    lines: [{ key: "FISSO", label: "Fisso", unit: "EUR_PER_PIECE", hasTiers: false, tiers: [{ minQty: 0, value: 180 }] }],
+  };
+
+  test("senza compenso specifico si usa quello della pista", () => {
+    const r = computeMonth(plan, [{ lineKey: "FISSO", domiciled: false }]);
+    expect(r.lines[0].compenso).toBe(180);
+  });
+
+  test("il compenso dell'offerta vince su quello della pista", () => {
+    const r = computeMonth(plan, [{ lineKey: "FISSO", domiciled: false, unitCompenso: 240 }]);
+    expect(r.lines[0].compenso).toBe(240);
+  });
+
+  test("offerte diverse nello stesso mese pagano diversamente", () => {
+    const r = computeMonth(plan, [
+      { lineKey: "FISSO", domiciled: false, unitCompenso: 145 }, // Casa Start
+      { lineKey: "FISSO", domiciled: false, unitCompenso: 240 }, // Casa Ultra
+      { lineKey: "FISSO", domiciled: false }, // fuori listino → valore pista
+    ]);
+    expect(r.lines[0].qty).toBe(3);
+    expect(r.lines[0].compenso).toBe(565); // 145 + 240 + 180
+  });
+});

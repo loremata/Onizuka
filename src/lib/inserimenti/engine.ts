@@ -116,6 +116,10 @@ export interface Sale {
   domiciled: boolean;
   provenance?: string | null;
   subtype?: string | null;
+  /** Compenso della singola offerta venduta, se diverso da quello della pista.
+   *  Serve dove il gettone cambia da offerta a offerta (Fastweb). Solo per le
+   *  piste EUR_PER_PIECE: sulle gare TIM il compenso lo decide la soglia. */
+  unitCompenso?: number | null;
 }
 
 /** Input mensili non derivabili dalle vendite (KPI Customer Base, ratio, ecc). */
@@ -202,15 +206,31 @@ const salesFor = (sales: Sale[], lineKey: string) => sales.filter((s) => s.lineK
 /** Fastweb/Enel/Eni/Iliad: qty × €/pezzo. Nessuna soglia, nessun bill size. */
 export function computeLinear(plan: Plan, sales: Sale[]): MonthResult {
   const lines: LineResult[] = plan.lines.map((line) => {
-    const qty = salesFor(sales, line.key).length;
+    const mine = salesFor(sales, line.key);
+    const qty = mine.length;
     const rate = line.tiers.length ? sortTiers(line.tiers)[0].value : 0;
+
+    let compenso = 0;
+    let eligibleFee = 0;
+
+    if (line.unit === "MULTIPLIER_ON_FEE") {
+      // Fastweb business (5 × canone) e Iliad (1 × canone = la spesa mensile).
+      // Nessun bill size e nessuna soglia: qui il moltiplicatore è fisso.
+      eligibleFee = mine.reduce((a, s) => a + (s.feeEur ?? 0), 0);
+      compenso = rate * eligibleFee;
+    } else {
+      // € per pezzo. Il compenso può cambiare da offerta a offerta: se la
+      // vendita porta il suo, vince su quello della pista.
+      compenso = mine.reduce((a, s) => a + (s.unitCompenso ?? rate), 0);
+    }
+
     return {
       key: line.key,
       label: line.label,
       category: line.category ?? null,
       qty,
-      eligibleFee: 0,
-      compenso: round2(qty * rate),
+      eligibleFee: round2(eligibleFee),
+      compenso: round2(compenso),
       tierIndex: 0,
       nextThreshold: null,
       missing: 0,

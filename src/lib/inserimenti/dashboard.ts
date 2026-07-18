@@ -54,20 +54,43 @@ export function currentMonth(now = new Date()): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function toSale(row: {
-  lineKey: string;
-  feeEur: unknown;
-  domiciled: boolean;
-  provenance: string | null;
-  subtype: string | null;
-}): Sale {
+function toSale(
+  row: {
+    brand: string;
+    lineKey: string;
+    offerCode: string | null;
+    feeEur: unknown;
+    domiciled: boolean;
+    provenance: string | null;
+    subtype: string | null;
+  },
+  /** brand|code → compenso specifico dell'offerta, se impostato in listino. */
+  offerCompenso?: Map<string, number>,
+): Sale {
   return {
     lineKey: row.lineKey,
     feeEur: row.feeEur == null ? null : Number(row.feeEur),
     domiciled: row.domiciled,
     provenance: row.provenance,
     subtype: row.subtype,
+    unitCompenso: row.offerCode ? (offerCompenso?.get(`${row.brand}|${row.offerCode}`) ?? null) : null,
   };
+}
+
+/**
+ * Compensi specifici per offerta, dove il gettone cambia da un'offerta
+ * all'altra (Fastweb). Risolti al volo e non congelati sulla vendita: così
+ * quando arriva la lettera con i numeri veri, basta aggiornare il listino e
+ * tutto il mese si ricalcola — che è il comportamento chiesto esplicitamente.
+ */
+async function loadOfferCompenso(ownerUserId: string): Promise<Map<string, number>> {
+  const rows = await prisma.storeOffer.findMany({
+    where: { ownerUserId, compensoEur: { not: null } },
+    select: { brand: true, code: true, compensoEur: true },
+  });
+  const m = new Map<string, number>();
+  for (const r of rows) m.set(`${r.brand}|${r.code}`, Number(r.compensoEur));
+  return m;
 }
 
 export async function loadDashboard(ownerUserId: string, month: string): Promise<DashboardData> {
@@ -76,10 +99,12 @@ export async function loadDashboard(ownerUserId: string, month: string): Promise
   const inputMap: Record<string, number> = {};
   for (const i of inputs) inputMap[i.key] = Number(i.value);
 
+  const offerCompenso = await loadOfferCompenso(ownerUserId);
+
   const salesByBrand = new Map<string, Sale[]>();
   for (const s of sales) {
     const arr = salesByBrand.get(s.brand) ?? [];
-    arr.push(toSale(s));
+    arr.push(toSale(s, offerCompenso));
     salesByBrand.set(s.brand, arr);
   }
 
@@ -193,10 +218,11 @@ export async function loadDashboard(ownerUserId: string, month: string): Promise
 async function totalOf(ownerUserId: string, month: string): Promise<number> {
   const sales = await prisma.storeSale.findMany({ where: { ownerUserId, month } });
   if (!sales.length) return 0;
+  const offerCompenso = await loadOfferCompenso(ownerUserId);
   const byBrand = new Map<string, Sale[]>();
   for (const s of sales) {
     const arr = byBrand.get(s.brand) ?? [];
-    arr.push(toSale(s));
+    arr.push(toSale(s, offerCompenso));
     byBrand.set(s.brand, arr);
   }
   let total = 0;

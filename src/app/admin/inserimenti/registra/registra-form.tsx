@@ -53,17 +53,23 @@ export function RegistraForm({
     if (!t) return all;
     return all.filter((l) => (l.label + " " + l.key).toLowerCase().includes(t));
   }, [brandOpt, q]);
-  const needsFee = brand === "TIM" && line?.unit === "MULTIPLIER_ON_FEE";
-  const isMnp = line?.key === "MNP";
+  // il canone serve ovunque il compenso lo moltiplichi: gare TIM, business
+  // Fastweb (5 × canone), Iliad (1 × canone). Non dipende dal brand.
+  const needsFee = line?.unit === "MULTIPLIER_ON_FEE";
+  const isMnp = brand === "TIM" && line?.key === "MNP";
+  // il bill size è una regola TIM: altrove non c'è soglia minima di canone
+  const showBillWarning = brand === "TIM";
 
   /** Offerte compatibili: quelle mappate su questa pista + quelle senza pista
-   *  (categorie ambigue del listino, es. Convergenza, che possono essere MNP o AL). */
+   *  (categorie ambigue del listino, es. Convergenza, che possono essere MNP o AL).
+   *  Servono anche dove il canone non conta, perché il compenso può cambiare da
+   *  un'offerta all'altra (Fastweb: Casa Start e Casa Ultra non pagano uguale). */
   const offerChoices = useMemo(() => {
-    if (!needsFee) return [];
+    if (!lineKey) return [];
     return offers
       .filter((o) => o.brand === brand && (o.lineKey === lineKey || o.lineKey == null))
-      .sort((a, b) => a.feeEur - b.feeEur);
-  }, [offers, brand, lineKey, needsFee]);
+      .sort((a, b) => a.feeEur - b.feeEur || a.name.localeCompare(b.name));
+  }, [offers, brand, lineKey]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -77,10 +83,10 @@ export function RegistraForm({
     fd.set("brand", brand);
     fd.set("lineKey", lineKey);
     fd.set("date", date);
+    if (offerCode) fd.set("offerCode", offerCode);
     if (needsFee) {
       fd.set("feeEur", feeEur);
       fd.set("feeSource", offerCode ? "LISTINO" : "MANUALE");
-      if (offerCode) fd.set("offerCode", offerCode);
       fd.set("domiciled", domiciled ? "true" : "false");
     }
     if (isMnp && provenance) fd.set("provenance", provenance);
@@ -111,7 +117,7 @@ export function RegistraForm({
   }
 
   const billWarn =
-    needsFee && feeEur
+    needsFee && showBillWarning && feeEur
       ? (() => {
           const f = parseFloat(feeEur.replace(",", "."));
           if (!Number.isFinite(f)) return null;
@@ -178,7 +184,7 @@ export function RegistraForm({
         </select>
       </div>
 
-      {needsFee && offerChoices.length ? (
+      {offerChoices.length ? (
         <label className="space-y-1 block">
           <span className="text-xs font-medium text-muted-foreground">
             Offerta dal listino ({offerChoices.length})
@@ -189,20 +195,23 @@ export function RegistraForm({
               const code = e.target.value;
               setOfferCode(code);
               const o = offerChoices.find((x) => x.code === code);
-              if (o) setFeeEur(String(o.feeEur).replace(".", ","));
+              if (o && o.feeEur > 0) setFeeEur(String(o.feeEur).replace(".", ","));
             }}
             className="w-full rounded-md border bg-background px-3 py-2 text-sm"
           >
-            <option value="">— scegli l&apos;offerta (compila il canone) —</option>
+            <option value="">— scegli l&apos;offerta —</option>
             {offerChoices.map((o) => (
               <option key={o.code} value={o.code}>
-                {o.name} — {o.feeEur.toLocaleString("it-IT", { minimumFractionDigits: 2 })} €
-                {o.feeEur < 8 ? " ⚠ no gettone" : ""}
+                {o.name}
+                {o.feeEur > 0 ? ` — ${o.feeEur.toLocaleString("it-IT", { minimumFractionDigits: 2 })} €` : ""}
+                {showBillWarning && o.feeEur > 0 && o.feeEur < 8 ? " ⚠ no gettone" : ""}
               </option>
             ))}
           </select>
           <span className="text-xs text-muted-foreground">
-            Puoi comunque scrivere il canone a mano se l&apos;offerta non è in listino.
+            {needsFee
+              ? "Puoi comunque scrivere il canone a mano se l'offerta non è in listino."
+              : "Serve a sapere cosa hai venduto: il compenso può cambiare da un'offerta all'altra."}
           </span>
         </label>
       ) : null}

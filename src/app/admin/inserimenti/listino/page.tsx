@@ -100,6 +100,7 @@ export default async function ListinoPage({ searchParams }: { searchParams: { br
                     <th className="py-2 pr-4">Codice</th>
                     <th className="py-2 pr-4">Pista</th>
                     <th className="py-2 pr-4 text-right">Canone</th>
+                    <th className="py-2 pr-4 text-right">Compenso</th>
                     <th className="py-2 pr-4 text-right">Attiva</th>
                   </tr>
                 </thead>
@@ -115,6 +116,7 @@ export default async function ListinoPage({ searchParams }: { searchParams: { br
                         lineKey: o.lineKey,
                         category: o.category,
                         feeEur: Number(o.feeEur),
+                        compensoEur: o.compensoEur == null ? null : Number(o.compensoEur),
                         active: o.active,
                       }}
                     />

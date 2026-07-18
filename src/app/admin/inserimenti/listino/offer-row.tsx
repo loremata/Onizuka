@@ -11,6 +11,7 @@ interface Offer {
   lineKey: string | null;
   category: string | null;
   feeEur: number;
+  compensoEur: number | null;
   active: boolean;
 }
 
@@ -20,6 +21,7 @@ export function OfferRow({ offer, piste }: { offer: Offer; piste: string[] }) {
   const opzioni = ["", ...piste];
   const router = useRouter();
   const [fee, setFee] = useState(String(offer.feeEur).replace(".", ","));
+  const [compenso, setCompenso] = useState(offer.compensoEur == null ? "" : String(offer.compensoEur).replace(".", ","));
   const [lineKey, setLineKey] = useState(offer.lineKey ?? "");
   const [active, setActive] = useState(offer.active);
   const [dirty, setDirty] = useState(false);
@@ -27,7 +29,7 @@ export function OfferRow({ offer, piste }: { offer: Offer; piste: string[] }) {
 
   async function save() {
     setSaving(true);
-    await updateOffer(offer.id, { feeEur: fee, lineKey, active });
+    await updateOffer(offer.id, { feeEur: fee, compensoEur: compenso, lineKey, active });
     setSaving(false);
     setDirty(false);
     router.refresh();
@@ -79,6 +81,19 @@ export function OfferRow({ offer, piste }: { offer: Offer; piste: string[] }) {
         ) : mezzoGettone ? (
           <div className="text-xs text-amber-600">gettone 50%</div>
         ) : null}
+      </td>
+      <td className="py-2 pr-4 text-right">
+        <input
+          value={compenso}
+          onChange={(e) => {
+            setCompenso(e.target.value);
+            setDirty(true);
+          }}
+          inputMode="decimal"
+          placeholder="pista"
+          title="Compenso di questa offerta. Vuoto = si usa quello della pista."
+          className="w-20 rounded border bg-background px-2 py-1 text-right text-xs tabular-nums"
+        />
       </td>
       <td className="py-2 pr-4 text-right">
         <input
