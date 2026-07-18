@@ -131,6 +131,8 @@ export interface LineResult {
   key: string;
   label: string;
   category?: string | null;
+  /** Serve alla UI per capire se un compenso a 0 dipende da canoni mancanti. */
+  unit: Unit;
   qty: number;
   /** Somma canoni idonei (solo MULTIPLIER_ON_FEE), utile per debug/parità. */
   eligibleFee: number;
@@ -228,6 +230,7 @@ export function computeLinear(plan: Plan, sales: Sale[]): MonthResult {
       key: line.key,
       label: line.label,
       category: line.category ?? null,
+      unit: line.unit,
       qty,
       eligibleFee: round2(eligibleFee),
       compenso: round2(compenso),
@@ -267,6 +270,7 @@ function computeTimLine(
       key: line.key,
       label: line.label,
       category: line.category ?? null,
+      unit: line.unit,
       qty,
       eligibleFee: 0,
       compenso,
@@ -326,6 +330,7 @@ function computeTimLine(
     key: line.key,
     label: line.label,
     category: line.category ?? null,
+    unit: line.unit,
     qty,
     eligibleFee: round2(eligibleFee),
     compenso: round2(compensoRaw),
@@ -481,4 +486,83 @@ export function focusNow(plan: Plan, result: MonthResult): FocusItem[] {
       priority: round2(l.stepValue / l.missing),
     }))
     .sort((a, b) => b.priority - a.priority);
+}
+
+// ------------------------------------------------- attribuzione per vendita
+
+export interface SaleAttribution {
+  index: number;
+  lineKey: string;
+  compenso: number;
+  /** false se la vendita non paga il gettone (bill size sotto la soglia). */
+  paysGettone: boolean;
+}
+
+/**
+ * Quanto vale OGNI SINGOLA vendita, dato lo stato del mese.
+ *
+ * Serve allo spaccato per categoria: senza questo, ripartire il compenso di una
+ * gara fra le sue vendite significherebbe inventare (due MNP con canoni diversi
+ * non valgono uguale). Usa esattamente le stesse formule di computeTim, quindi
+ * la somma delle attribuzioni coincide col compenso della pista.
+ *
+ * Nota: sulle gare a soglia il valore di una vendita dipende dal VOLUME del
+ * mese, non da quando è stata fatta. È corretto — è la rivalutazione
+ * retroattiva delle gare TIM.
+ */
+export function attributeSales(plan: Plan, sales: Sale[], inputs: MonthlyInputs = {}): SaleAttribution[] {
+  const isLinear = plan.engineVersion === "linear";
+  const bill = plan.params.billSize;
+  const out: SaleAttribution[] = [];
+
+  // penalità AL PP: identica a computeTim
+  let mnpPenalty = 0;
+  if (!isLinear && plan.params.alPpPenalty) {
+    const alQty = sales.filter((s) => s.lineKey === "AL_PP").length;
+    if (alQty < plan.params.alPpPenalty.threshold) mnpPenalty = plan.params.alPpPenalty.delta;
+  }
+
+  for (const line of plan.lines) {
+    const mine = sales.map((s, i) => ({ s, i })).filter(({ s }) => s.lineKey === line.key);
+    if (!mine.length) continue;
+    const qty = mine.length;
+
+    if (line.unit === "EUR_PER_PIECE") {
+      const pxq = line.pxqEur ?? 0;
+      const rate = tierValue(qty, line.tiers);
+      for (const { s, i } of mine) {
+        // sulle piste lineari il compenso può essere specifico dell'offerta
+        const base = isLinear ? (s.unitCompenso ?? rate) : pxq + rate;
+        out.push({ index: i, lineKey: line.key, compenso: round2(base), paysGettone: base > 0 });
+      }
+      continue;
+    }
+
+    // MULTIPLIER_ON_FEE
+    const penalty = line.key === "MNP" ? mnpPenalty : 0;
+    const mult = Math.max(0, tierValue(qty, line.tiers) - penalty);
+    const domicVal = line.domiciliationValue ?? 0;
+    const nonDom = line.nonDomiciledValue ?? 0;
+    for (const { s, i } of mine) {
+      const perUnit =
+        line.domiciliationMode === "bonus"
+          ? s.domiciled
+            ? mult + domicVal
+            : mult
+          : line.domiciliationMode === "split"
+            ? s.domiciled
+              ? mult
+              : nonDom
+            : mult;
+      const w = line.applyBillSize ? billWeight(s.feeEur, bill) : 1;
+      out.push({
+        index: i,
+        lineKey: line.key,
+        compenso: round2(perUnit * (s.feeEur ?? 0) * w),
+        paysGettone: w > 0,
+      });
+    }
+  }
+
+  return out;
 }

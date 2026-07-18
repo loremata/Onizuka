@@ -41,6 +41,9 @@ export default async function InserimentiPage({
         lead="Compensi maturati sulle gare TIM e sui brand a gettone."
         actions={
           <>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/admin/inserimenti/analisi?mese=${month}`}>Analisi</Link>
+            </Button>
             <Button asChild variant="ghost" size="sm">
               <Link href={`/admin/inserimenti/piano?mese=${month}`}>Piano</Link>
             </Button>
@@ -284,7 +287,21 @@ function TimBlock({ block, outlook }: { block: BrandBlock; outlook: MonthOutlook
                     <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
                       {l.nextThreshold != null ? l.missing : "—"}
                     </td>
-                    <td className="py-2 pr-4 text-right tabular-nums font-medium">{eur(l.compenso)}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums font-medium">
+                      {/* "0" ambiguo: su una gara che moltiplica il canone, zero
+                          significa "canoni mancanti", non "non mi paga". Sulle
+                          piste a gettone zero è un vero zero (sotto soglia). */}
+                      {l.unit === "MULTIPLIER_ON_FEE" && l.qty > 0 && l.eligibleFee === 0 ? (
+                        <span
+                          className="text-amber-600 dark:text-amber-400"
+                          title="Compenso non calcolabile: mancano i canoni di queste vendite"
+                        >
+                          — canoni?
+                        </span>
+                      ) : (
+                        eur(l.compenso)
+                      )}
+                    </td>
                     <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
                       {l.stepValue > 0 ? "+" + eur(l.stepValue) : "—"}
                     </td>

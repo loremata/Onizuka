@@ -251,6 +251,7 @@ function emptyResult(brand: string, sales: Sale[]): MonthResult {
     lines: Array.from(byLine).map(([key, qty]) => ({
       key,
       label: key,
+      unit: "EUR_PER_PIECE" as const,
       qty,
       eligibleFee: 0,
       compenso: 0,
