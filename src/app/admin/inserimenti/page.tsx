@@ -82,9 +82,51 @@ export default async function InserimentiPage({
 
       {provisional ? (
         <div className="rounded-lg border border-amber-400/40 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-          ⚠️ Piano provvisorio: la lettera di gara del mese non è ancora arrivata. I compensi sono una <strong>stima</strong> sulle regole del mese precedente.
+          ⚠️ Compensi <strong>stimati</strong> per {data.blocks.filter((b) => b.estimated).map((b) => b.brand).join(", ")}:
+          i valori non sono confermati da una lettera di incentivazione. Le cifre marcate con{" "}
+          <span className="font-mono">~</span> possono cambiare.
         </div>
       ) : null}
+
+      {/* Premi a cancelli: vale davvero inseguirli? */}
+      {data.blocks
+        .flatMap((b) => b.opportunities ?? [])
+        .map((o) => (
+          <div
+            key={o.key}
+            className={
+              "rounded-lg border px-4 py-3 text-sm " +
+              (o.worthChasing
+                ? "border-amber-400/40 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+                : "border-border bg-muted/40 text-muted-foreground")
+            }
+          >
+            <strong>{o.label}</strong> — mancano{" "}
+            {o.missingGates
+              .map(
+                (g) =>
+                  `${g.missing} ${g.lineKey}${
+                    data.daysLeft > 0 ? ` (${(g.missing / data.daysLeft).toFixed(1)}/gg)` : ""
+                  }`,
+              )
+              .join(" + ")}{" "}
+            = {o.totalMissingPieces} pezzi in {data.daysLeft} giorni. I cancelli sono in AND: mancarne uno azzera il
+            premio.
+            {o.worthChasing ? (
+              <>
+                {" "}
+                Chiudendoli arriveresti a {o.pointsIfClosed} punti e il premio varrebbe{" "}
+                <strong>{eur(o.prizeIfClosed)}</strong>.
+              </>
+            ) : (
+              <>
+                {" "}
+                Ma anche chiudendoli tutti saresti a <strong>{o.pointsIfClosed} punti</strong> sui {o.minPoints}{" "}
+                minimi: il premio resterebbe <strong>zero</strong>. Non conviene inseguirlo questo mese.
+              </>
+            )}
+          </div>
+        ))}
 
       {/* Totale generale + mese su mese */}
       <div className="grid gap-4 sm:grid-cols-3">
@@ -111,7 +153,14 @@ export default async function InserimentiPage({
             <CardHeader className="pb-2">
               <CardDescription>🎯 Focus ora</CardDescription>
               <CardTitle className="text-xl">
-                {data.focusTop.label}: mancano {data.focusTop.missing}, +{eur(data.focusTop.stepValue)} allo scatto
+                {data.focusTop.label}: mancano {data.focusTop.missing}, +{eur(data.focusTop.stepValue)}
+                {data.focusTop.unlocksPrize ? (
+                  <span className="block text-sm font-normal text-primary">
+                    include lo sblocco di {data.focusTop.unlocksPrize}
+                  </span>
+                ) : (
+                  " allo scatto"
+                )}
               </CardTitle>
               {data.outlook && data.outlook.daysLeft > 0 ? (
                 <p className="pt-1 text-xs text-muted-foreground">
@@ -132,33 +181,6 @@ export default async function InserimentiPage({
         daysInMonth={data.daysInMonth}
       />
 
-      {/* Cancelli a rischio: il premio più grosso del mese */}
-      {data.outlook?.prizes.map((p) =>
-        p.gateOpen || p.gates.length === 0 ? null : (
-          <div
-            key={p.key}
-            className={
-              "rounded-lg border px-4 py-3 text-sm " +
-              (p.lost
-                ? "border-red-400/40 bg-red-50 text-red-900 dark:bg-red-950/40 dark:text-red-200"
-                : "border-amber-400/40 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200")
-            }
-          >
-            <strong>{p.label}</strong>{" "}
-            {p.lost ? "— fuori portata questo mese." : "— cancelli ancora aperti, ma serve ritmo:"}{" "}
-            {p.gates
-              .filter((g) => g.missing > 0)
-              .map(
-                (g) =>
-                  `${g.lineKey} ${g.current}/${g.needed} (mancano ${g.missing}${
-                    g.perDayNeeded > 0 ? `, ${g.perDayNeeded}/giorno` : ""
-                  })`,
-              )
-              .join(" · ")}
-            {p.lost ? " I cancelli sono in AND: mancarne uno azzera il premio." : null}
-          </div>
-        ),
-      )}
 
       {data.blocks.length === 0 ? (
         <Card>

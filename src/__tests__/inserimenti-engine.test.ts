@@ -14,6 +14,8 @@ import {
   computeTim,
   computeMonth,
   focusNow,
+  focusNowWithPrizes,
+  prizeOpportunities,
   billWeight,
   tierIndex,
   tierValue,
@@ -439,5 +441,131 @@ describe("computeLinear — compenso per singola offerta", () => {
     ]);
     expect(r.lines[0].qty).toBe(3);
     expect(r.lines[0].compenso).toBe(565); // 145 + 240 + 180
+  });
+});
+
+// --------------------------------------------------------------------------
+// Premi a cancelli: vale la pena inseguirli? (18/07/2026)
+// --------------------------------------------------------------------------
+
+describe("prizeOpportunities — quando i cancelli non bastano", () => {
+  const plan: Plan = {
+    brand: "TIM",
+    month: "2026-07",
+    engineVersion: "tim-2026-07",
+    params: {},
+    lines: [
+      { key: "MNP", label: "MNP", unit: "EUR_PER_PIECE", hasTiers: true, tiers: [{ minQty: 0, value: 0 }] },
+      { key: "FISSO", label: "Fisso", unit: "EUR_PER_PIECE", hasTiers: true, tiers: [{ minQty: 0, value: 0 }] },
+    ],
+    prizes: [
+      {
+        key: "TOP_CLUB",
+        label: "Top Club",
+        minPoints: 180,
+        maxPoints: 300,
+        minPrize: 1000,
+        maxPrize: 2000,
+        gates: [
+          { lineKey: "MNP", minQty: 34 },
+          { lineKey: "FISSO", minQty: 16 },
+        ],
+        scoreKpis: [
+          { key: "MNP", label: "MNP", points: 2, source: "DERIVED" },
+          { key: "FISSO", label: "Fisso", points: 4, source: "DERIVED" },
+        ],
+        bonuses: [],
+        halvings: [],
+      },
+    ],
+  };
+
+  const sales = (mnp: number, fisso: number): Sale[] => [
+    ...Array.from({ length: mnp }, () => ({ lineKey: "MNP", domiciled: false })),
+    ...Array.from({ length: fisso }, () => ({ lineKey: "FISSO", domiciled: false })),
+  ];
+
+  test("scenario reale di luglio: chiudere i cancelli NON basta, il premio resta zero", () => {
+    const s = sales(6, 5);
+    const r = computeMonth(plan, s);
+    const [o] = prizeOpportunities(plan, r);
+    // punti ora: 6×2 + 5×4 = 32
+    expect(o.pointsNow).toBe(32);
+    // chiudendo i cancelli: +28 MNP × 2 = 56, +11 Fisso × 4 = 44 → 132
+    expect(o.pointsIfClosed).toBe(132);
+    expect(o.pointsIfClosed).toBeLessThan(o.minPoints);
+    expect(o.prizeIfClosed).toBe(0);
+    expect(o.worthChasing).toBe(false);
+  });
+
+  test("con volumi alti i cancelli valgono: il premio diventa reale", () => {
+    const s = sales(33, 30); // manca 1 MNP; punti 33×2 + 30×4 = 186
+    const r = computeMonth(plan, s);
+    const [o] = prizeOpportunities(plan, r);
+    expect(o.missingGates).toEqual([{ lineKey: "MNP", missing: 1 }]);
+    expect(o.pointsIfClosed).toBe(188);
+    expect(o.prizeIfClosed).toBeGreaterThan(1000);
+    expect(o.worthChasing).toBe(true);
+  });
+
+  test("cancelli tutti aperti: nessuna opportunità da segnalare", () => {
+    const r = computeMonth(plan, sales(40, 20));
+    expect(prizeOpportunities(plan, r)).toHaveLength(0);
+  });
+});
+
+describe("focusNowWithPrizes — il premio entra nel consiglio", () => {
+  const plan: Plan = {
+    brand: "TIM",
+    month: "2026-07",
+    engineVersion: "tim-2026-07",
+    params: {},
+    lines: [
+      {
+        key: "TELEPASS",
+        label: "Telepass",
+        unit: "EUR_PER_PIECE",
+        hasTiers: true,
+        tiers: [
+          { minQty: 0, value: 0 },
+          { minQty: 8, value: 10 },
+        ],
+      },
+    ],
+    prizes: [
+      {
+        key: "TOP_CLUB",
+        label: "Top Club",
+        minPoints: 0,
+        maxPoints: 100,
+        minPrize: 1300,
+        maxPrize: 2000,
+        gates: [{ lineKey: "TELEPASS", minQty: 8 }],
+        scoreKpis: [{ key: "TELEPASS", label: "Telepass", points: 4, source: "DERIVED" }],
+        bonuses: [],
+        halvings: [],
+      },
+    ],
+  };
+
+  test("l'ultimo cancello mancante porta con sé il valore del premio", () => {
+    const sales: Sale[] = Array.from({ length: 2 }, () => ({ lineKey: "TELEPASS", domiciled: false }));
+    const r = computeMonth(plan, sales);
+    const focus = focusNowWithPrizes(plan, r);
+    const t = focus.find((f) => f.lineKey === "TELEPASS")!;
+    // senza premio varrebbe solo lo scatto di gara (10 × 2 = 20)
+    expect(t.stepValue).toBeGreaterThan(1000);
+    expect(t.unlocksPrize).toBe("Top Club");
+  });
+
+  test("se mancano DUE cancelli il premio non si attribuisce a una pista sola", () => {
+    const due: Plan = {
+      ...plan,
+      lines: [...plan.lines, { key: "ALTRA", label: "Altra", unit: "EUR_PER_PIECE", hasTiers: true, tiers: [{ minQty: 0, value: 0 }] }],
+      prizes: [{ ...plan.prizes[0], gates: [{ lineKey: "TELEPASS", minQty: 8 }, { lineKey: "ALTRA", minQty: 5 }] }],
+    };
+    const r = computeMonth(due, [{ lineKey: "TELEPASS", domiciled: false }]);
+    const focus = focusNowWithPrizes(due, r);
+    expect(focus.every((f) => !f.unlocksPrize)).toBe(true);
   });
 });

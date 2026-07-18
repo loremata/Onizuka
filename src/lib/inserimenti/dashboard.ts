@@ -5,7 +5,15 @@
 
 import { prisma } from "@/lib/prisma";
 import { loadPlan } from "./load-plan";
-import { computeMonth, focusNow, type Sale, type MonthResult, type FocusItem } from "./engine";
+import {
+  computeMonth,
+  focusNowWithPrizes,
+  prizeOpportunities,
+  type Sale,
+  type MonthResult,
+  type FocusItem,
+  type PrizeOpportunity,
+} from "./engine";
 import { buildOutlook, daysInMonth, type MonthOutlook } from "./projection";
 import { GOAL_KEY } from "./constants";
 
@@ -16,6 +24,9 @@ export interface BrandBlock {
   engineVersion: string;
   result: MonthResult;
   focus: FocusItem[];
+  opportunities?: PrizeOpportunity[];
+  /** true quando i valori del piano non sono confermati da una lettera. */
+  estimated: boolean;
 }
 
 export interface RecapRow {
@@ -122,6 +133,7 @@ export async function loadDashboard(ownerUserId: string, month: string): Promise
         engineVersion: "none",
         result: emptyResult(brand, brandSales),
         focus: [],
+        estimated: true,
       });
       continue;
     }
@@ -132,7 +144,9 @@ export async function loadDashboard(ownerUserId: string, month: string): Promise
       planStatus: plan.status ?? "ACTIVE",
       engineVersion: plan.engineVersion,
       result,
-      focus: focusNow(plan, result),
+      focus: focusNowWithPrizes(plan, result),
+      opportunities: prizeOpportunities(plan, result),
+      estimated: (plan.status ?? "ACTIVE") === "PROVISIONAL",
     });
   }
 

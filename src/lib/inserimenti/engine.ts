@@ -463,6 +463,8 @@ export interface FocusItem {
   stepValue: number;
   /** €/pezzo mancante: priorità di spinta. */
   priority: number;
+  /** Valorizzato quando questi pezzi sbloccano anche un premio a cancelli. */
+  unlocksPrize?: string;
 }
 
 /**
@@ -565,4 +567,111 @@ export function attributeSales(plan: Plan, sales: Sale[], inputs: MonthlyInputs 
   }
 
   return out;
+}
+
+// ------------------------------------------------- opportunità sui premi
+
+export interface PrizeOpportunity {
+  key: string;
+  label: string;
+  missingGates: { lineKey: string; missing: number }[];
+  totalMissingPieces: number;
+  pointsNow: number;
+  /** Punteggio che avresti chiudendo tutti i cancelli mancanti. */
+  pointsIfClosed: number;
+  minPoints: number;
+  /** € che prenderesti davvero chiudendo i cancelli. Zero se il punteggio
+   *  resterebbe comunque sotto il minimo: i cancelli non bastano. */
+  prizeIfClosed: number;
+  /** false quando il premio resta 0 anche chiudendo tutto: non vale inseguirlo. */
+  worthChasing: boolean;
+}
+
+/** Premio interpolato per un dato punteggio (senza considerare i cancelli). */
+function prizeAtPoints(prize: Prize, points: number): number {
+  if (points < prize.minPoints) return 0;
+  const span = prize.maxPoints - prize.minPoints;
+  const frac = span > 0 ? Math.min(1, (points - prize.minPoints) / span) : 1;
+  return round2(prize.minPrize + frac * (prize.maxPrize - prize.minPrize));
+}
+
+/**
+ * Cosa servirebbe davvero per prendere un premio, e se ne vale la pena.
+ *
+ * Il punto delicato: chiudere i cancelli fa anche SALIRE il punteggio, perché
+ * i pezzi mancanti portano punti. Ma può non bastare — e saperlo vale quanto
+ * il premio stesso, perché dice quando smettere di inseguirlo.
+ */
+export function prizeOpportunities(plan: Plan, result: MonthResult): PrizeOpportunity[] {
+  const qtyOf = new Map(result.lines.map((l) => [l.key, l.qty]));
+  const out: PrizeOpportunity[] = [];
+
+  for (const prize of plan.prizes) {
+    if (!prize.gates.length) continue;
+    const pr = result.prizes.find((p) => p.key === prize.key);
+    if (pr?.gateOpen) continue;
+
+    const missingGates = prize.gates
+      .map((g) => ({ lineKey: g.lineKey, missing: Math.max(0, g.minQty - (qtyOf.get(g.lineKey) ?? 0)) }))
+      .filter((g) => g.missing > 0)
+      .sort((a, b) => b.missing - a.missing);
+    if (!missingGates.length) continue;
+
+    const pointsNow = pr?.points ?? 0;
+    // i pezzi mancanti portano punti: quanto salirebbe il punteggio
+    const extra = missingGates.reduce((a, g) => {
+      const kpi = prize.scoreKpis.find((k) => k.key === g.lineKey && k.source === "DERIVED");
+      return a + (kpi ? g.missing * kpi.points : 0);
+    }, 0);
+    const pointsIfClosed = round2(pointsNow + extra);
+    const prizeIfClosed = prizeAtPoints(prize, pointsIfClosed);
+
+    out.push({
+      key: prize.key,
+      label: prize.label,
+      missingGates,
+      totalMissingPieces: missingGates.reduce((a, g) => a + g.missing, 0),
+      pointsNow: round2(pointsNow),
+      pointsIfClosed,
+      minPoints: prize.minPoints,
+      prizeIfClosed,
+      worthChasing: prizeIfClosed > 0,
+    });
+  }
+
+  return out;
+}
+
+/**
+ * Focus consapevole dei cancelli: se una pista è l'ULTIMO cancello mancante di
+ * un premio che vale davvero, il suo valore non è lo scatto di gara ma il
+ * premio intero. Senza questo, il consiglio manda a fare 6 Telepass da 20 €
+ * ignorando che quegli stessi 6 aprono un premio da 1.300 €.
+ */
+export function focusNowWithPrizes(plan: Plan, result: MonthResult): FocusItem[] {
+  const base = focusNow(plan, result);
+  const byKey = new Map(base.map((f) => [f.lineKey, { ...f }]));
+  const opps = prizeOpportunities(plan, result);
+
+  for (const o of opps) {
+    if (!o.worthChasing) continue;
+    // il premio si attribuisce a una pista sola quando è l'unico cancello che
+    // manca: se ne mancano due, arrivarci dipende da entrambe e attribuirlo a
+    // una delle due gonfierebbe il consiglio.
+    if (o.missingGates.length !== 1) continue;
+    const g = o.missingGates[0];
+    const line = result.lines.find((l) => l.key === g.lineKey);
+    const existing = byKey.get(g.lineKey);
+    const stepValue = round2((existing?.stepValue ?? 0) + o.prizeIfClosed);
+    byKey.set(g.lineKey, {
+      lineKey: g.lineKey,
+      label: line?.label ?? g.lineKey,
+      missing: g.missing,
+      stepValue,
+      priority: round2(stepValue / Math.max(1, g.missing)),
+      unlocksPrize: o.label,
+    });
+  }
+
+  return Array.from(byKey.values()).sort((a, b) => b.priority - a.priority);
 }
