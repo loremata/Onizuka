@@ -17,6 +17,15 @@ export default async function ListinoPage({ searchParams }: { searchParams: { br
 
   const brands = await prisma.storeOffer.groupBy({ by: ["brand"], _count: { _all: true } });
 
+  // piste disponibili per questo brand, dai piani reali (non un elenco fisso)
+  const brandLines = await prisma.incentiveLine.findMany({
+    where: { plan: { ownerUserId: session.user.id, brand: brand as never } },
+    select: { key: true },
+    distinct: ["key"],
+    orderBy: { sortOrder: "asc" },
+  });
+  const piste = brandLines.map((l) => l.key);
+
   // il dato che conta di più: quante offerte mobile cadono sotto il bill size
   const mobile = offers.filter((o) => o.lineKey === "MNP" || o.lineKey === "AL_PP");
   const sotto8 = mobile.filter((o) => Number(o.feeEur) < 8).length;
@@ -98,6 +107,7 @@ export default async function ListinoPage({ searchParams }: { searchParams: { br
                   {offers.map((o) => (
                     <OfferRow
                       key={o.id}
+                      piste={piste}
                       offer={{
                         id: o.id,
                         name: o.name,

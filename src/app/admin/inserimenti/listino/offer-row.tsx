@@ -14,9 +14,10 @@ interface Offer {
   active: boolean;
 }
 
-const PISTE = ["", "MNP", "AL_PP", "ACCESSO_FISSO", "CONTENUTI", "TIMFIN", "ENERGIA", "TELEPASS_FAMILY", "TIM_UNICA"];
-
-export function OfferRow({ offer }: { offer: Offer }) {
+export function OfferRow({ offer, piste }: { offer: Offer; piste: string[] }) {
+  // le piste disponibili sono quelle del piano di QUESTO brand, non un elenco
+  // fisso: Fastweb ha FISSO/MOBILE/business, TIM ha le sue gare.
+  const opzioni = ["", ...piste];
   const router = useRouter();
   const [fee, setFee] = useState(String(offer.feeEur).replace(".", ","));
   const [lineKey, setLineKey] = useState(offer.lineKey ?? "");
@@ -54,7 +55,7 @@ export function OfferRow({ offer }: { offer: Offer }) {
           }}
           className="rounded border bg-background px-2 py-1 text-xs"
         >
-          {PISTE.map((p) => (
+          {opzioni.map((p) => (
             <option key={p} value={p}>
               {p || "— da scegliere —"}
             </option>
