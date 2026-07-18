@@ -17,6 +17,15 @@ export default async function InserimentiPage({
   const month = /^\d{4}-\d{2}$/.test(searchParams.mese ?? "") ? searchParams.mese! : currentMonth();
   const data = await loadDashboard(session.user.id, month);
 
+  // navigazione mese precedente/successivo
+  const [yy, mm] = month.split("-").map(Number);
+  const shift = (delta: number) => {
+    const d = new Date(yy, mm - 1 + delta, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  };
+  const monthLabel = new Date(yy, mm - 1, 1).toLocaleDateString("it-IT", { month: "long", year: "numeric" });
+  const isCurrent = month === currentMonth();
+
   const tim = data.blocks.find((b) => b.brand === "TIM");
   const linear = data.blocks.filter((b) => b.engineVersion === "linear");
   const provisional = data.blocks.some((b) => b.planStatus === "PROVISIONAL");
@@ -25,13 +34,28 @@ export default async function InserimentiPage({
     <div className="space-y-8">
       <AdminPageHeader
         title="Inserimenti — compensi negozio"
-        lead={`Mese ${month}. Compensi maturati sulle gare TIM e sui brand a gettone.`}
+        lead="Compensi maturati sulle gare TIM e sui brand a gettone."
         actions={
           <Button asChild size="sm">
             <Link href="/admin/inserimenti/registra">+ Registra</Link>
           </Button>
         }
       />
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/admin/inserimenti?mese=${shift(-1)}`}>← Mese precedente</Link>
+        </Button>
+        <span className="font-semibold capitalize">{monthLabel}</span>
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/admin/inserimenti?mese=${shift(1)}`}>Mese successivo →</Link>
+        </Button>
+        {!isCurrent ? (
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/admin/inserimenti">Oggi</Link>
+          </Button>
+        ) : null}
+      </div>
 
       {provisional ? (
         <div className="rounded-lg border border-amber-400/40 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
