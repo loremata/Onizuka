@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireFullAdmin } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { GOAL_KEY } from "@/lib/inserimenti/constants";
 
 const BRANDS = ["TIM", "KENA", "FASTWEB", "ENEL", "ENI", "ILIAD"] as const;
 type Brand = (typeof BRANDS)[number];
@@ -115,6 +116,55 @@ export async function deleteSale(id: string): Promise<{ error: string } | null> 
   await prisma.storeSale.delete({ where: { id } });
   revalidatePath("/admin/inserimenti");
   revalidatePath("/admin/inserimenti/registra");
+  return null;
+}
+
+/** Aggiorna un'offerta di listino (canone, pista suggerita, attiva). */
+export async function updateOffer(
+  id: string,
+  patch: { feeEur?: string; lineKey?: string; active?: boolean },
+): Promise<{ error: string } | null> {
+  const session = await requireFullAdmin();
+  const offer = await prisma.storeOffer.findFirst({ where: { id, ownerUserId: session.user.id } });
+  if (!offer) return { error: "Offerta non trovata." };
+
+  const fee = patch.feeEur == null ? null : num(patch.feeEur);
+  if (patch.feeEur != null && (fee == null || fee < 0)) return { error: "Canone non valido." };
+
+  await prisma.storeOffer.update({
+    where: { id },
+    data: {
+      ...(fee != null ? { feeEur: new Prisma.Decimal(fee) } : {}),
+      ...(patch.lineKey !== undefined ? { lineKey: patch.lineKey || null } : {}),
+      ...(patch.active !== undefined ? { active: patch.active } : {}),
+    },
+  });
+
+  revalidatePath("/admin/inserimenti/listino");
+  revalidatePath("/admin/inserimenti/registra");
+  return null;
+}
+
+/** Imposta (o azzera) l'obiettivo personale di compensi del mese. */
+export async function setMonthlyGoal(month: string, value: string): Promise<{ error: string } | null> {
+  const session = await requireFullAdmin();
+  if (!/^\d{4}-\d{2}$/.test(month)) return { error: "Mese non valido." };
+  const amount = num(value) ?? 0;
+  if (amount < 0) return { error: "L'obiettivo non può essere negativo." };
+
+  if (amount === 0) {
+    await prisma.storeMonthlyInput.deleteMany({
+      where: { ownerUserId: session.user.id, month, key: GOAL_KEY },
+    });
+  } else {
+    await prisma.storeMonthlyInput.upsert({
+      where: { ownerUserId_month_key: { ownerUserId: session.user.id, month, key: GOAL_KEY } },
+      update: { value: new Prisma.Decimal(amount) },
+      create: { ownerUserId: session.user.id, month, key: GOAL_KEY, value: new Prisma.Decimal(amount) },
+    });
+  }
+
+  revalidatePath("/admin/inserimenti");
   return null;
 }
 

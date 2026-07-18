@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { loadPlan } from "./load-plan";
 import { computeMonth, focusNow, type Sale, type MonthResult, type FocusItem } from "./engine";
 import { buildOutlook, daysInMonth, type MonthOutlook } from "./projection";
+import { GOAL_KEY } from "./constants";
 
 export interface BrandBlock {
   brand: string;
@@ -39,6 +40,11 @@ export interface DashboardData {
   prevMonth: string;
   /** Vendite di oggi (chiusura giornata); null se il mese non è quello corrente. */
   today: { date: string; qty: number; compensoApprox: number; byBrand: RecapRow[] } | null;
+  /** Obiettivo personale di compensi del mese (0 = non impostato). */
+  goal: number;
+  /** Calendario del mese, indipendente dalla presenza di gare TIM. */
+  daysInMonth: number;
+  daysLeft: number;
 }
 
 const BRANDS = ["TIM", "FASTWEB", "ENEL", "ENI", "ILIAD", "KENA"] as const;
@@ -177,6 +183,9 @@ export async function loadDashboard(ownerUserId: string, month: string): Promise
     prevTotal,
     prevMonth,
     today,
+    goal: inputMap[GOAL_KEY] ?? 0,
+    daysInMonth: dim,
+    daysLeft: Math.max(0, dim - dayOfMonth),
   };
 }
 

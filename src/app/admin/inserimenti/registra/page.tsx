@@ -25,6 +25,11 @@ export default async function RegistraPage() {
     take: 20,
   });
 
+  const offers = await prisma.storeOffer.findMany({
+    where: { ownerUserId: session.user.id, active: true },
+    orderBy: [{ brand: "asc" }, { feeEur: "asc" }],
+  });
+
   return (
     <div className="space-y-8">
       <AdminPageHeader
@@ -51,7 +56,17 @@ export default async function RegistraPage() {
               <CardDescription>Il canone serve solo alle gare TIM (moltiplicano la somma dei canoni).</CardDescription>
             </CardHeader>
             <CardContent>
-              <RegistraForm options={options} today={todayISO()} />
+              <RegistraForm
+                options={options}
+                today={todayISO()}
+                offers={offers.map((o) => ({
+                  code: o.code,
+                  name: o.name,
+                  brand: o.brand,
+                  feeEur: Number(o.feeEur),
+                  lineKey: o.lineKey,
+                }))}
+              />
             </CardContent>
           </Card>
 

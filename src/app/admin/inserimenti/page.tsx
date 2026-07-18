@@ -7,6 +7,7 @@ import { loadDashboard, currentMonth } from "@/lib/inserimenti/dashboard";
 import type { BrandBlock, RecapRow } from "@/lib/inserimenti/dashboard";
 import type { MonthOutlook } from "@/lib/inserimenti/projection";
 import { ChiusuraGiornata } from "./chiusura-giornata";
+import { Obiettivo } from "./obiettivo";
 
 const eur = (n: number) => "€ " + n.toLocaleString("it-IT", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
@@ -39,9 +40,14 @@ export default async function InserimentiPage({
         title="Inserimenti — compensi negozio"
         lead="Compensi maturati sulle gare TIM e sui brand a gettone."
         actions={
-          <Button asChild size="sm">
-            <Link href="/admin/inserimenti/registra">+ Registra</Link>
-          </Button>
+          <>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/inserimenti/listino">Listino</Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/admin/inserimenti/registra">+ Registra</Link>
+            </Button>
+          </>
         }
       />
 
@@ -107,6 +113,15 @@ export default async function InserimentiPage({
           </Card>
         ) : null}
       </div>
+
+      {/* Obiettivo personale del mese */}
+      <Obiettivo
+        month={month}
+        goal={data.goal}
+        total={data.grandTotal}
+        daysLeft={data.daysLeft}
+        daysInMonth={data.daysInMonth}
+      />
 
       {/* Cancelli a rischio: il premio più grosso del mese */}
       {data.outlook?.prizes.map((p) =>

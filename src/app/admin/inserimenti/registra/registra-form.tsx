@@ -11,13 +11,30 @@ export interface BrandOption {
   lines: { key: string; label: string; unit: string; status: string }[];
 }
 
+export interface OfferOption {
+  code: string;
+  name: string;
+  brand: string;
+  feeEur: number;
+  lineKey: string | null;
+}
+
 /** Form di registrazione in blocco: la data resta impostata fra una vendita e
  *  l'altra (§A.16), brand→pista a cascata, canone solo per le piste TIM. */
-export function RegistraForm({ options, today }: { options: BrandOption[]; today: string }) {
+export function RegistraForm({
+  options,
+  today,
+  offers = [],
+}: {
+  options: BrandOption[];
+  today: string;
+  offers?: OfferOption[];
+}) {
   const router = useRouter();
   const [date, setDate] = useState(today);
   const [brand, setBrand] = useState(options[0]?.brand ?? "TIM");
   const [lineKey, setLineKey] = useState("");
+  const [offerCode, setOfferCode] = useState("");
   const [feeEur, setFeeEur] = useState("");
   const [domiciled, setDomiciled] = useState(false);
   const [provenance, setProvenance] = useState("");
@@ -39,6 +56,15 @@ export function RegistraForm({ options, today }: { options: BrandOption[]; today
   const needsFee = brand === "TIM" && line?.unit === "MULTIPLIER_ON_FEE";
   const isMnp = line?.key === "MNP";
 
+  /** Offerte compatibili: quelle mappate su questa pista + quelle senza pista
+   *  (categorie ambigue del listino, es. Convergenza, che possono essere MNP o AL). */
+  const offerChoices = useMemo(() => {
+    if (!needsFee) return [];
+    return offers
+      .filter((o) => o.brand === brand && (o.lineKey === lineKey || o.lineKey == null))
+      .sort((a, b) => a.feeEur - b.feeEur);
+  }, [offers, brand, lineKey, needsFee]);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -53,7 +79,8 @@ export function RegistraForm({ options, today }: { options: BrandOption[]; today
     fd.set("date", date);
     if (needsFee) {
       fd.set("feeEur", feeEur);
-      fd.set("feeSource", "MANUALE");
+      fd.set("feeSource", offerCode ? "LISTINO" : "MANUALE");
+      if (offerCode) fd.set("offerCode", offerCode);
       fd.set("domiciled", domiciled ? "true" : "false");
     }
     if (isMnp && provenance) fd.set("provenance", provenance);
@@ -67,6 +94,7 @@ export function RegistraForm({ options, today }: { options: BrandOption[]; today
     setLastLabel(`${brand} · ${line?.label ?? lineKey}${needsFee && feeEur ? ` · ${feeEur} €` : ""}`);
     setLastId(res.id);
     setFeeEur("");
+    setOfferCode("");
     setDomiciled(false);
     setProvenance("");
     router.refresh();
@@ -150,6 +178,35 @@ export function RegistraForm({ options, today }: { options: BrandOption[]; today
         </select>
       </div>
 
+      {needsFee && offerChoices.length ? (
+        <label className="space-y-1 block">
+          <span className="text-xs font-medium text-muted-foreground">
+            Offerta dal listino ({offerChoices.length})
+          </span>
+          <select
+            value={offerCode}
+            onChange={(e) => {
+              const code = e.target.value;
+              setOfferCode(code);
+              const o = offerChoices.find((x) => x.code === code);
+              if (o) setFeeEur(String(o.feeEur).replace(".", ","));
+            }}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          >
+            <option value="">— scegli l&apos;offerta (compila il canone) —</option>
+            {offerChoices.map((o) => (
+              <option key={o.code} value={o.code}>
+                {o.name} — {o.feeEur.toLocaleString("it-IT", { minimumFractionDigits: 2 })} €
+                {o.feeEur < 8 ? " ⚠ no gettone" : ""}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-muted-foreground">
+            Puoi comunque scrivere il canone a mano se l&apos;offerta non è in listino.
+          </span>
+        </label>
+      ) : null}
+
       {needsFee ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="space-y-1">
@@ -157,7 +214,10 @@ export function RegistraForm({ options, today }: { options: BrandOption[]; today
             <input
               inputMode="decimal"
               value={feeEur}
-              onChange={(e) => setFeeEur(e.target.value)}
+              onChange={(e) => {
+                setFeeEur(e.target.value);
+                setOfferCode(""); // scritto a mano → non è più dal listino
+              }}
               placeholder="es. 9,99"
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"
             />
