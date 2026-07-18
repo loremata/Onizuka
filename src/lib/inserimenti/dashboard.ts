@@ -6,6 +6,7 @@
 import { prisma } from "@/lib/prisma";
 import { loadPlan } from "./load-plan";
 import { computeMonth, focusNow, type Sale, type MonthResult, type FocusItem } from "./engine";
+import { buildOutlook, daysInMonth, type MonthOutlook } from "./projection";
 
 export interface BrandBlock {
   brand: string;
@@ -16,12 +17,28 @@ export interface BrandBlock {
   focus: FocusItem[];
 }
 
+export interface RecapRow {
+  name: string;
+  qty: number;
+  compenso: number;
+}
+
 export interface DashboardData {
   month: string;
   blocks: BrandBlock[];
   grandTotal: number;
   /** Focus unificato su TIM (l'unico con gare a soglie), già ordinato. */
   focusTop: FocusItem | null;
+  /** Proiezione a fine mese e stato dei cancelli (solo TIM). */
+  outlook: MonthOutlook | null;
+  /** Recap aggregati, per tutti i brand. */
+  byCategory: RecapRow[];
+  byBrand: RecapRow[];
+  /** Totale del mese precedente, per il confronto. */
+  prevTotal: number;
+  prevMonth: string;
+  /** Vendite di oggi (chiusura giornata); null se il mese non è quello corrente. */
+  today: { date: string; qty: number; compensoApprox: number; byBrand: RecapRow[] } | null;
 }
 
 const BRANDS = ["TIM", "FASTWEB", "ENEL", "ENI", "ILIAD", "KENA"] as const;
@@ -92,7 +109,100 @@ export async function loadDashboard(ownerUserId: string, month: string): Promise
   const timBlock = blocks.find((b) => b.brand === "TIM");
   const focusTop = timBlock?.focus[0] ?? null;
 
-  return { month, blocks, grandTotal: round2(grandTotal), focusTop };
+  // --- proiezione a fine mese (solo TIM: le piste lineari non hanno soglie) ---
+  const dim = daysInMonth(month);
+  const now = new Date();
+  const isCurrent = month === currentMonth(now);
+  // su un mese passato la proiezione è il mese intero; su quello corrente, il giorno di oggi
+  const dayOfMonth = isCurrent ? now.getDate() : dim;
+  let outlook: MonthOutlook | null = null;
+  if (timBlock) {
+    const timPlan = await loadPlan(ownerUserId, "TIM", month);
+    if (timPlan) outlook = buildOutlook(timPlan, timBlock.result, dayOfMonth, dim);
+  }
+
+  // --- recap per categoria e per brand ---
+  const catMap = new Map<string, RecapRow>();
+  const brandMap = new Map<string, RecapRow>();
+  for (const b of blocks) {
+    for (const l of b.result.lines) {
+      if (l.qty === 0) continue;
+      const cat = l.category ?? "Altro";
+      const c = catMap.get(cat) ?? { name: cat, qty: 0, compenso: 0 };
+      c.qty += l.qty;
+      c.compenso = round2(c.compenso + l.compenso);
+      catMap.set(cat, c);
+    }
+    const br = brandMap.get(b.brand) ?? { name: b.brand, qty: 0, compenso: 0 };
+    br.qty += b.result.lines.reduce((s, l) => s + l.qty, 0);
+    br.compenso = round2(br.compenso + b.result.total);
+    brandMap.set(b.brand, br);
+  }
+  const byCategory = Array.from(catMap.values()).sort((a, b) => b.compenso - a.compenso || b.qty - a.qty);
+  const byBrand = Array.from(brandMap.values()).sort((a, b) => b.compenso - a.compenso);
+
+  // --- mese su mese ---
+  const prevMonth = shiftMonth(month, -1);
+  const prevTotal = await totalOf(ownerUserId, prevMonth);
+
+  // --- chiusura giornata (solo sul mese corrente) ---
+  let today: DashboardData["today"] = null;
+  if (isCurrent) {
+    const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const todaySales = sales.filter((s) => s.date.toISOString().slice(0, 10) === iso);
+    if (todaySales.length) {
+      const tb = new Map<string, RecapRow>();
+      for (const s of todaySales) {
+        const r = tb.get(s.brand) ?? { name: s.brand, qty: 0, compenso: 0 };
+        r.qty += 1;
+        tb.set(s.brand, r);
+      }
+      today = {
+        date: iso,
+        qty: todaySales.length,
+        compensoApprox: 0,
+        byBrand: Array.from(tb.values()).sort((a, b) => b.qty - a.qty),
+      };
+    }
+  }
+
+  return {
+    month,
+    blocks,
+    grandTotal: round2(grandTotal),
+    focusTop,
+    outlook,
+    byCategory,
+    byBrand,
+    prevTotal,
+    prevMonth,
+    today,
+  };
+}
+
+/** Totale compensi di un mese (per il confronto mese-su-mese). */
+async function totalOf(ownerUserId: string, month: string): Promise<number> {
+  const sales = await prisma.storeSale.findMany({ where: { ownerUserId, month } });
+  if (!sales.length) return 0;
+  const byBrand = new Map<string, Sale[]>();
+  for (const s of sales) {
+    const arr = byBrand.get(s.brand) ?? [];
+    arr.push(toSale(s));
+    byBrand.set(s.brand, arr);
+  }
+  let total = 0;
+  for (const [brand, brandSales] of Array.from(byBrand)) {
+    const plan = await loadPlan(ownerUserId, brand, month);
+    if (!plan) continue;
+    total += computeMonth(plan, brandSales, {}).total;
+  }
+  return round2(total);
+}
+
+export function shiftMonth(month: string, delta: number): string {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;

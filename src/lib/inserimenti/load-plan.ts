@@ -26,6 +26,7 @@ export async function loadPlan(
   const lines: Line[] = plan.lines.map((l) => ({
     key: l.key,
     label: l.label,
+    category: l.category,
     unit: l.unit,
     hasTiers: l.hasTiers,
     target: l.target,

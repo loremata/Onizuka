@@ -69,6 +69,7 @@ export default async function RegistraPage() {
                   lineKey: s.lineKey,
                   feeEur: s.feeEur == null ? null : Number(s.feeEur),
                   domiciled: s.domiciled,
+                  notes: s.notes,
                 }))}
               />
             </CardContent>

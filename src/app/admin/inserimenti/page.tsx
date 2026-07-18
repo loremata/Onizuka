@@ -4,7 +4,9 @@ import { AdminPageHeader } from "@/components/onizuka/admin-page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { loadDashboard, currentMonth } from "@/lib/inserimenti/dashboard";
-import type { BrandBlock } from "@/lib/inserimenti/dashboard";
+import type { BrandBlock, RecapRow } from "@/lib/inserimenti/dashboard";
+import type { MonthOutlook } from "@/lib/inserimenti/projection";
+import { ChiusuraGiornata } from "./chiusura-giornata";
 
 const eur = (n: number) => "€ " + n.toLocaleString("it-IT", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
@@ -25,6 +27,7 @@ export default async function InserimentiPage({
   };
   const monthLabel = new Date(yy, mm - 1, 1).toLocaleDateString("it-IT", { month: "long", year: "numeric" });
   const isCurrent = month === currentMonth();
+  const delta = data.prevTotal > 0 ? ((data.grandTotal - data.prevTotal) / data.prevTotal) * 100 : 0;
 
   const tim = data.blocks.find((b) => b.brand === "TIM");
   const linear = data.blocks.filter((b) => b.engineVersion === "linear");
@@ -55,6 +58,11 @@ export default async function InserimentiPage({
             <Link href="/admin/inserimenti">Oggi</Link>
           </Button>
         ) : null}
+        <span className="ml-auto">
+          <Button asChild variant="ghost" size="sm">
+            <a href={`/admin/inserimenti/export?mese=${month}`}>Esporta CSV</a>
+          </Button>
+        </span>
       </div>
 
       {provisional ? (
@@ -63,12 +71,24 @@ export default async function InserimentiPage({
         </div>
       ) : null}
 
-      {/* Totale generale */}
+      {/* Totale generale + mese su mese */}
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="sm:col-span-1">
           <CardHeader className="pb-2">
             <CardDescription>Totale generale</CardDescription>
             <CardTitle className="text-3xl">{eur(data.grandTotal)}</CardTitle>
+            <p className="pt-1 text-xs text-muted-foreground">
+              {data.prevTotal > 0 ? (
+                <>
+                  {data.prevMonth}: {eur(data.prevTotal)}{" "}
+                  <span className={delta >= 0 ? "text-green-600" : "text-red-600"}>
+                    {delta >= 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(0)}%
+                  </span>
+                </>
+              ) : (
+                <>nessun confronto per {data.prevMonth}</>
+              )}
+            </p>
           </CardHeader>
         </Card>
         {data.focusTop ? (
@@ -78,10 +98,43 @@ export default async function InserimentiPage({
               <CardTitle className="text-xl">
                 {data.focusTop.label}: mancano {data.focusTop.missing}, +{eur(data.focusTop.stepValue)} allo scatto
               </CardTitle>
+              {data.outlook && data.outlook.daysLeft > 0 ? (
+                <p className="pt-1 text-xs text-muted-foreground">
+                  Restano {data.outlook.daysLeft} giorni di {data.outlook.daysInMonth}.
+                </p>
+              ) : null}
             </CardHeader>
           </Card>
         ) : null}
       </div>
+
+      {/* Cancelli a rischio: il premio più grosso del mese */}
+      {data.outlook?.prizes.map((p) =>
+        p.gateOpen || p.gates.length === 0 ? null : (
+          <div
+            key={p.key}
+            className={
+              "rounded-lg border px-4 py-3 text-sm " +
+              (p.lost
+                ? "border-red-400/40 bg-red-50 text-red-900 dark:bg-red-950/40 dark:text-red-200"
+                : "border-amber-400/40 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200")
+            }
+          >
+            <strong>{p.label}</strong>{" "}
+            {p.lost ? "— fuori portata questo mese." : "— cancelli ancora aperti, ma serve ritmo:"}{" "}
+            {p.gates
+              .filter((g) => g.missing > 0)
+              .map(
+                (g) =>
+                  `${g.lineKey} ${g.current}/${g.needed} (mancano ${g.missing}${
+                    g.perDayNeeded > 0 ? `, ${g.perDayNeeded}/giorno` : ""
+                  })`,
+              )
+              .join(" · ")}
+            {p.lost ? " I cancelli sono in AND: mancarne uno azzera il premio." : null}
+          </div>
+        ),
+      )}
 
       {data.blocks.length === 0 ? (
         <Card>
@@ -96,7 +149,7 @@ export default async function InserimentiPage({
       ) : null}
 
       {/* Zona TIM: gare, cancelli, premi */}
-      {tim ? <TimBlock block={tim} /> : null}
+      {tim ? <TimBlock block={tim} outlook={data.outlook} /> : null}
 
       {/* Zona brand lineari */}
       {linear.length ? (
@@ -135,13 +188,50 @@ export default async function InserimentiPage({
           </CardContent>
         </Card>
       ) : null}
+
+      {/* Recap per categoria e per brand */}
+      {data.byCategory.length ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <RecapCard title="Per categoria" rows={data.byCategory} />
+          <RecapCard title="Per brand" rows={data.byBrand} />
+        </div>
+      ) : null}
+
+      {/* Chiusura giornata */}
+      {data.today ? <ChiusuraGiornata today={data.today} /> : null}
     </div>
   );
 }
 
-function TimBlock({ block }: { block: BrandBlock }) {
+function RecapCard({ title, rows }: { title: string; rows: RecapRow[] }) {
+  const max = Math.max(1, ...rows.map((r) => r.compenso));
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {rows.map((r) => (
+          <div key={r.name}>
+            <div className="flex justify-between text-sm">
+              <span className="font-medium">{r.name}</span>
+              <span className="tabular-nums">{eur(r.compenso)}</span>
+            </div>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-primary" style={{ width: `${(r.compenso / max) * 100}%` }} />
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">{r.qty} pezzi</div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TimBlock({ block, outlook }: { block: BrandBlock; outlook: MonthOutlook | null }) {
   const r = block.result;
   const gare = r.lines.filter((l) => l.qty > 0 || l.compenso !== 0);
+  const projByKey = new Map((outlook?.lines ?? []).map((p) => [p.key, p]));
   return (
     <Card>
       <CardHeader>
@@ -159,29 +249,55 @@ function TimBlock({ block }: { block: BrandBlock }) {
                 <th className="py-2 pr-4 text-right">Mancano</th>
                 <th className="py-2 pr-4 text-right">Compenso</th>
                 <th className="py-2 pr-4 text-right">+€ scatto</th>
+                <th className="py-2 pr-4 text-right">A fine mese</th>
               </tr>
             </thead>
             <tbody>
-              {gare.map((l) => (
-                <tr key={l.key} className="border-b last:border-0">
-                  <td className="py-2 pr-4 font-medium">{l.label}</td>
-                  <td className="py-2 pr-4 text-right tabular-nums">{l.qty}</td>
-                  <td className="py-2 pr-4 text-right tabular-nums">{l.tierIndex + 1}</td>
-                  <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
-                    {l.nextThreshold != null ? l.missing : "—"}
-                  </td>
-                  <td className="py-2 pr-4 text-right tabular-nums font-medium">{eur(l.compenso)}</td>
-                  <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
-                    {l.stepValue > 0 ? "+" + eur(l.stepValue) : "—"}
-                  </td>
-                </tr>
-              ))}
+              {gare.map((l) => {
+                const p = projByKey.get(l.key);
+                return (
+                  <tr key={l.key} className="border-b last:border-0">
+                    <td className="py-2 pr-4 font-medium">{l.label}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums">{l.qty}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums">{l.tierIndex + 1}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
+                      {l.nextThreshold != null ? l.missing : "—"}
+                    </td>
+                    <td className="py-2 pr-4 text-right tabular-nums font-medium">{eur(l.compenso)}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
+                      {l.stepValue > 0 ? "+" + eur(l.stepValue) : "—"}
+                    </td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-xs">
+                      {p ? (
+                        <span
+                          className={
+                            p.willImprove
+                              ? "text-green-600"
+                              : p.nextThreshold != null && !p.reachable
+                                ? "text-muted-foreground line-through"
+                                : "text-muted-foreground"
+                          }
+                          title={
+                            p.nextThreshold != null && !p.reachable
+                              ? "prossima soglia fuori portata al ritmo attuale"
+                              : undefined
+                          }
+                        >
+                          ~{p.projectedQty} → sc. {p.projectedTierIndex + 1}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
               {r.extras !== 0 ? (
                 <tr className="border-b last:border-0">
                   <td className="py-2 pr-4 font-medium">Extra / PxQ</td>
                   <td colSpan={3} />
                   <td className="py-2 pr-4 text-right tabular-nums font-medium">{eur(r.extras)}</td>
-                  <td />
+                  <td colSpan={2} />
                 </tr>
               ) : null}
             </tbody>

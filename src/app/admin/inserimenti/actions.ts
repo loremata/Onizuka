@@ -19,8 +19,8 @@ const num = (v: FormDataEntryValue | null): number | null => {
   return Number.isFinite(x) ? x : null;
 };
 
-/** Registra una vendita al banco. Ritorna { error } | null (convenzione Onizuka). */
-export async function recordSale(formData: FormData): Promise<{ error: string } | null> {
+/** Registra una vendita al banco. Ritorna { error } oppure { id } (per l'undo). */
+export async function recordSale(formData: FormData): Promise<{ error: string } | { id: string }> {
   const session = await requireFullAdmin();
 
   const brand = String(formData.get("brand") ?? "") as Brand;
@@ -43,7 +43,7 @@ export async function recordSale(formData: FormData): Promise<{ error: string } 
   const PROVS = ["ILIAD", "COOP", "POSTE", "FASTWEB", "KENA", "ALTRO"];
   const provenance = PROVS.includes(provenanceRaw) ? (provenanceRaw as Prisma.StoreSaleCreateInput["provenance"]) : null;
 
-  await prisma.storeSale.create({
+  const created = await prisma.storeSale.create({
     data: {
       ownerUserId: session.user.id,
       date: new Date(`${dateStr}T00:00:00.000Z`),
@@ -57,6 +57,48 @@ export async function recordSale(formData: FormData): Promise<{ error: string } 
       provenance,
       subtype,
       notes,
+    },
+    select: { id: true },
+  });
+
+  revalidatePath("/admin/inserimenti");
+  revalidatePath("/admin/inserimenti/registra");
+  return { id: created.id };
+}
+
+/** Modifica una vendita esistente. Stessi controlli di recordSale. */
+export async function updateSale(id: string, formData: FormData): Promise<{ error: string } | null> {
+  const session = await requireFullAdmin();
+
+  const existing = await prisma.storeSale.findFirst({ where: { id, ownerUserId: session.user.id } });
+  if (!existing) return { error: "Vendita non trovata." };
+
+  const brand = String(formData.get("brand") ?? "") as Brand;
+  if (!BRANDS.includes(brand)) return { error: "Brand non valido." };
+
+  const lineKey = String(formData.get("lineKey") ?? "").trim();
+  if (!lineKey) return { error: "Seleziona una pista." };
+
+  const dateStr = String(formData.get("date") ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return { error: "Data non valida." };
+
+  const feeEur = num(formData.get("feeEur"));
+  const domiciled = formData.get("domiciled") === "on" || formData.get("domiciled") === "true";
+  const provenanceRaw = String(formData.get("provenance") ?? "").trim();
+  const PROVS = ["ILIAD", "COOP", "POSTE", "FASTWEB", "KENA", "ALTRO"];
+  const provenance = PROVS.includes(provenanceRaw) ? (provenanceRaw as Prisma.StoreSaleCreateInput["provenance"]) : null;
+
+  await prisma.storeSale.update({
+    where: { id },
+    data: {
+      date: new Date(`${dateStr}T00:00:00.000Z`),
+      month: monthOf(dateStr),
+      brand,
+      lineKey,
+      feeEur: feeEur == null ? null : new Prisma.Decimal(feeEur),
+      feeSource: feeEur == null ? existing.feeSource : "MANUALE",
+      domiciled,
+      provenance,
     },
   });
 

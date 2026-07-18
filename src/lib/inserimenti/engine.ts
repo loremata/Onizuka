@@ -25,6 +25,8 @@ export interface Tier {
 export interface Line {
   key: string;
   label: string;
+  /** Categoria merceologica (Mobile, Fisso, Energia…): serve ai recap, non al calcolo. */
+  category?: string | null;
   unit: Unit;
   hasTiers: boolean;
   target?: number | null;
@@ -124,6 +126,7 @@ export type MonthlyInputs = Record<string, number>;
 export interface LineResult {
   key: string;
   label: string;
+  category?: string | null;
   qty: number;
   /** Somma canoni idonei (solo MULTIPLIER_ON_FEE), utile per debug/parità. */
   eligibleFee: number;
@@ -204,6 +207,7 @@ export function computeLinear(plan: Plan, sales: Sale[]): MonthResult {
     return {
       key: line.key,
       label: line.label,
+      category: line.category ?? null,
       qty,
       eligibleFee: 0,
       compenso: round2(qty * rate),
@@ -242,6 +246,7 @@ function computeTimLine(
     return {
       key: line.key,
       label: line.label,
+      category: line.category ?? null,
       qty,
       eligibleFee: 0,
       compenso,
@@ -300,6 +305,7 @@ function computeTimLine(
   return {
     key: line.key,
     label: line.label,
+    category: line.category ?? null,
     qty,
     eligibleFee: round2(eligibleFee),
     compenso: round2(compensoRaw),
