@@ -6,8 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { OfferRow } from "./offer-row";
 
-const eur = (n: number) => n.toLocaleString("it-IT", { minimumFractionDigits: 2 }) + " €";
-
 export default async function ListinoPage({ searchParams }: { searchParams: { brand?: string } }) {
   const session = await requireFullAdmin();
   const brand = (searchParams.brand ?? "TIM").toUpperCase();
@@ -122,4 +120,3 @@ export default async function ListinoPage({ searchParams }: { searchParams: { br
 }
 
 export const dynamic = "force-dynamic";
-export { eur };

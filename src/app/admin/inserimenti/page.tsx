@@ -41,6 +41,12 @@ export default async function InserimentiPage({
         lead="Compensi maturati sulle gare TIM e sui brand a gettone."
         actions={
           <>
+            <Button asChild variant="ghost" size="sm">
+              <Link href={`/admin/inserimenti/piano?mese=${month}`}>Piano</Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link href={`/admin/inserimenti/mese?mese=${month}`}>Input mensili</Link>
+            </Button>
             <Button asChild variant="outline" size="sm">
               <Link href="/admin/inserimenti/listino">Listino</Link>
             </Button>
