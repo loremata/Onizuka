@@ -4,8 +4,10 @@ import { AdminPageHeader } from "@/components/onizuka/admin-page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { loadDashboard, currentMonth } from "@/lib/inserimenti/dashboard";
-import type { BrandBlock, RecapRow } from "@/lib/inserimenti/dashboard";
+import type { BrandBlock } from "@/lib/inserimenti/dashboard";
 import type { MonthOutlook } from "@/lib/inserimenti/projection";
+import { loadBreakdown, type Slice } from "@/lib/inserimenti/breakdown";
+import { DonutChart } from "@/components/onizuka/donut-chart";
 import { ChiusuraGiornata } from "./chiusura-giornata";
 import { Obiettivo } from "./obiettivo";
 
@@ -14,11 +16,28 @@ const eur = (n: number) => "€ " + n.toLocaleString("it-IT", { minimumFractionD
 export default async function InserimentiPage({
   searchParams,
 }: {
-  searchParams: { mese?: string };
+  searchParams: { mese?: string; brand?: string; cat?: string };
 }) {
   const session = await requireFullAdmin();
   const month = /^\d{4}-\d{2}$/.test(searchParams.mese ?? "") ? searchParams.mese! : currentMonth();
   const data = await loadDashboard(session.user.id, month);
+
+  // recap interattivo: filtri brand/categoria e spaccato, sulla stessa pagina
+  const fBrand = searchParams.brand || null;
+  const fCat = searchParams.cat || null;
+  const bd = await loadBreakdown(session.user.id, month, fBrand, fCat);
+
+  /** Link che conserva mese e altri filtri. */
+  const flt = (patch: { brand?: string | null; cat?: string | null }) => {
+    const p = new URLSearchParams();
+    if (month !== currentMonth()) p.set("mese", month);
+    const b = patch.brand === undefined ? fBrand : patch.brand;
+    const c = patch.cat === undefined ? fCat : patch.cat;
+    if (b) p.set("brand", b);
+    if (c) p.set("cat", c);
+    const q = p.toString();
+    return "/admin/inserimenti" + (q ? `?${q}` : "") + "#recap";
+  };
 
   // navigazione mese precedente/successivo
   const [yy, mm] = month.split("-").map(Number);
@@ -41,9 +60,6 @@ export default async function InserimentiPage({
         lead="Compensi maturati sulle gare TIM e sui brand a gettone."
         actions={
           <>
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/admin/inserimenti/analisi?mese=${month}`}>Analisi</Link>
-            </Button>
             <Button asChild variant="ghost" size="sm">
               <Link href={`/admin/inserimenti/piano?mese=${month}`}>Piano</Link>
             </Button>
@@ -235,11 +251,122 @@ export default async function InserimentiPage({
         </Card>
       ) : null}
 
-      {/* Recap per categoria e per brand */}
-      {data.byCategory.length ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <RecapCard title="Per categoria" rows={data.byCategory} />
-          <RecapCard title="Per brand" rows={data.byBrand} />
+      {/* Recap interattivo: filtri, torte, spaccato */}
+      {bd.brands.length ? (
+        <div id="recap" className="space-y-4 scroll-mt-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold">Recap</h2>
+            {fBrand || fCat ? (
+              <Button asChild variant="ghost" size="sm">
+                <Link href={flt({ brand: null, cat: null })}>Azzera filtri ✕</Link>
+              </Button>
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <FiltroChip href={flt({ brand: null, cat: null })} active={!fBrand}>
+              Tutti i brand
+            </FiltroChip>
+            {bd.brands.map((b) => (
+              <FiltroChip key={b.name} href={flt({ brand: b.name, cat: null })} active={fBrand === b.name}>
+                {b.name} <span className="opacity-60">{b.qty}</span>
+              </FiltroChip>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <FiltroChip href={flt({ cat: null })} active={!fCat}>
+              Tutte le categorie
+            </FiltroChip>
+            {bd.categories.map((c) => (
+              <FiltroChip key={c.name} href={flt({ cat: c.name })} active={fCat === c.name}>
+                {c.name} <span className="opacity-60">{c.qty}</span>
+              </FiltroChip>
+            ))}
+          </div>
+
+          {fBrand || fCat ? (
+            <Card>
+              <CardHeader className="py-4">
+                <CardDescription>
+                  {fBrand ?? "Tutti i brand"}
+                  {fCat ? ` · ${fCat}` : ""}
+                </CardDescription>
+                <CardTitle className="text-xl">
+                  {bd.totale.qty} pezzi · {eur(bd.totale.compenso)}
+                </CardTitle>
+                {bd.totale.senzaCanone > 0 ? (
+                  <p className="pt-1 text-xs text-amber-700 dark:text-amber-300">
+                    ⚠ {bd.totale.senzaCanone} vendite senza canone: il totale reale è più alto.
+                  </p>
+                ) : null}
+              </CardHeader>
+            </Card>
+          ) : null}
+
+          {/* senza categoria aperta: le due torte d'insieme */}
+          {!fCat ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Per brand</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DonutChart
+                    slices={bd.brands.map((b) => ({ name: b.name, value: b.qty, hint: eur(b.compenso) }))}
+                    centerLabel={String(bd.brands.reduce((a, b) => a + b.qty, 0))}
+                    centerSub="pezzi"
+                  />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Per categoria</CardTitle>
+                  <CardDescription>Clicca una categoria per aprire lo spaccato.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <DonutChart
+                    slices={bd.categories.map((c) => ({ name: c.name, value: c.qty, hint: eur(c.compenso) }))}
+                    centerLabel={String(bd.categories.reduce((a, c) => a + c.qty, 0))}
+                    centerSub="pezzi"
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          ) : null}
+
+          {/* categoria aperta: di cosa è fatta */}
+          {bd.detail ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <SpaccatoCard
+                title="Per tipo di operazione"
+                description="Le piste che compongono questa categoria."
+                slices={bd.detail.byLine}
+              />
+              {bd.detail.byPagamento.length > 1 ? (
+                <SpaccatoCard
+                  title="Ricaricabili vs domiciliate"
+                  description="La domiciliazione cambia il compenso: +1,2 sulle MNP, +1,5 sulle AL, e sul fisso da 1,7 a 5,0."
+                  slices={bd.detail.byPagamento}
+                />
+              ) : null}
+              <SpaccatoCard
+                title="Per offerta"
+                description="Quali offerte hai venduto davvero."
+                slices={bd.detail.byOffer}
+              />
+              {bd.detail.byProvenance.length ? (
+                <SpaccatoCard
+                  title="Provenienza (MNP)"
+                  description="Da quale operatore arrivano le portabilità."
+                  slices={bd.detail.byProvenance}
+                />
+              ) : null}
+              {bd.detail.byBrand.length > 1 ? (
+                <SpaccatoCard title="Per brand" description="" slices={bd.detail.byBrand} />
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -249,26 +376,40 @@ export default async function InserimentiPage({
   );
 }
 
-function RecapCard({ title, rows }: { title: string; rows: RecapRow[] }) {
-  const max = Math.max(1, ...rows.map((r) => r.compenso));
+function FiltroChip({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className={
+        "rounded-full border px-3 py-1.5 text-sm transition-colors " +
+        (active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border hover:border-primary hover:bg-muted")
+      }
+    >
+      {children}
+    </Link>
+  );
+}
+
+function SpaccatoCard({ title, description, slices }: { title: string; description: string; slices: Slice[] }) {
+  const tot = slices.reduce((a, s) => a + s.compenso, 0);
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base">{title}</CardTitle>
+        {description ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>
-      <CardContent className="space-y-3">
-        {rows.map((r) => (
-          <div key={r.name}>
-            <div className="flex justify-between text-sm">
-              <span className="font-medium">{r.name}</span>
-              <span className="tabular-nums">{eur(r.compenso)}</span>
-            </div>
-            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-primary" style={{ width: `${(r.compenso / max) * 100}%` }} />
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">{r.qty} pezzi</div>
-          </div>
-        ))}
+      <CardContent>
+        <DonutChart
+          slices={slices.map((s) => ({
+            name: s.name,
+            value: s.qty,
+            hint: s.compenso > 0 ? eur(s.compenso) : "compenso non calcolabile",
+          }))}
+          centerLabel={String(slices.reduce((a, s) => a + s.qty, 0))}
+          centerSub={tot > 0 ? eur(tot) : "pezzi"}
+        />
       </CardContent>
     </Card>
   );
