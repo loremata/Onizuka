@@ -66,20 +66,18 @@ async function main() {
     console.log("");
   }
 
-  // offerte con compenso specifico
-  const offers = await prisma.storeOffer.findMany({
-    where: { ownerUserId: owner.id, compensoEur: { not: null } },
-    orderBy: [{ brand: "asc" }, { sortOrder: "asc" }],
+  // catalogo completo delle offerte con canone e compenso
+  const allOffers = await prisma.storeOffer.findMany({
+    where: { ownerUserId: owner.id },
+    orderBy: [{ brand: "asc" }, { category: "asc" }, { feeEur: "asc" }],
   });
-  if (offers.length) {
-    console.log("\n## Compensi per singola offerta\n");
-    console.log("| Brand | Offerta | Pista | Compenso | Fonte |");
-    console.log("|---|---|---|---|---|");
-    for (const o of offers) {
-      console.log(
-        `| ${o.brand} | ${o.name} | ${o.lineKey ?? "—"} | **${eur(Number(o.compensoEur))}** | ${o.target ?? "—"} |`,
-      );
-    }
+  console.log("\n## Catalogo offerte (canone + compenso)\n");
+  console.log("| Brand | Offerta | Pista | Canone | Compenso offerta | Nota |");
+  console.log("|---|---|---|---|---|---|");
+  for (const o of allOffers) {
+    const canone = Number(o.feeEur) > 0 ? eur(Number(o.feeEur)) : "—";
+    const comp = o.compensoEur == null ? "(da pista)" : `**${eur(Number(o.compensoEur))}**`;
+    console.log(`| ${o.brand} | ${o.name} | ${o.lineKey ?? "—"} | ${canone} | ${comp} | ${o.target ?? ""} |`);
   }
 
   // offerte senza pista

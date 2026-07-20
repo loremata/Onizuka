@@ -32,10 +32,25 @@ export interface CategoryDetail {
   byBrand: Slice[];
 }
 
+export interface MatrixCell {
+  qty: number;
+  compenso: number;
+}
+export interface RecapMatrix {
+  brands: string[];
+  categories: string[];
+  /** cell[brand][category] */
+  cell: Record<string, Record<string, MatrixCell>>;
+  rowTot: Record<string, MatrixCell>;
+  colTot: Record<string, MatrixCell>;
+  grand: MatrixCell;
+}
+
 export interface BreakdownData {
   month: string;
   brands: Slice[];
   categories: Slice[];
+  matrix: RecapMatrix;
   /** Dettaglio della categoria selezionata, se una è selezionata. */
   detail: CategoryDetail | null;
   filtroBrand: string | null;
@@ -140,6 +155,9 @@ export async function loadBreakdown(
   const brands = group(rows, (r) => r.brand);
   const categories = group(afterBrand, (r) => r.category);
 
+  // matrice brand × categoria: recap dell'intero mese, indipendente dai filtri
+  const matrix = buildMatrix(rows);
+
   let detail: CategoryDetail | null = null;
   if (filtroCategoria) {
     const senzaCanone = filtrate.filter((r) => r.feeEur == null && needsFee(r)).length;
@@ -166,6 +184,7 @@ export async function loadBreakdown(
     month,
     brands,
     categories,
+    matrix,
     detail,
     filtroBrand,
     filtroCategoria,
@@ -174,6 +193,43 @@ export async function loadBreakdown(
       compenso: round2(filtrate.reduce((a, r) => a + r.compenso, 0)),
       senzaCanone: filtrate.filter((r) => r.feeEur == null && needsFee(r)).length,
     },
+  };
+}
+
+/** Matrice brand × categoria con pezzi e compensi, totali di riga/colonna. */
+function buildMatrix(rows: Row[]): RecapMatrix {
+  const cell: Record<string, Record<string, MatrixCell>> = {};
+  const rowTot: Record<string, MatrixCell> = {};
+  const colTot: Record<string, MatrixCell> = {};
+  const grand: MatrixCell = { qty: 0, compenso: 0 };
+  const brandSet = new Set<string>();
+  const catSet = new Set<string>();
+
+  const add = (m: MatrixCell, r: Row) => {
+    m.qty += 1;
+    m.compenso = round2(m.compenso + r.compenso);
+  };
+
+  for (const r of rows) {
+    brandSet.add(r.brand);
+    catSet.add(r.category);
+    cell[r.brand] ??= {};
+    cell[r.brand][r.category] ??= { qty: 0, compenso: 0 };
+    rowTot[r.brand] ??= { qty: 0, compenso: 0 };
+    colTot[r.category] ??= { qty: 0, compenso: 0 };
+    add(cell[r.brand][r.category], r);
+    add(rowTot[r.brand], r);
+    add(colTot[r.category], r);
+    add(grand, r);
+  }
+
+  return {
+    brands: Array.from(brandSet).sort((a, b) => (rowTot[b].compenso - rowTot[a].compenso) || a.localeCompare(b)),
+    categories: Array.from(catSet).sort((a, b) => (colTot[b].compenso - colTot[a].compenso) || a.localeCompare(b)),
+    cell,
+    rowTot,
+    colTot,
+    grand,
   };
 }
 

@@ -10,6 +10,7 @@ import { loadBreakdown, type Slice } from "@/lib/inserimenti/breakdown";
 import { DonutChart } from "@/components/onizuka/donut-chart";
 import { ChiusuraGiornata } from "./chiusura-giornata";
 import { Obiettivo } from "./obiettivo";
+import { RecapMatrixTable } from "./recap-matrix";
 
 const eur = (n: number) => "€ " + n.toLocaleString("it-IT", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
@@ -366,6 +367,9 @@ export default async function InserimentiPage({
               </CardHeader>
             </Card>
           ) : null}
+
+          {/* tabella recap brand × categoria */}
+          {!fCat ? <RecapMatrixTable matrix={bd.matrix} /> : null}
 
           {/* senza categoria aperta: le due torte d'insieme */}
           {!fCat ? (
