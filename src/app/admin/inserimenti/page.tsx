@@ -58,7 +58,11 @@ export default async function InserimentiPage({
   const pezziTot = data.byBrand.reduce((a, b) => a + b.qty, 0);
   const giorniFatti = data.daysInMonth - data.daysLeft;
   const ritmo = giorniFatti > 0 ? pezziTot / giorniFatti : 0;
-  const mediaPezzo = pezziTot > 0 ? data.grandTotal / pezziTot : 0;
+  // schede per brand: tutti i brand del negozio, anche quelli a zero
+  const BRANDS_NEGOZIO = ["TIM", "FASTWEB", "ENEL", "ENI", "ILIAD"];
+  const brandTiles = BRANDS_NEGOZIO.map(
+    (name) => data.byBrand.find((b) => b.name === name) ?? { name, qty: 0, compenso: 0 },
+  );
   const proiezione = isCurrent && giorniFatti > 0 ? (data.grandTotal / giorniFatti) * data.daysInMonth : data.grandTotal;
   const senzaCanone = bd.totale.senzaCanone;
 
@@ -104,129 +108,6 @@ export default async function InserimentiPage({
           </Button>
         </span>
       </div>
-
-      {provisional ? (
-        <div className="rounded-lg border border-amber-400/40 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-          ⚠️ Compensi <strong>stimati</strong> per {data.blocks.filter((b) => b.estimated).map((b) => b.brand).join(", ")}:
-          i valori non sono confermati da una lettera di incentivazione. Le cifre marcate con{" "}
-          <span className="font-mono">~</span> possono cambiare.
-        </div>
-      ) : null}
-
-      {/* Premi a cancelli: vale davvero inseguirli? */}
-      {data.blocks
-        .flatMap((b) => b.opportunities ?? [])
-        .map((o) => (
-          <div
-            key={o.key}
-            className={
-              "rounded-lg border px-4 py-3 text-sm " +
-              (o.worthChasing
-                ? "border-amber-400/40 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
-                : "border-border bg-muted/40 text-muted-foreground")
-            }
-          >
-            <strong>{o.label}</strong> — mancano{" "}
-            {o.missingGates
-              .map(
-                (g) =>
-                  `${g.missing} ${g.lineKey}${
-                    data.daysLeft > 0 ? ` (${(g.missing / data.daysLeft).toFixed(1)}/gg)` : ""
-                  }`,
-              )
-              .join(" + ")}{" "}
-            = {o.totalMissingPieces} pezzi in {data.daysLeft} giorni. I cancelli sono in AND: mancarne uno azzera il
-            premio.
-            {o.worthChasing ? (
-              <>
-                {" "}
-                Chiudendoli arriveresti a {o.pointsIfClosed} punti e il premio varrebbe{" "}
-                <strong>{eur(o.prizeIfClosed)}</strong>.
-              </>
-            ) : (
-              <>
-                {" "}
-                Ma anche chiudendoli tutti saresti a <strong>{o.pointsIfClosed} punti</strong> sui {o.minPoints}{" "}
-                minimi: il premio resterebbe <strong>zero</strong>. Non conviene inseguirlo questo mese.
-              </>
-            )}
-          </div>
-        ))}
-
-      {/* KPI a colpo d'occhio — totali */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Compensi del mese</CardDescription>
-            <CardTitle className="text-3xl">{eur(data.grandTotal)}</CardTitle>
-            <p className="pt-1 text-xs text-muted-foreground">
-              {data.prevTotal > 0 ? (
-                <>
-                  {data.prevMonth}: {eur(data.prevTotal)}{" "}
-                  <span className={delta >= 0 ? "text-green-600" : "text-red-600"}>
-                    {delta >= 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(0)}%
-                  </span>
-                </>
-              ) : (
-                <>nessun confronto per {data.prevMonth}</>
-              )}
-            </p>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Attivazioni</CardDescription>
-            <CardTitle className="text-3xl">{pezziTot}</CardTitle>
-            <p className="pt-1 text-xs text-muted-foreground">
-              {ritmo > 0 ? `${ritmo.toFixed(1)}/giorno` : "—"}
-              {senzaCanone > 0 ? ` · ${senzaCanone} senza canone` : ""}
-            </p>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Media per pezzo</CardDescription>
-            <CardTitle className="text-3xl">{eur(mediaPezzo)}</CardTitle>
-            <p className="pt-1 text-xs text-muted-foreground">compenso medio</p>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>{isCurrent ? "Proiezione fine mese" : "Totale mese"}</CardDescription>
-            <CardTitle className="text-3xl">{eur(proiezione)}</CardTitle>
-            <p className="pt-1 text-xs text-muted-foreground">
-              {isCurrent && data.daysLeft > 0 ? `al ritmo attuale · ${data.daysLeft} gg rimasti` : "mese chiuso"}
-            </p>
-          </CardHeader>
-        </Card>
-      </div>
-
-      {/* KPI per brand */}
-      {data.byBrand.length ? (
-        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-          {data.byBrand.map((b) => {
-            const quota = data.grandTotal > 0 ? Math.round((b.compenso / data.grandTotal) * 100) : 0;
-            const est = data.blocks.find((x) => x.brand === b.name)?.estimated;
-            return (
-              <Card key={b.name}>
-                <CardHeader className="pb-2">
-                  <CardDescription className="flex items-center justify-between">
-                    <span>{b.name}</span>
-                    {est ? <span className="text-amber-600" title="valori stimati">~</span> : null}
-                  </CardDescription>
-                  <CardTitle className="text-xl">{eur(b.compenso)}</CardTitle>
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${quota}%` }} />
-                  </div>
-                  <p className="pt-1 text-xs text-muted-foreground">
-                    {b.qty} pezzi · {quota}% del totale
-                  </p>
-                </CardHeader>
-              </Card>
-            );
-          })}
-        </div>
-      ) : null}
 
       {/* Recap interattivo: filtri, torte, spaccato */}
       {bd.brands.length ? (
@@ -350,6 +231,114 @@ export default async function InserimentiPage({
         </div>
       ) : null}
 
+      {/* KPI a colpo d'occhio — totali */}
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Compensi del mese</CardDescription>
+            <CardTitle className="text-3xl">{eur(data.grandTotal)}</CardTitle>
+            <p className="pt-1 text-xs text-muted-foreground">
+              {data.prevTotal > 0 ? (
+                <>
+                  {data.prevMonth}: {eur(data.prevTotal)}{" "}
+                  <span className={delta >= 0 ? "text-green-600" : "text-red-600"}>
+                    {delta >= 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(0)}%
+                  </span>
+                </>
+              ) : (
+                <>nessun confronto per {data.prevMonth}</>
+              )}
+            </p>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Attivazioni</CardDescription>
+            <CardTitle className="text-3xl">{pezziTot}</CardTitle>
+            <p className="pt-1 text-xs text-muted-foreground">
+              {ritmo > 0 ? `${ritmo.toFixed(1)}/giorno` : "—"}
+              {senzaCanone > 0 ? ` · ${senzaCanone} senza canone` : ""}
+            </p>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>{isCurrent ? "Proiezione fine mese" : "Totale mese"}</CardDescription>
+            <CardTitle className="text-3xl">{eur(proiezione)}</CardTitle>
+            <p className="pt-1 text-xs text-muted-foreground">
+              {isCurrent && data.daysLeft > 0 ? `al ritmo attuale · ${data.daysLeft} gg rimasti` : "mese chiuso"}
+            </p>
+          </CardHeader>
+        </Card>
+      </div>
+
+      {/* KPI per brand */}
+      {brandTiles.length ? (
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+          {brandTiles.map((b) => {
+            const quota = data.grandTotal > 0 ? Math.round((b.compenso / data.grandTotal) * 100) : 0;
+            const est = data.blocks.find((x) => x.brand === b.name)?.estimated;
+            return (
+              <Card key={b.name}>
+                <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center justify-between">
+                    <span>{b.name}</span>
+                    {est ? <span className="text-amber-600" title="valori stimati">~</span> : null}
+                  </CardDescription>
+                  <CardTitle className="text-xl">{eur(b.compenso)}</CardTitle>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${quota}%` }} />
+                  </div>
+                  <p className="pt-1 text-xs text-muted-foreground">
+                    {b.qty} pezzi · {quota}% del totale
+                  </p>
+                </CardHeader>
+              </Card>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {/* Premi a cancelli: vale davvero inseguirli? */}
+      {data.blocks
+        .flatMap((b) => b.opportunities ?? [])
+        .map((o) => (
+          <div
+            key={o.key}
+            className={
+              "rounded-lg border px-4 py-3 text-sm " +
+              (o.worthChasing
+                ? "border-amber-400/40 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+                : "border-border bg-muted/40 text-muted-foreground")
+            }
+          >
+            <strong>{o.label}</strong> — mancano{" "}
+            {o.missingGates
+              .map(
+                (g) =>
+                  `${g.missing} ${g.lineKey}${
+                    data.daysLeft > 0 ? ` (${(g.missing / data.daysLeft).toFixed(1)}/gg)` : ""
+                  }`,
+              )
+              .join(" + ")}{" "}
+            = {o.totalMissingPieces} pezzi in {data.daysLeft} giorni. I cancelli sono in AND: mancarne uno azzera il
+            premio.
+            {o.worthChasing ? (
+              <>
+                {" "}
+                Chiudendoli arriveresti a {o.pointsIfClosed} punti e il premio varrebbe{" "}
+                <strong>{eur(o.prizeIfClosed)}</strong>.
+              </>
+            ) : (
+              <>
+                {" "}
+                Ma anche chiudendoli tutti saresti a <strong>{o.pointsIfClosed} punti</strong> sui {o.minPoints}{" "}
+                minimi: il premio resterebbe <strong>zero</strong>. Non conviene inseguirlo questo mese.
+              </>
+            )}
+          </div>
+        ))}
+
       {/* Focus ora */}
       {data.focusTop ? (
         <Card className="border-primary/30 bg-primary/5">
@@ -439,6 +428,14 @@ export default async function InserimentiPage({
 
       {/* Chiusura giornata */}
       {data.today ? <ChiusuraGiornata today={data.today} /> : null}
+
+      {provisional ? (
+        <div className="rounded-lg border border-amber-400/40 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          ⚠️ Compensi <strong>stimati</strong> per {data.blocks.filter((b) => b.estimated).map((b) => b.brand).join(", ")}:
+          i valori non sono confermati da una lettera di incentivazione. Le cifre marcate con{" "}
+          <span className="font-mono">~</span> possono cambiare.
+        </div>
+      ) : null}
     </div>
   );
 }
