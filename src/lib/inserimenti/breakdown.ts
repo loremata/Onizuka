@@ -73,6 +73,13 @@ interface Row {
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
+/** Ordine fisso dei brand del negozio, per righe matrice e chip filtro. */
+const BRAND_ORDER = ["TIM", "FASTWEB", "ENEL", "ILIAD", "ENI", "KENA"];
+const brandRank = (b: string) => {
+  const i = BRAND_ORDER.indexOf(b);
+  return i === -1 ? BRAND_ORDER.length : i;
+};
+
 function group(rows: Row[], keyOf: (r: Row) => string, noGettoneOf?: (r: Row) => boolean): Slice[] {
   const m = new Map<string, Slice>();
   for (const r of rows) {
@@ -92,6 +99,11 @@ function withZeros(slices: Slice[], universe: Set<string>): Slice[] {
   const out = [...slices];
   for (const c of Array.from(universe)) if (!have.has(c)) out.push({ name: c, qty: 0, compenso: 0 });
   return out;
+}
+
+/** Come withZeros ma ordina i brand secondo l'ordine fisso del negozio. */
+function withZerosBrand(slices: Slice[], universe: Set<string>): Slice[] {
+  return withZeros(slices, universe).sort((a, b) => brandRank(a.name) - brandRank(b.name));
 }
 
 export async function loadBreakdown(
@@ -175,8 +187,9 @@ export async function loadBreakdown(
   const afterBrand = filtroBrand ? rows.filter((r) => r.brand === filtroBrand) : rows;
   const filtrate = filtroCategoria ? afterBrand.filter((r) => r.category === filtroCategoria) : afterBrand;
 
-  // i brand si contano SEMPRE su tutte le righe: servono a cambiare filtro
-  const brands = group(rows, (r) => r.brand);
+  // i brand: tutti quelli con un piano (anche a zero), in ordine fisso
+  const brandUniverse = new Set<string>([...Array.from(catByBrand.keys()), ...rows.map((r) => r.brand)]);
+  const brands = withZerosBrand(group(rows, (r) => r.brand), brandUniverse);
 
   // categorie: quelle con vendite + quelle definite nei piani ancora a zero
   // (così Energia compare anche prima della prima vendita luce/gas)
@@ -234,13 +247,11 @@ function buildMatrix(rows: Row[], planBrands: string[], planCats: Set<string>): 
   const rowTot: Record<string, MatrixCell> = {};
   const colTot: Record<string, MatrixCell> = {};
   const grand: MatrixCell = { qty: 0, compenso: 0 };
-  const brandSet = new Set<string>(rows.map((r) => r.brand));
+  // righe: tutti i brand con un piano (anche a zero), in ordine fisso
+  const brandSet = new Set<string>([...planBrands, ...rows.map((r) => r.brand)]);
   const catSet = new Set<string>([...rows.map((r) => r.category), ...Array.from(planCats)]);
-  // i brand entrano in matrice solo se hanno vendite: righe a zero per ogni
-  // brand con piano ma senza vendite sarebbero solo rumore
   for (const b of Array.from(brandSet)) rowTot[b] ??= { qty: 0, compenso: 0 };
   for (const c of Array.from(catSet)) colTot[c] ??= { qty: 0, compenso: 0 };
-  void planBrands;
 
   const add = (m: MatrixCell, r: Row) => {
     m.qty += 1;
@@ -257,7 +268,7 @@ function buildMatrix(rows: Row[], planBrands: string[], planCats: Set<string>): 
   }
 
   return {
-    brands: Array.from(brandSet).sort((a, b) => rowTot[b].compenso - rowTot[a].compenso || a.localeCompare(b)),
+    brands: Array.from(brandSet).sort((a, b) => brandRank(a) - brandRank(b)),
     categories: Array.from(catSet).sort((a, b) => colTot[b].compenso - colTot[a].compenso || a.localeCompare(b)),
     cell,
     rowTot,
