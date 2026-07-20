@@ -118,7 +118,8 @@ async function main() {
 
   // 2) offerte
   let n = 0;
-  for (const [i, o] of OFFERS.entries()) {
+  for (let i = 0; i < OFFERS.length; i++) {
+    const o = OFFERS[i];
     const code = "FW-" + o.name.toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
     await prisma.storeOffer.upsert({
       where: { ownerUserId_brand_code: { ownerUserId: owner.id, brand: "FASTWEB", code } },
