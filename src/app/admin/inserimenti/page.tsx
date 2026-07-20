@@ -53,6 +53,14 @@ export default async function InserimentiPage({
   const linear = data.blocks.filter((b) => b.engineVersion === "linear");
   const provisional = data.blocks.some((b) => b.planStatus === "PROVISIONAL");
 
+  // --- KPI a colpo d'occhio ---
+  const pezziTot = data.byBrand.reduce((a, b) => a + b.qty, 0);
+  const giorniFatti = data.daysInMonth - data.daysLeft;
+  const ritmo = giorniFatti > 0 ? pezziTot / giorniFatti : 0;
+  const mediaPezzo = pezziTot > 0 ? data.grandTotal / pezziTot : 0;
+  const proiezione = isCurrent && giorniFatti > 0 ? (data.grandTotal / giorniFatti) * data.daysInMonth : data.grandTotal;
+  const senzaCanone = bd.totale.senzaCanone;
+
   return (
     <div className="space-y-8">
       <AdminPageHeader
@@ -144,11 +152,11 @@ export default async function InserimentiPage({
           </div>
         ))}
 
-      {/* Totale generale + mese su mese */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="sm:col-span-1">
+      {/* KPI a colpo d'occhio — totali */}
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Totale generale</CardDescription>
+            <CardDescription>Compensi del mese</CardDescription>
             <CardTitle className="text-3xl">{eur(data.grandTotal)}</CardTitle>
             <p className="pt-1 text-xs text-muted-foreground">
               {data.prevTotal > 0 ? (
@@ -164,29 +172,84 @@ export default async function InserimentiPage({
             </p>
           </CardHeader>
         </Card>
-        {data.focusTop ? (
-          <Card className="sm:col-span-2 border-primary/30 bg-primary/5">
-            <CardHeader className="pb-2">
-              <CardDescription>🎯 Focus ora</CardDescription>
-              <CardTitle className="text-xl">
-                {data.focusTop.label}: mancano {data.focusTop.missing}, +{eur(data.focusTop.stepValue)}
-                {data.focusTop.unlocksPrize ? (
-                  <span className="block text-sm font-normal text-primary">
-                    include lo sblocco di {data.focusTop.unlocksPrize}
-                  </span>
-                ) : (
-                  " allo scatto"
-                )}
-              </CardTitle>
-              {data.outlook && data.outlook.daysLeft > 0 ? (
-                <p className="pt-1 text-xs text-muted-foreground">
-                  Restano {data.outlook.daysLeft} giorni di {data.outlook.daysInMonth}.
-                </p>
-              ) : null}
-            </CardHeader>
-          </Card>
-        ) : null}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Attivazioni</CardDescription>
+            <CardTitle className="text-3xl">{pezziTot}</CardTitle>
+            <p className="pt-1 text-xs text-muted-foreground">
+              {ritmo > 0 ? `${ritmo.toFixed(1)}/giorno` : "—"}
+              {senzaCanone > 0 ? ` · ${senzaCanone} senza canone` : ""}
+            </p>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Media per pezzo</CardDescription>
+            <CardTitle className="text-3xl">{eur(mediaPezzo)}</CardTitle>
+            <p className="pt-1 text-xs text-muted-foreground">compenso medio</p>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>{isCurrent ? "Proiezione fine mese" : "Totale mese"}</CardDescription>
+            <CardTitle className="text-3xl">{eur(proiezione)}</CardTitle>
+            <p className="pt-1 text-xs text-muted-foreground">
+              {isCurrent && data.daysLeft > 0 ? `al ritmo attuale · ${data.daysLeft} gg rimasti` : "mese chiuso"}
+            </p>
+          </CardHeader>
+        </Card>
       </div>
+
+      {/* KPI per brand */}
+      {data.byBrand.length ? (
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+          {data.byBrand.map((b) => {
+            const quota = data.grandTotal > 0 ? Math.round((b.compenso / data.grandTotal) * 100) : 0;
+            const est = data.blocks.find((x) => x.brand === b.name)?.estimated;
+            return (
+              <Card key={b.name}>
+                <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center justify-between">
+                    <span>{b.name}</span>
+                    {est ? <span className="text-amber-600" title="valori stimati">~</span> : null}
+                  </CardDescription>
+                  <CardTitle className="text-xl">{eur(b.compenso)}</CardTitle>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${quota}%` }} />
+                  </div>
+                  <p className="pt-1 text-xs text-muted-foreground">
+                    {b.qty} pezzi · {quota}% del totale
+                  </p>
+                </CardHeader>
+              </Card>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {/* Focus ora */}
+      {data.focusTop ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardDescription>🎯 Focus ora</CardDescription>
+            <CardTitle className="text-xl">
+              {data.focusTop.label}: mancano {data.focusTop.missing}, +{eur(data.focusTop.stepValue)}
+              {data.focusTop.unlocksPrize ? (
+                <span className="block text-sm font-normal text-primary">
+                  include lo sblocco di {data.focusTop.unlocksPrize}
+                </span>
+              ) : (
+                " allo scatto"
+              )}
+            </CardTitle>
+            {data.outlook && data.outlook.daysLeft > 0 ? (
+              <p className="pt-1 text-xs text-muted-foreground">
+                Restano {data.outlook.daysLeft} giorni di {data.outlook.daysInMonth}.
+              </p>
+            ) : null}
+          </CardHeader>
+        </Card>
+      ) : null}
 
       {/* Obiettivo personale del mese */}
       <Obiettivo
