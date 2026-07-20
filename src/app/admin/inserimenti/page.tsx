@@ -228,93 +228,6 @@ export default async function InserimentiPage({
         </div>
       ) : null}
 
-      {/* Focus ora */}
-      {data.focusTop ? (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardHeader className="pb-2">
-            <CardDescription>🎯 Focus ora</CardDescription>
-            <CardTitle className="text-xl">
-              {data.focusTop.label}: mancano {data.focusTop.missing}, +{eur(data.focusTop.stepValue)}
-              {data.focusTop.unlocksPrize ? (
-                <span className="block text-sm font-normal text-primary">
-                  include lo sblocco di {data.focusTop.unlocksPrize}
-                </span>
-              ) : (
-                " allo scatto"
-              )}
-            </CardTitle>
-            {data.outlook && data.outlook.daysLeft > 0 ? (
-              <p className="pt-1 text-xs text-muted-foreground">
-                Restano {data.outlook.daysLeft} giorni di {data.outlook.daysInMonth}.
-              </p>
-            ) : null}
-          </CardHeader>
-        </Card>
-      ) : null}
-
-      {/* Obiettivo personale del mese */}
-      <Obiettivo
-        month={month}
-        goal={data.goal}
-        total={data.grandTotal}
-        daysLeft={data.daysLeft}
-        daysInMonth={data.daysInMonth}
-      />
-
-
-      {data.blocks.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-muted-foreground">
-            Nessuna vendita registrata per {month}.{" "}
-            <Link href="/admin/inserimenti/registra" className="text-primary underline">
-              Registra la prima
-            </Link>
-            .
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {/* Zona TIM: gare, cancelli, premi */}
-      {tim ? <TimBlock block={tim} outlook={data.outlook} /> : null}
-
-      {/* Zona brand lineari */}
-      {linear.length ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Altri brand</CardTitle>
-            <CardDescription>Senza soglie — ogni pezzo vale uguale.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-muted-foreground">
-                    <th className="py-2 pr-4">Brand</th>
-                    <th className="py-2 pr-4">Voce</th>
-                    <th className="py-2 pr-4 text-right">Pezzi</th>
-                    <th className="py-2 pr-4 text-right">Compenso</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {linear.flatMap((b) =>
-                    b.result.lines
-                      .filter((l) => l.qty > 0)
-                      .map((l) => (
-                        <tr key={b.brand + l.key} className="border-b last:border-0">
-                          <td className="py-2 pr-4 font-medium">{b.brand}</td>
-                          <td className="py-2 pr-4">{l.label}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums">{l.qty}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums">{eur(l.compenso)}</td>
-                        </tr>
-                      )),
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
       {/* Recap interattivo: filtri, torte, spaccato */}
       {bd.brands.length ? (
         <div id="recap" className="space-y-4 scroll-mt-4">
@@ -435,6 +348,93 @@ export default async function InserimentiPage({
             </div>
           ) : null}
         </div>
+      ) : null}
+
+      {/* Focus ora */}
+      {data.focusTop ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardDescription>🎯 Focus ora</CardDescription>
+            <CardTitle className="text-xl">
+              {data.focusTop.label}: mancano {data.focusTop.missing}, +{eur(data.focusTop.stepValue)}
+              {data.focusTop.unlocksPrize ? (
+                <span className="block text-sm font-normal text-primary">
+                  include lo sblocco di {data.focusTop.unlocksPrize}
+                </span>
+              ) : (
+                " allo scatto"
+              )}
+            </CardTitle>
+            {data.outlook && data.outlook.daysLeft > 0 ? (
+              <p className="pt-1 text-xs text-muted-foreground">
+                Restano {data.outlook.daysLeft} giorni di {data.outlook.daysInMonth}.
+              </p>
+            ) : null}
+          </CardHeader>
+        </Card>
+      ) : null}
+
+      {/* Obiettivo personale del mese */}
+      <Obiettivo
+        month={month}
+        goal={data.goal}
+        total={data.grandTotal}
+        daysLeft={data.daysLeft}
+        daysInMonth={data.daysInMonth}
+      />
+
+
+      {data.blocks.length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center text-muted-foreground">
+            Nessuna vendita registrata per {month}.{" "}
+            <Link href="/admin/inserimenti/registra" className="text-primary underline">
+              Registra la prima
+            </Link>
+            .
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Zona TIM: gare, cancelli, premi */}
+      {tim ? <TimBlock block={tim} outlook={data.outlook} /> : null}
+
+      {/* Zona brand lineari */}
+      {linear.length ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Altri brand</CardTitle>
+            <CardDescription>Senza soglie — ogni pezzo vale uguale.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="py-2 pr-4">Brand</th>
+                    <th className="py-2 pr-4">Voce</th>
+                    <th className="py-2 pr-4 text-right">Pezzi</th>
+                    <th className="py-2 pr-4 text-right">Compenso</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linear.flatMap((b) =>
+                    b.result.lines
+                      .filter((l) => l.qty > 0)
+                      .map((l) => (
+                        <tr key={b.brand + l.key} className="border-b last:border-0">
+                          <td className="py-2 pr-4 font-medium">{b.brand}</td>
+                          <td className="py-2 pr-4">{l.label}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums">{l.qty}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums">{eur(l.compenso)}</td>
+                        </tr>
+                      )),
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       ) : null}
 
       {/* Chiusura giornata */}

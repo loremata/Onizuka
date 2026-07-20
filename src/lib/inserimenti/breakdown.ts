@@ -86,6 +86,14 @@ function group(rows: Row[], keyOf: (r: Row) => string, noGettoneOf?: (r: Row) =>
   return Array.from(m.values()).sort((a, b) => b.qty - a.qty || b.compenso - a.compenso);
 }
 
+/** Aggiunge le categorie definite ma senza vendite, come fette a zero. */
+function withZeros(slices: Slice[], universe: Set<string>): Slice[] {
+  const have = new Set(slices.map((s) => s.name));
+  const out = [...slices];
+  for (const c of Array.from(universe)) if (!have.has(c)) out.push({ name: c, qty: 0, compenso: 0 });
+  return out;
+}
+
 export async function loadBreakdown(
   ownerUserId: string,
   month: string,
@@ -93,6 +101,22 @@ export async function loadBreakdown(
   filtroCategoria: string | null,
 ): Promise<BreakdownData> {
   const sales = await prisma.storeSale.findMany({ where: { ownerUserId, month } });
+
+  // categorie definite nei piani del mese: servono a mostrare anche quelle
+  // ancora senza vendite (es. Energia — luce+gas di TIM, Enel, Fastweb).
+  const planLines = await prisma.incentiveLine.findMany({
+    where: { plan: { ownerUserId, month }, category: { not: null } },
+    select: { category: true, plan: { select: { brand: true } } },
+  });
+  const catByBrand = new Map<string, Set<string>>();
+  const allCats = new Set<string>();
+  for (const l of planLines) {
+    if (!l.category) continue;
+    allCats.add(l.category);
+    const set = catByBrand.get(l.plan.brand) ?? new Set<string>();
+    set.add(l.category);
+    catByBrand.set(l.plan.brand, set);
+  }
 
   const offers = await prisma.storeOffer.findMany({
     where: { ownerUserId },
@@ -153,10 +177,14 @@ export async function loadBreakdown(
 
   // i brand si contano SEMPRE su tutte le righe: servono a cambiare filtro
   const brands = group(rows, (r) => r.brand);
-  const categories = group(afterBrand, (r) => r.category);
+
+  // categorie: quelle con vendite + quelle definite nei piani ancora a zero
+  // (così Energia compare anche prima della prima vendita luce/gas)
+  const catUniverse = filtroBrand ? (catByBrand.get(filtroBrand) ?? new Set<string>()) : allCats;
+  const categories = withZeros(group(afterBrand, (r) => r.category), catUniverse);
 
   // matrice brand × categoria: recap dell'intero mese, indipendente dai filtri
-  const matrix = buildMatrix(rows);
+  const matrix = buildMatrix(rows, Array.from(catByBrand.keys()), allCats);
 
   let detail: CategoryDetail | null = null;
   if (filtroCategoria) {
@@ -196,14 +224,23 @@ export async function loadBreakdown(
   };
 }
 
-/** Matrice brand × categoria con pezzi e compensi, totali di riga/colonna. */
-function buildMatrix(rows: Row[]): RecapMatrix {
+/**
+ * Matrice brand × categoria con pezzi e compensi, totali di riga/colonna.
+ * planBrands/planCats includono le righe/colonne definite nei piani anche se
+ * ancora senza vendite (es. Energia).
+ */
+function buildMatrix(rows: Row[], planBrands: string[], planCats: Set<string>): RecapMatrix {
   const cell: Record<string, Record<string, MatrixCell>> = {};
   const rowTot: Record<string, MatrixCell> = {};
   const colTot: Record<string, MatrixCell> = {};
   const grand: MatrixCell = { qty: 0, compenso: 0 };
-  const brandSet = new Set<string>();
-  const catSet = new Set<string>();
+  const brandSet = new Set<string>(rows.map((r) => r.brand));
+  const catSet = new Set<string>([...rows.map((r) => r.category), ...Array.from(planCats)]);
+  // i brand entrano in matrice solo se hanno vendite: righe a zero per ogni
+  // brand con piano ma senza vendite sarebbero solo rumore
+  for (const b of Array.from(brandSet)) rowTot[b] ??= { qty: 0, compenso: 0 };
+  for (const c of Array.from(catSet)) colTot[c] ??= { qty: 0, compenso: 0 };
+  void planBrands;
 
   const add = (m: MatrixCell, r: Row) => {
     m.qty += 1;
@@ -211,12 +248,8 @@ function buildMatrix(rows: Row[]): RecapMatrix {
   };
 
   for (const r of rows) {
-    brandSet.add(r.brand);
-    catSet.add(r.category);
     cell[r.brand] ??= {};
     cell[r.brand][r.category] ??= { qty: 0, compenso: 0 };
-    rowTot[r.brand] ??= { qty: 0, compenso: 0 };
-    colTot[r.category] ??= { qty: 0, compenso: 0 };
     add(cell[r.brand][r.category], r);
     add(rowTot[r.brand], r);
     add(colTot[r.category], r);
@@ -224,8 +257,8 @@ function buildMatrix(rows: Row[]): RecapMatrix {
   }
 
   return {
-    brands: Array.from(brandSet).sort((a, b) => (rowTot[b].compenso - rowTot[a].compenso) || a.localeCompare(b)),
-    categories: Array.from(catSet).sort((a, b) => (colTot[b].compenso - colTot[a].compenso) || a.localeCompare(b)),
+    brands: Array.from(brandSet).sort((a, b) => rowTot[b].compenso - rowTot[a].compenso || a.localeCompare(b)),
+    categories: Array.from(catSet).sort((a, b) => colTot[b].compenso - colTot[a].compenso || a.localeCompare(b)),
     cell,
     rowTot,
     colTot,
