@@ -10,28 +10,53 @@ import { prisma } from "@/lib/prisma";
 const eur = (n: number) => n.toLocaleString("it-IT", { minimumFractionDigits: 2 }) + " €";
 
 /** Quali valori vengono da una lettera/conferma e quali li ho ipotizzati io. */
+// Fonti verificate il 18/07/2026 con ricerca esaustiva nelle cartelle.
 const FONTE: Record<string, string> = {
   "TIM|MNP": "REALE — lettera luglio + soglie avanzamento Mirko",
   "TIM|AL_PP": "REALE — lettera luglio + soglie avanzamento Mirko",
   "TIM|ACCESSO_FISSO": "REALE — lettera luglio + soglie avanzamento Mirko",
   "TIM|CONTENUTI": "REALE — lettera luglio",
-  "TIM|TIMFIN": "REALE — lettera luglio (gara VALORE)",
-  "TIM|ENERGIA": "REALE — lettera luglio (PxQ 10 + qualitativa 70 + volume)",
-  "TIM|TELEPASS_FAMILY": "REALE — lettera luglio (PxQ 20 + volume)",
-  "TIM|TELEPASS_TWIN": "REALE — lettera luglio",
-  "TIM|TELEPASS_EUROPA": "REALE — lettera luglio",
+  "TIM|TIMFIN": "REALE — gara VALORE (lettera). IN PIÙ: TIMFin paga 4% sull'importo finanziato + 10% sul premio assicurativo (Vademecum) — NON ancora modellato, vedi nota in fondo",
+  "TIM|ENERGIA": "REALE — lettera luglio (10 PxQ + 70 qualitativa + volume 20/40; dual = 2 contratti)",
+  "TIM|TELEPASS_FAMILY": "REALE — lettera Telepass luglio (20 PxQ + volume 10/20)",
+  "TIM|TELEPASS_TWIN": "REALE — lettera Telepass luglio (10 €)",
+  "TIM|TELEPASS_EUROPA": "REALE — lettera Telepass luglio (5 €)",
   "TIM|TIM_UNICA": "REALE — lettera luglio",
-  "FASTWEB|MOBILE": "STIMA — piano C.Net 2023, scaglione massimo",
-  "FASTWEB|TEL_INC": "STIMA — assunto uguale al mobile",
-  "FASTWEB|FISSO": "STIMA — piano C.Net 2023, scaglione massimo",
-  "FASTWEB|ENERGIA": "PROVVISORIO — indicato da Lorenzo (100 €)",
-  "FASTWEB|FISSO_BUSINESS": "PROVVISORIO — indicato da Lorenzo (5 × canone)",
-  "FASTWEB|MOBILE_BUSINESS": "PROVVISORIO — indicato da Lorenzo (5 × canone)",
-  "FASTWEB|ENERGIA_BUSINESS": "PROVVISORIO — indicato da Lorenzo (5 × canone)",
-  "ENEL|ENERGIA": "REALE — confermato da Lorenzo (90 € a contratto)",
-  "ENI|TELEPASS": "PROVVISORIO — 5 € da confermare",
-  "ILIAD|MNP": "REALE — confermato da Lorenzo (compenso = canone)",
+  "FASTWEB|MOBILE": "STIMA — nessun piano compenso dealer nei documenti (verificato); valori piano C.Net 2023",
+  "FASTWEB|TEL_INC": "STIMA — nessun documento; assunto uguale al mobile",
+  "FASTWEB|FISSO": "STIMA — nessun piano compenso dealer nei documenti (verificato); valori piano C.Net 2023",
+  "FASTWEB|ENERGIA": "STIMA — nessun documento Fastweb energia; 100 € indicato da Lorenzo",
+  "FASTWEB|FISSO_BUSINESS": "STIMA — nessun documento; 5 × canone indicato da Lorenzo",
+  "FASTWEB|MOBILE_BUSINESS": "STIMA — nessun documento; 5 × canone indicato da Lorenzo",
+  "FASTWEB|ENERGIA_BUSINESS": "STIMA — nessun documento; 5 × canone indicato da Lorenzo",
+  "ENEL|ENERGIA": "CONFERMATO da Lorenzo (90 € a contratto) — nessun documento Enel nelle cartelle",
+  "ENI|TELEPASS": "PROVVISORIO — nessun documento Eni trovato; 5 € da confermare",
+  "ILIAD|MNP": "CONFERMATO da Lorenzo (compenso = canone) — nessun listino Iliad nelle cartelle",
 };
+
+// Note aggiuntive stampate in fondo all'elenco.
+const NOTE_FINALI = `
+## ⚠️ Compensi trovati nei documenti ma NON ancora modellati
+
+**TIMFin — provvigione finanziaria e assicurativa** (fonte:
+\`TIM/8. TIMFin/TIMFinProvvigioni finanziarie_VademecumConvenzionati_Completo.pdf\`).
+Oltre alla gara VALORE (gettone a soglia 15/20/30/35/50 €), TIMFin riconosce al
+dealer due provvigioni separate su OGNI finanziamento:
+- **4% dell'importo finanziato** (comprensivo di voucher e maxi-rate; esclusi
+  entry ticket, assicurazioni, TIM Rivaluta). Solo se il contratto resta attivo
+  nei primi 180 giorni.
+- **10% del premio assicurativo** pagato dal cliente (polizze TIMFin Assicura):
+  es. Full 30 mesi → 13,72 € (fascia 300-799) · 22,12 € (800-999) · 27,72 € (over 1000).
+
+Per modellarle servirebbe registrare l'importo finanziato e l'eventuale polizza
+per ogni vendita TIMFin: oggi il modulo tiene solo il canone. Da decidere se
+aggiungerle.
+
+**Kena** (fonte: \`SenzaCodice - Incentivazione Kena Dealer Tim ... Luglio 2026.pdf\`).
+Compensi reali disponibili se un giorno la venderai: MNP Star 15 €, Standard 10 €,
+AL 5 €, + rinnovato (35/30/5), superpremio a soglie, Ricarica Automatica 20 €,
+Easy Europe 7/15 €, Pack 15/25/35 €, Subbyx 30 €. Oggi Kena è fuori scope.
+`;
 
 async function main() {
   const owner = (await prisma.user.findFirst({ where: { role: "ADMIN" }, orderBy: { createdAt: "asc" } }))!;
@@ -89,6 +114,8 @@ async function main() {
     console.log(`\n## ${senza.length} offerte senza pista (da assegnare)\n`);
     for (const o of senza) console.log(`- ${o.brand} · ${o.category} · **${o.name}** · ${eur(Number(o.feeEur))}`);
   }
+
+  console.log(NOTE_FINALI);
 
   await prisma.$disconnect();
 }
