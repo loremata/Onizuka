@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireFullAdmin } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
 import { AdminPageHeader } from "@/components/onizuka/admin-page-header";
+import { InserimentiNav } from "../module-nav";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { currentMonth } from "@/lib/inserimenti/dashboard";
@@ -41,6 +42,8 @@ export default async function RegistraPage() {
           </Button>
         }
       />
+
+      <InserimentiNav />
 
       {options.length === 0 ? (
         <Card>

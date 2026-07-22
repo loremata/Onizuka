@@ -11,6 +11,7 @@ import { DonutChart } from "@/components/onizuka/donut-chart";
 import { ChiusuraGiornata } from "./chiusura-giornata";
 import { Obiettivo } from "./obiettivo";
 import { RecapMatrixTable } from "./recap-matrix";
+import { InserimentiNav } from "./module-nav";
 
 const eur = (n: number) => "€ " + n.toLocaleString("it-IT", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
@@ -72,22 +73,13 @@ export default async function InserimentiPage({
         title="Inserimenti — compensi negozio"
         lead="Compensi maturati sulle gare TIM e sui brand a gettone."
         actions={
-          <>
-            <Button asChild variant="ghost" size="sm">
-              <Link href={`/admin/inserimenti/piano?mese=${month}`}>Piano</Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link href={`/admin/inserimenti/mese?mese=${month}`}>Input mensili</Link>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/admin/inserimenti/listino">Listino</Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link href="/admin/inserimenti/registra">+ Registra</Link>
-            </Button>
-          </>
+          <Button asChild size="sm">
+            <Link href="/admin/inserimenti/registra">+ Registra</Link>
+          </Button>
         }
       />
+
+      <InserimentiNav />
 
       <div className="flex flex-wrap items-center gap-3">
         <Button asChild variant="outline" size="sm">

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireFullAdmin } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
 import { AdminPageHeader } from "@/components/onizuka/admin-page-header";
+import { InserimentiNav } from "../module-nav";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { OfferRow } from "./offer-row";
@@ -43,6 +44,8 @@ export default async function ListinoPage({ searchParams }: { searchParams: { br
           </Button>
         }
       />
+
+      <InserimentiNav />
 
       <div className="flex flex-wrap gap-2">
         {brands.map((b) => (
