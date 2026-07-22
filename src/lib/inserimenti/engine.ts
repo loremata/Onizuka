@@ -254,7 +254,9 @@ function computeTimLine(
   mnpPenalty: number,
 ): LineResult {
   const mine = salesFor(sales, line.key);
-  const qty = mine.length;
+  // FWA ricaricabile: pesa 0,5 sulla gara Fisso (soglia e canone), come da lettera.
+  const fwWeight = (s: Sale) => (line.key === "ACCESSO_FISSO" && s.subtype === "FWA_RIC" ? 0.5 : 1);
+  const qty = round2(mine.reduce((a, s) => a + fwWeight(s), 0));
 
   const idx = tierIndex(qty, line.tiers);
   const arr = sortTiers(line.tiers);
@@ -301,10 +303,10 @@ function computeTimLine(
 
   const compensoRaw = mine.reduce((a, s) => {
     const w = line.applyBillSize ? billWeight(s.feeEur, bill) : 1;
-    return a + perUnit(s) * (s.feeEur ?? 0) * w;
+    return a + perUnit(s) * (s.feeEur ?? 0) * w * fwWeight(s);
   }, 0);
   const eligibleFee = mine.reduce(
-    (a, s) => a + (s.feeEur ?? 0) * (line.applyBillSize ? billWeight(s.feeEur, bill) : 1),
+    (a, s) => a + (s.feeEur ?? 0) * (line.applyBillSize ? billWeight(s.feeEur, bill) : 1) * fwWeight(s),
     0,
   );
 
@@ -321,7 +323,7 @@ function computeTimLine(
           : nextMult;
     const compensoNext = mine.reduce((a, s) => {
       const w = line.applyBillSize ? billWeight(s.feeEur, bill) : 1;
-      return a + nextPerUnit(s) * (s.feeEur ?? 0) * w;
+      return a + nextPerUnit(s) * (s.feeEur ?? 0) * w * fwWeight(s);
     }, 0);
     stepValue = round2(compensoNext - compensoRaw);
   }
@@ -527,7 +529,8 @@ export function attributeSales(plan: Plan, sales: Sale[], inputs: MonthlyInputs 
   for (const line of plan.lines) {
     const mine = sales.map((s, i) => ({ s, i })).filter(({ s }) => s.lineKey === line.key);
     if (!mine.length) continue;
-    const qty = mine.length;
+    const fwWeight = (s: Sale) => (line.key === "ACCESSO_FISSO" && s.subtype === "FWA_RIC" ? 0.5 : 1);
+    const qty = round2(mine.reduce((a, { s }) => a + fwWeight(s), 0));
 
     if (line.unit === "EUR_PER_PIECE") {
       const pxq = line.pxqEur ?? 0;
@@ -560,7 +563,7 @@ export function attributeSales(plan: Plan, sales: Sale[], inputs: MonthlyInputs 
       out.push({
         index: i,
         lineKey: line.key,
-        compenso: round2(perUnit * (s.feeEur ?? 0) * w),
+        compenso: round2(perUnit * (s.feeEur ?? 0) * w * fwWeight(s)),
         paysGettone: w > 0,
       });
     }

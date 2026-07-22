@@ -19,6 +19,7 @@
  * Uso: npx tsx scripts/import-inserimenti-foglio.ts
  */
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 const TAG = "[foglio]";
 
@@ -28,55 +29,73 @@ type Row = {
   lineKey: string;
   domiciled?: boolean;
   subtype?: string;
+  feeEur?: number;
+  offerCode?: string;
   note: string;
 };
 
 // ---------------------------------------------------------------- LUGLIO 2026
+// Aggiornato al CSV "[INSERIMENTI NEGOZIO] - Luglio 2026" fino al 20/07.
+// TIM mobile: ric = NON domiciliato, easy/rid = domiciliato. MNP/AL dalla nota;
+// dove la nota non lo dice è marcato "(tipo da verificare)" e va confermato.
 const luglio: Row[] = [
-  // --- TIM mobile: ric = NON domiciliato, easy/rid = domiciliato ---
-  { date: "2026-07-01", brand: "TIM", lineKey: "MNP", domiciled: true, note: "Tim Mobile rid (dedotto MNP)" },
-  { date: "2026-07-02", brand: "TIM", lineKey: "MNP", domiciled: false, note: "TIM Mobile ric (dedotto MNP)" },
-  { date: "2026-07-06", brand: "TIM", lineKey: "MNP", domiciled: false, note: "TIM Young mnp ric" },
-  { date: "2026-07-07", brand: "TIM", lineKey: "AL_PP", domiciled: false, note: "TIM Mobile AL ric" },
-  { date: "2026-07-10", brand: "TIM", lineKey: "AL_PP", domiciled: true, note: "TIM Mobile rid (dedotto AL)" },
-  { date: "2026-07-11", brand: "TIM", lineKey: "AL_PP", domiciled: false, note: "Mobile ric (dedotto AL)" },
-  { date: "2026-07-13", brand: "TIM", lineKey: "MNP", domiciled: true, note: "Mobile mnp rid" },
-  { date: "2026-07-15", brand: "TIM", lineKey: "MNP", domiciled: true, note: "TIM Mobile mnp easy" },
-  { date: "2026-07-15", brand: "TIM", lineKey: "MNP", domiciled: true, note: "TIM Mobile mnp easy" },
-
-  // --- TIM fisso (4,5 nel foglio = 5 accessi, l'FWA ricaricabile pesa 0,5) ---
+  // 01/07
+  { date: "2026-07-01", brand: "TIM", lineKey: "MNP", domiciled: true, note: "Tim Mobile rid (tipo da verificare)" },
   { date: "2026-07-01", brand: "TIM", lineKey: "ACCESSO_FISSO", note: "TIM WiFi Casa FWA" },
-  { date: "2026-07-11", brand: "TIM", lineKey: "ACCESSO_FISSO", subtype: "FWA_RIC", note: "TIM FWA ricaricabile (pesa 0,5)" },
-  { date: "2026-07-11", brand: "TIM", lineKey: "ACCESSO_FISSO", note: "TIM Casa Wifi" },
-  { date: "2026-07-15", brand: "TIM", lineKey: "ACCESSO_FISSO", note: "TIM Fisso FTTH NIP" },
-  { date: "2026-07-15", brand: "TIM", lineKey: "ACCESSO_FISSO", note: "TIM FIBRA FTTC NIP" },
-
-  // --- TIM contenuti ---
   { date: "2026-07-01", brand: "TIM", lineKey: "CONTENUTI", note: "TIMVision M" },
-
-  // --- TIM Telepass: primi 2 venduti il 17/07 (dispositivi arrivati) ---
-  { date: "2026-07-17", brand: "TIM", lineKey: "TELEPASS_FAMILY", note: "primi 2 Telepass TIM" },
-  { date: "2026-07-17", brand: "TIM", lineKey: "TELEPASS_FAMILY", note: "primi 2 Telepass TIM" },
-
-  // --- Fastweb (5 mobile + 5 fisso) ---
+  // 02/07
+  { date: "2026-07-02", brand: "TIM", lineKey: "MNP", domiciled: false, note: "TIM Mobile ric (tipo da verificare)" },
+  ...expand("2026-07-02", 2, "ENI", "TELEPASS", "Telepass Eni"),
+  // 04/07
+  ...expand("2026-07-04", 1, "ENI", "TELEPASS", "Telepass Business"),
+  // 06/07
+  { date: "2026-07-06", brand: "TIM", lineKey: "MNP", domiciled: false, note: "TIM Young mnp ric" },
+  ...expand("2026-07-06", 2, "ENI", "TELEPASS", "Telepass Eni"),
+  // 07/07
+  { date: "2026-07-07", brand: "TIM", lineKey: "AL_PP", domiciled: false, note: "TIM Mobile AL ric" },
+  // 08/07
   { date: "2026-07-08", brand: "FASTWEB", lineKey: "MOBILE", note: "Mobile Start (tel incl Galaxy A17)" },
   { date: "2026-07-08", brand: "FASTWEB", lineKey: "FISSO", note: "Casa Pro" },
+  // 10/07
+  { date: "2026-07-10", brand: "TIM", lineKey: "MNP", domiciled: true, note: "TIM Mobile rid (tipo da verificare)" },
+  ...expand("2026-07-10", 1, "ENI", "TELEPASS", "Telepass Eni"),
+  // 11/07
+  { date: "2026-07-11", brand: "TIM", lineKey: "MNP", domiciled: false, note: "Mobile ric (tipo da verificare)" },
+  { date: "2026-07-11", brand: "TIM", lineKey: "ACCESSO_FISSO", subtype: "FWA_RIC", note: "TIM FWA ric (pesa 0,5)" },
+  { date: "2026-07-11", brand: "TIM", lineKey: "ACCESSO_FISSO", note: "TIM Casa Wifi" },
   { date: "2026-07-11", brand: "FASTWEB", lineKey: "MOBILE", note: "Mobile Ultra" },
+  // 13/07
+  { date: "2026-07-13", brand: "TIM", lineKey: "MNP", domiciled: true, note: "Mobile mnp rid" },
   { date: "2026-07-13", brand: "FASTWEB", lineKey: "MOBILE", note: "Mobile Ultra" },
   { date: "2026-07-13", brand: "FASTWEB", lineKey: "MOBILE", note: "Mobile Start" },
   { date: "2026-07-13", brand: "FASTWEB", lineKey: "FISSO", note: "Casa Pro" },
   { date: "2026-07-13", brand: "FASTWEB", lineKey: "FISSO", note: "Casa Pro" },
+  // 14/07
   { date: "2026-07-14", brand: "FASTWEB", lineKey: "MOBILE", note: "Mobile Start" },
   { date: "2026-07-14", brand: "FASTWEB", lineKey: "FISSO", note: "Casa Pro" },
-  { date: "2026-07-15", brand: "FASTWEB", lineKey: "FISSO", note: "Casa Pro" },
-
-  // --- Eni Telepass (10) ---
-  ...expand("2026-07-02", 2, "ENI", "TELEPASS", "Telepass Eni"),
-  ...expand("2026-07-04", 1, "ENI", "TELEPASS", "Telepass Business"),
-  ...expand("2026-07-06", 2, "ENI", "TELEPASS", "Telepass Eni"),
-  ...expand("2026-07-10", 1, "ENI", "TELEPASS", "Telepass Eni"),
   ...expand("2026-07-14", 2, "ENI", "TELEPASS", "Telepass Eni"),
+  // 15/07
+  { date: "2026-07-15", brand: "TIM", lineKey: "MNP", domiciled: true, note: "TIM Mobile mnp easy" },
+  { date: "2026-07-15", brand: "TIM", lineKey: "MNP", domiciled: true, note: "TIM Mobile mnp easy" },
+  { date: "2026-07-15", brand: "TIM", lineKey: "ACCESSO_FISSO", note: "TIM Fisso FTTH NIP" },
+  { date: "2026-07-15", brand: "TIM", lineKey: "ACCESSO_FISSO", note: "TIM FIBRA FTTC NIP" },
+  { date: "2026-07-15", brand: "FASTWEB", lineKey: "FISSO", note: "Casa Pro" },
   ...expand("2026-07-15", 2, "ENI", "TELEPASS", "Telepass Eni"),
+  // 16/07
+  { date: "2026-07-16", brand: "TIM", lineKey: "MNP", domiciled: true, note: "TIM Mobile MNP easy" },
+  // 17/07 — primi Telepass TIM (dispositivi arrivati)
+  { date: "2026-07-17", brand: "TIM", lineKey: "TELEPASS_FAMILY", note: "Telepass TIM" },
+  { date: "2026-07-17", brand: "TIM", lineKey: "TELEPASS_FAMILY", note: "Telepass TIM" },
+  // 18/07
+  { date: "2026-07-18", brand: "TIM", lineKey: "AL_PP", domiciled: true, note: "TIM Mobile AL Easy" },
+  { date: "2026-07-18", brand: "TIM", lineKey: "ENERGIA", offerCode: "AUTO-TIM-ENERGIA-LUCE", note: "TIM Energia Luce" },
+  { date: "2026-07-18", brand: "TIM", lineKey: "ENERGIA", offerCode: "AUTO-TIM-ENERGIA-GAS", note: "TIM Energia Gas" },
+  { date: "2026-07-18", brand: "FASTWEB", lineKey: "MOBILE", note: "Mobile Start RA MNP" },
+  // 20/07
+  { date: "2026-07-20", brand: "TIM", lineKey: "AL_PP", domiciled: false, note: "TIM Mobile ric LA (AL)" },
+  { date: "2026-07-20", brand: "TIM", lineKey: "ACCESSO_FISSO", subtype: "FWA_RIC", note: "TIM FWA ric (pesa 0,5)" },
+  { date: "2026-07-20", brand: "FASTWEB", lineKey: "MOBILE_BUSINESS", feeEur: 12.95, note: "Fastweb Business Freedom mnp 12,95€" },
+  { date: "2026-07-20", brand: "FASTWEB", lineKey: "MOBILE_BUSINESS", feeEur: 12.95, note: "Fastweb Business Freedom mnp 12,95€" },
 ];
 
 // ---------------------------------------------------------------- GIUGNO 2026
@@ -163,9 +182,14 @@ async function main() {
 
   const rows = [...giugno, ...luglio];
 
-  // idempotenza: togli solo le righe importate in precedenza da questo script
+  // riallineo al foglio: rimuovo TUTTO luglio (incluse le vendite inserite a
+  // mano, es. le 2 Energia — sono nel CSV e vengono ricreate) e le righe
+  // [foglio] di giugno, poi ricreo. Così il DB == foglio.
   const removed = await prisma.storeSale.deleteMany({
-    where: { ownerUserId: owner.id, notes: { startsWith: TAG } },
+    where: {
+      ownerUserId: owner.id,
+      OR: [{ month: "2026-07" }, { notes: { startsWith: TAG } }],
+    },
   });
 
   await prisma.storeSale.createMany({
@@ -175,7 +199,8 @@ async function main() {
       month: r.date.slice(0, 7),
       brand: r.brand,
       lineKey: r.lineKey,
-      feeEur: null, // il foglio non ha i canoni
+      offerCode: r.offerCode ?? null,
+      feeEur: r.feeEur == null ? null : new Prisma.Decimal(r.feeEur),
       feeSource: "MANUALE" as const,
       domiciled: r.domiciled ?? false,
       subtype: r.subtype ?? null,
