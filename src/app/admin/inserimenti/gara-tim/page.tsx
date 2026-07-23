@@ -107,6 +107,12 @@ export default async function GaraTimPage({ searchParams }: { searchParams: { me
     dailyByLine.set(s.lineKey, arr);
   }
 
+  // numerazione soglie come in lettera: dove il tier 0 vale 0 la "Soglia 1" è
+  // il tier 1 (Fisso/Contenuti/…); dove il tier 0 paga già, il tier 0 È la
+  // Soglia 1 (MNP/AL/Valore).
+  const zeroBase: Record<string, boolean> = {};
+  for (const l of plan?.lines ?? []) zeroBase[l.key] = Number(l.tiers[0]?.value ?? 0) === 0;
+
   const resultByKey = new Map((tim?.result.lines ?? []).map((l) => [l.key, l]));
   const projByKey = new Map((data.outlook?.lines ?? []).map((p) => [p.key, p]));
   const focusList = tim?.focus ?? [];
@@ -299,7 +305,7 @@ export default async function GaraTimPage({ searchParams }: { searchParams: { me
           ) : null}
 
           {/* Le gare, tabella completa */}
-          <TimBlock block={tim} outlook={data.outlook} />
+          <TimBlock block={tim} outlook={data.outlook} zeroBase={zeroBase} />
 
           {/* Andamento gara per gara: colonne giornaliere, soglie, medie, consigli */}
           {chartData.length ? (
@@ -368,10 +374,23 @@ export default async function GaraTimPage({ searchParams }: { searchParams: { me
   );
 }
 
-function TimBlock({ block, outlook }: { block: BrandBlock; outlook: MonthOutlook | null }) {
+function TimBlock({
+  block,
+  outlook,
+  zeroBase,
+}: {
+  block: BrandBlock;
+  outlook: MonthOutlook | null;
+  zeroBase: Record<string, boolean>;
+}) {
   const r = block.result;
   const gare = r.lines.filter((l) => l.qty > 0 || l.compenso !== 0);
   const projByKey = new Map((outlook?.lines ?? []).map((p) => [p.key, p]));
+  /** Numero di soglia in stile lettera; null = sotto la prima soglia. */
+  const sogliaNum = (key: string, tierIdx: number): number | null => {
+    const n = zeroBase[key] ? tierIdx : tierIdx + 1;
+    return n >= 1 ? n : null;
+  };
   return (
     <Card>
       <CardHeader>
@@ -384,8 +403,8 @@ function TimBlock({ block, outlook }: { block: BrandBlock; outlook: MonthOutlook
             <thead>
               <tr className="border-b text-left text-muted-foreground">
                 <th className="py-2 pr-4">Gara</th>
-                <th className="py-2 pr-4 text-right">Pezzi</th>
-                <th className="py-2 pr-4 text-right">Scaglione</th>
+                <th className="py-2 pr-4 text-right">Inseriti</th>
+                <th className="py-2 pr-4 text-right">Soglia</th>
                 <th className="py-2 pr-4 text-right">Mancano</th>
                 <th className="py-2 pr-4 text-right">Compenso</th>
                 <th className="py-2 pr-4 text-right">+€ scatto</th>
@@ -399,7 +418,7 @@ function TimBlock({ block, outlook }: { block: BrandBlock; outlook: MonthOutlook
                   <tr key={l.key} className="border-b last:border-0">
                     <td className="py-2 pr-4 font-medium">{l.label}</td>
                     <td className="py-2 pr-4 text-right tabular-nums">{l.qty}</td>
-                    <td className="py-2 pr-4 text-right tabular-nums">{l.tierIndex + 1}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums">{sogliaNum(l.key, l.tierIndex) ?? "—"}</td>
                     <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
                       {l.nextThreshold != null ? l.missing : "—"}
                     </td>
@@ -437,7 +456,10 @@ function TimBlock({ block, outlook }: { block: BrandBlock; outlook: MonthOutlook
                               : undefined
                           }
                         >
-                          ~{p.projectedQty} → sc. {p.projectedTierIndex + 1}
+                          ~{p.projectedQty} →{" "}
+                          {sogliaNum(l.key, p.projectedTierIndex) != null
+                            ? `S${sogliaNum(l.key, p.projectedTierIndex)}`
+                            : "sotto S1"}
                         </span>
                       ) : (
                         "—"

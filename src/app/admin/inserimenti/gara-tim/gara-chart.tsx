@@ -36,6 +36,21 @@ const eur = (n: number) => "€ " + it(n, 2);
 /** "×2,3" per le gare a moltiplicatore, "7,5 €" per quelle a gettone. */
 const fmtTier = (unit: string, v: number) => (unit === "MULTIPLIER_ON_FEE" ? "×" + it(v, 1) : it(v, 2) + " €");
 
+/** Colori delle soglie, gli stessi della lettera di gara (soglia 1 = rosso,
+ *  2 = giallo, 3 = verde, 4 = grigio, 5 = azzurro, 6 = mattone). */
+const SOGLIA_COLORS = ["#e06666", "#f1c232", "#6aa84f", "#999999", "#6d9eeb", "#cc4125"];
+const sogliaColor = (n: number) => SOGLIA_COLORS[Math.max(0, Math.min(SOGLIA_COLORS.length - 1, n - 1))];
+
+/**
+ * Numero di soglia come nella lettera. Due numerazioni convivono:
+ *  - gare con base pagata (MNP/AL/Valore: tier 0 ha già un valore) → tier 0 È
+ *    la "Soglia 1", quindi soglia = indice + 1;
+ *  - gare che sotto la prima soglia non pagano (Fisso/Contenuti/…: tier 0 vale
+ *    0) → tier 1 è la "Soglia 1", quindi soglia = indice.
+ */
+const sogliaNumOf = (tiers: { minQty: number; value: number }[], tierIdx: number) =>
+  tiers.length && tiers[0].value === 0 ? tierIdx : tierIdx + 1;
+
 export function GaraChart({ d }: { d: GaraChartData }) {
   const pace = d.dayOfMonth > 0 ? d.qty / d.dayOfMonth : 0;
 
@@ -53,6 +68,12 @@ export function GaraChart({ d }: { d: GaraChartData }) {
 
   const soglie = d.tiers.filter((t) => t.minQty > 0);
   const maxSoglia = soglie.length ? soglie[soglie.length - 1].minQty : 0;
+  /** Numero di soglia (come in lettera) per un tier, dato il suo minQty. */
+  const sogliaNumByMinQty = (minQty: number) => {
+    const idx = d.tiers.findIndex((t) => t.minQty === minQty);
+    return idx >= 0 ? sogliaNumOf(d.tiers, idx) : null;
+  };
+  const nextSogliaNum = d.nextThreshold != null ? sogliaNumByMinQty(d.nextThreshold) : null;
 
   // scala Y del grafico: la parte di gara che è "in gioco" questo mese
   const yMax = Math.max(d.qty, d.projectedQty, d.nextThreshold ?? 0, 1) * 1.18;
@@ -78,7 +99,7 @@ export function GaraChart({ d }: { d: GaraChartData }) {
 
   // --- statistiche e consiglio ---
   const daysLeft = d.daysInMonth - d.dayOfMonth;
-  const consiglio = buildConsiglio(d, pace, daysLeft);
+  const consiglio = buildConsiglio(d, pace, daysLeft, nextSogliaNum);
 
   return (
     <Card className={d.isTopFocus ? "border-primary/40" : undefined}>
@@ -89,8 +110,10 @@ export function GaraChart({ d }: { d: GaraChartData }) {
             {d.isTopFocus ? <span className="ml-2 text-xs font-normal text-primary">🎯 priorità del mese</span> : null}
           </span>
           <span className="text-sm font-normal tabular-nums text-muted-foreground">
-            {it(d.qty, 1)} {d.qty === 1 ? "pezzo" : "pezzi"}
-            {d.nextThreshold != null ? ` · ${it(d.missing, 1)} alla soglia ${d.nextThreshold}` : " · scaglione massimo"}
+            Inseriti {it(d.qty, 1)} {d.qty === 1 ? "pezzo" : "pezzi"}
+            {d.nextThreshold != null && nextSogliaNum != null
+              ? ` · ${it(d.missing, 1)} alla soglia ${nextSogliaNum}`
+              : " · soglia massima raggiunta"}
           </span>
         </CardTitle>
       </CardHeader>
@@ -98,22 +121,27 @@ export function GaraChart({ d }: { d: GaraChartData }) {
         {/* colonne giornaliere cumulative + soglie in gioco */}
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={`Andamento ${d.label}`}>
           {/* soglie visibili nella scala del mese */}
-          {visibili.map((t) => (
-            <g key={t.minQty}>
-              <line
-                x1={plotX}
-                x2={plotX + plotW}
-                y1={yOf(t.minQty)}
-                y2={yOf(t.minQty)}
-                className="stroke-muted-foreground/40"
-                strokeDasharray="5 4"
-                strokeWidth={1}
-              />
-              <text x={plotX + plotW + 6} y={yOf(t.minQty) + 3.5} className="fill-muted-foreground" fontSize={11}>
-                {t.minQty} · {fmtTier(d.unit, t.value)}
-              </text>
-            </g>
-          ))}
+          {visibili.map((t) => {
+            const n = sogliaNumByMinQty(t.minQty);
+            const color = n != null ? sogliaColor(n) : undefined;
+            return (
+              <g key={t.minQty}>
+                <line
+                  x1={plotX}
+                  x2={plotX + plotW}
+                  y1={yOf(t.minQty)}
+                  y2={yOf(t.minQty)}
+                  stroke={color}
+                  strokeOpacity={0.65}
+                  strokeDasharray="5 4"
+                  strokeWidth={1.2}
+                />
+                <text x={plotX + plotW + 6} y={yOf(t.minQty) + 3.5} fill={color} fontSize={11} fontWeight={500}>
+                  S{n} · {t.minQty} · {fmtTier(d.unit, t.value)}
+                </text>
+              </g>
+            );
+          })}
 
           {/* separatore "oggi" */}
           {daysLeft > 0 ? (
@@ -159,11 +187,13 @@ export function GaraChart({ d }: { d: GaraChartData }) {
           <line x1={SX} x2={sx(Math.min(d.qty, stripMax))} y1={26} y2={26} className="stroke-primary" strokeWidth={3} />
           {soglie.map((t) => {
             const passed = d.qty >= t.minQty;
+            const n = sogliaNumByMinQty(t.minQty);
+            const color = n != null ? sogliaColor(n) : undefined;
             return (
-              <g key={t.minQty}>
-                <line x1={sx(t.minQty)} x2={sx(t.minQty)} y1={19} y2={33} className={passed ? "stroke-primary" : "stroke-muted-foreground/60"} strokeWidth={2} />
-                <text x={sx(t.minQty)} y={12} textAnchor="middle" fontSize={11} className={passed ? "fill-primary font-medium" : "fill-muted-foreground"}>
-                  {t.minQty}
+              <g key={t.minQty} opacity={passed ? 1 : 0.75}>
+                <line x1={sx(t.minQty)} x2={sx(t.minQty)} y1={19} y2={33} stroke={color} strokeWidth={passed ? 3 : 2} />
+                <text x={sx(t.minQty)} y={12} textAnchor="middle" fontSize={11} fill={color} fontWeight={passed ? 700 : 500}>
+                  S{n} · {t.minQty}
                 </text>
                 <text x={sx(t.minQty)} y={44} textAnchor="middle" fontSize={10} className="fill-muted-foreground">
                   {fmtTier(d.unit, t.value)}
@@ -213,6 +243,7 @@ function buildConsiglio(
   d: GaraChartData,
   pace: number,
   daysLeft: number,
+  nextSogliaNum: number | null,
 ): { text: string; tone: "ok" | "warn" | "muted" } {
   if (d.eligFeeZero) {
     return {
@@ -221,36 +252,37 @@ function buildConsiglio(
     };
   }
   if (d.nextThreshold == null) {
-    return { text: "Scaglione massimo raggiunto: ogni pezzo in più paga al valore pieno. 🎉", tone: "ok" };
+    return { text: "Soglia massima raggiunta: ogni pezzo in più paga al valore pieno. 🎉", tone: "ok" };
   }
   if (daysLeft <= 0) {
     return { text: "Mese chiuso.", tone: "muted" };
   }
 
+  const soglia = `la soglia ${nextSogliaNum ?? "?"} (${d.nextThreshold} pz)`;
   const prize = d.unlocksPrize ? ` E sblocca ${d.unlocksPrize}.` : "";
   const valore = d.stepValue > 0 ? ` Vale +${eur(d.stepValue)} sul mese (rivaluta tutto retroattivamente).` : "";
 
   if (d.qty === 0) {
     return {
-      text: `Ancora ferma: per la soglia di ${d.nextThreshold} servono ${it(d.perDayNeeded, 1)}/gg da qui a fine mese.${valore}${prize}`,
+      text: `Ancora ferma: per ${soglia} servono ${it(d.perDayNeeded, 1)}/gg da qui a fine mese.${valore}${prize}`,
       tone: "muted",
     };
   }
   if (!d.reachable) {
     return {
-      text: `La soglia di ${d.nextThreshold} è fuori portata al ritmo attuale (servirebbero ${it(d.perDayNeeded, 1)}/gg contro ${it(pace, 1)}/gg): meglio spingere altrove.`,
+      text: `${soglia[0].toUpperCase() + soglia.slice(1)} è fuori portata al ritmo attuale (servirebbero ${it(d.perDayNeeded, 1)}/gg contro ${it(pace, 1)}/gg): meglio spingere altrove.`,
       tone: "muted",
     };
   }
   if (d.projectedQty >= d.nextThreshold) {
     const giorniAllaSoglia = pace > 0 ? Math.ceil(d.missing / pace) : daysLeft;
     return {
-      text: `Al ritmo attuale (${it(pace, 1)}/gg) superi la soglia di ${d.nextThreshold} fra ~${giorniAllaSoglia} giorni.${valore}${prize}`,
+      text: `Al ritmo attuale (${it(pace, 1)}/gg) superi ${soglia} fra ~${giorniAllaSoglia} giorni.${valore}${prize}`,
       tone: "ok",
     };
   }
   return {
-    text: `Per la soglia di ${d.nextThreshold} servono ${it(d.perDayNeeded, 1)}/gg (oggi vai a ${it(pace, 1)}/gg): serve un cambio di passo.${valore}${prize}`,
+    text: `Per ${soglia} servono ${it(d.perDayNeeded, 1)}/gg (oggi vai a ${it(pace, 1)}/gg): serve un cambio di passo.${valore}${prize}`,
     tone: "warn",
   };
 }
