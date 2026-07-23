@@ -1,5 +1,20 @@
 # Go-live modulo "Onizuka - Inserimenti"
 
+> **AGGIORNAMENTO 23/07/2026 — procedura effettiva usata.** La password del DB
+> di produzione è risultata illeggibile da qualunque postazione (Vercel la
+> marca Sensitive) e l'accesso automatico a Supabase è precluso. Il go-live
+> passa quindi da **`/admin/inserimenti/init`**: una pagina admin che applica
+> migration (additiva, statement verificati zero-DROP) e dati con la
+> connessione runtime dell'app, a blocchi idempotenti (ON CONFLICT DO
+> NOTHING + "already exists" ignorati). I dati vengono assegnati all'utente
+> admin che preme il pulsante. Ordine: merge/deploy PRIMA, poi il pulsante —
+> il modulo mostra errore solo nell'intervallo fra i due, la pagina init no.
+> Gli statement stanno in `src/app/admin/inserimenti/init/statements.ts`
+> (snapshot del DB locale del 23/07, canoni compilati inclusi); dopo il
+> go-live la cartella `init/` si può rimuovere. Il resto del documento
+> descrive la procedura CLI originale, valida se un giorno la password fosse
+> disponibile.
+
 Stato al 18/07/2026: modulo completo e validato sul DB locale. Branch
 `feat/onizuka-inserimenti` pushato su origin. Restano i passi che toccano la
 **produzione** (DB Supabase + sito su Vercel), da eseguire dove esistono le
