@@ -46,6 +46,7 @@ const PATH_MODULE_RULES: { prefix: string; module: AdminModule }[] = [
   { prefix: "/api/admin/webhooks", module: "integrations" },
   { prefix: "/admin/finance", module: "finance" },
   { prefix: "/admin/economics", module: "finance" },
+  { prefix: "/admin/inserimenti", module: "finance" },
   { prefix: "/api/admin/finance", module: "finance" },
   { prefix: "/admin/documents", module: "crm" },
   { prefix: "/admin/approvals", module: "reach" },
