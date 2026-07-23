@@ -1,11 +1,10 @@
-import Link from "next/link";
 import { requireFullAdmin } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
 import { AdminPageHeader } from "@/components/onizuka/admin-page-header";
 import { InserimentiNav } from "../module-nav";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { currentMonth, shiftMonth } from "@/lib/inserimenti/dashboard";
+import { MonthNav } from "../month-nav";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+import { currentMonth } from "@/lib/inserimenti/dashboard";
 import { InputMensili } from "./input-mensili";
 
 /**
@@ -52,34 +51,16 @@ export default async function MesePage({ searchParams }: { searchParams: { mese?
     ),
   );
 
-  const monthLabel = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1, 1).toLocaleDateString("it-IT", {
-    month: "long",
-    year: "numeric",
-  });
-
   return (
     <div className="space-y-8">
       <AdminPageHeader
         title="Input mensili"
         lead="Quello che non si deduce dalle vendite: i KPI del Customer Base e le soglie che arrivano dal consuntivo TIM."
-        actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/admin/inserimenti">← Cruscotto</Link>
-          </Button>
-        }
       />
 
       <InserimentiNav />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/admin/inserimenti/mese?mese=${shiftMonth(month, -1)}`}>← {shiftMonth(month, -1)}</Link>
-        </Button>
-        <span className="font-semibold capitalize">{monthLabel}</span>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/admin/inserimenti/mese?mese=${shiftMonth(month, 1)}`}>{shiftMonth(month, 1)} →</Link>
-        </Button>
-      </div>
+      <MonthNav basePath="/admin/inserimenti/mese" month={month} />
 
       {kpis.length === 0 && halvings.length === 0 ? (
         <Card>

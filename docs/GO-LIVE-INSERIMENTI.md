@@ -1,5 +1,11 @@
 # Go-live modulo "Onizuka - Inserimenti"
 
+> **✅ GO-LIVE COMPLETATO il 23/07/2026 ~21:00** — modulo live su onizuka.it
+> (7 piani · 110 offerte · 78 vendite). La pagina `init/` e gli script one-shot
+> sono stati rimossi/archiviati (`scripts/inserimenti-archive/`): questo
+> documento resta come STORIA della procedura, i percorsi citati sotto non
+> esistono più nelle posizioni originali.
+
 > **AGGIORNAMENTO 23/07/2026 — procedura effettiva usata.** La password del DB
 > di produzione è risultata illeggibile da qualunque postazione (Vercel la
 > marca Sensitive) e l'accesso automatico a Supabase è precluso. Il go-live

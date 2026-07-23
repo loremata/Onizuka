@@ -1,4 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { sogliaNumber } from "@/lib/inserimenti/engine";
+import { itNum as it, eur } from "@/lib/inserimenti/format";
 
 /**
  * Grafico a colonne per una gara TIM: cumulato giorno per giorno (reale fino a
@@ -29,10 +31,6 @@ export interface GaraChartData {
   unlocksPrize?: string;
 }
 
-const it = (n: number, dec = 0) =>
-  n.toLocaleString("it-IT", { minimumFractionDigits: 0, maximumFractionDigits: dec });
-const eur = (n: number) => "€ " + it(n, 2);
-
 /** "×2,3" per le gare a moltiplicatore, "7,5 €" per quelle a gettone. */
 const fmtTier = (unit: string, v: number) => (unit === "MULTIPLIER_ON_FEE" ? "×" + it(v, 1) : it(v, 2) + " €");
 
@@ -40,16 +38,6 @@ const fmtTier = (unit: string, v: number) => (unit === "MULTIPLIER_ON_FEE" ? "×
  *  2 = giallo, 3 = verde, 4 = grigio, 5 = azzurro, 6 = mattone). */
 const SOGLIA_COLORS = ["#e06666", "#f1c232", "#6aa84f", "#999999", "#6d9eeb", "#cc4125"];
 const sogliaColor = (n: number) => SOGLIA_COLORS[Math.max(0, Math.min(SOGLIA_COLORS.length - 1, n - 1))];
-
-/**
- * Numero di soglia come nella lettera. Due numerazioni convivono:
- *  - gare con base pagata (MNP/AL/Valore: tier 0 ha già un valore) → tier 0 È
- *    la "Soglia 1", quindi soglia = indice + 1;
- *  - gare che sotto la prima soglia non pagano (Fisso/Contenuti/…: tier 0 vale
- *    0) → tier 1 è la "Soglia 1", quindi soglia = indice.
- */
-const sogliaNumOf = (tiers: { minQty: number; value: number }[], tierIdx: number) =>
-  tiers.length && tiers[0].value === 0 ? tierIdx : tierIdx + 1;
 
 export function GaraChart({ d }: { d: GaraChartData }) {
   const pace = d.dayOfMonth > 0 ? d.qty / d.dayOfMonth : 0;
@@ -71,7 +59,7 @@ export function GaraChart({ d }: { d: GaraChartData }) {
   /** Numero di soglia (come in lettera) per un tier, dato il suo minQty. */
   const sogliaNumByMinQty = (minQty: number) => {
     const idx = d.tiers.findIndex((t) => t.minQty === minQty);
-    return idx >= 0 ? sogliaNumOf(d.tiers, idx) : null;
+    return idx >= 0 ? sogliaNumber(d.tiers, idx) : null;
   };
   const nextSogliaNum = d.nextThreshold != null ? sogliaNumByMinQty(d.nextThreshold) : null;
 

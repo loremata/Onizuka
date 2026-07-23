@@ -3,6 +3,7 @@ import { requireFullAdmin } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
 import { AdminPageHeader } from "@/components/onizuka/admin-page-header";
 import { InserimentiNav } from "../module-nav";
+import { MonthNav } from "../month-nav";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { currentMonth, shiftMonth } from "@/lib/inserimenti/dashboard";
@@ -23,34 +24,16 @@ export default async function PianoPage({ searchParams }: { searchParams: { mese
     where: { ownerUserId: session.user.id, month: prevMonth },
   });
 
-  const monthLabel = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1, 1).toLocaleDateString("it-IT", {
-    month: "long",
-    year: "numeric",
-  });
-
   return (
     <div className="space-y-8">
       <AdminPageHeader
         title="Piani provvigionali"
         lead="I numeri delle gare cambiano ogni mese. Qui si aggiornano senza toccare il codice."
-        actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/admin/inserimenti">← Cruscotto</Link>
-          </Button>
-        }
       />
 
       <InserimentiNav />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/admin/inserimenti/piano?mese=${prevMonth}`}>← {prevMonth}</Link>
-        </Button>
-        <span className="font-semibold capitalize">{monthLabel}</span>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/admin/inserimenti/piano?mese=${shiftMonth(month, 1)}`}>{shiftMonth(month, 1)} →</Link>
-        </Button>
-      </div>
+      <MonthNav basePath="/admin/inserimenti/piano" month={month} />
 
       {plans.length === 0 ? (
         <Card>

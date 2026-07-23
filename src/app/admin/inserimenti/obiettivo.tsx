@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { setMonthlyGoal } from "./actions";
 
-const eur = (n: number) => "€ " + n.toLocaleString("it-IT", { maximumFractionDigits: 0 });
+import { eur0 as eur } from "@/lib/inserimenti/format";
 
 /**
  * Obiettivo personale di compensi del mese. È una cosa che ti dai tu, distinta
