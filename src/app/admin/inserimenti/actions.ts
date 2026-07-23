@@ -44,6 +44,20 @@ export async function recordSale(formData: FormData): Promise<{ error: string } 
   const PROVS = ["ILIAD", "COOP", "POSTE", "FASTWEB", "KENA", "ALTRO"];
   const provenance = PROVS.includes(provenanceRaw) ? (provenanceRaw as Prisma.StoreSaleCreateInput["provenance"]) : null;
 
+  // Canone OBBLIGATORIO dove il compenso lo moltiplica (gare TIM, business
+  // Fastweb, Iliad): senza canone la vendita varrebbe 0 in silenzio — decisione
+  // Lorenzo 23/07. Unica eccezione: FWA ricaricabile, che un canone non ce l'ha
+  // (conta solo il pezzo, peso 0,5).
+  if (feeEur == null && subtype !== "FWA_RIC") {
+    const line = await prisma.incentiveLine.findFirst({
+      where: { key: lineKey, plan: { ownerUserId: session.user.id, brand, month: monthOf(dateStr) } },
+      select: { unit: true },
+    });
+    if (line?.unit === "MULTIPLIER_ON_FEE") {
+      return { error: "Inserisci il canone: su questa pista il compenso si calcola moltiplicando il canone." };
+    }
+  }
+
   const created = await prisma.storeSale.create({
     data: {
       ownerUserId: session.user.id,
@@ -104,6 +118,24 @@ export async function updateSale(id: string, formData: FormData): Promise<{ erro
   });
 
   revalidatePath("/admin/inserimenti");
+  revalidatePath("/admin/inserimenti/registra");
+  return null;
+}
+
+/** Completa il canone di una vendita registrata senza (lista "canoni mancanti"
+ *  della Gara TIM): tocca solo feeEur, tutto il resto resta com'è. */
+export async function setSaleFee(id: string, value: string): Promise<{ error: string } | null> {
+  const session = await requireFullAdmin();
+  const sale = await prisma.storeSale.findFirst({ where: { id, ownerUserId: session.user.id } });
+  if (!sale) return { error: "Vendita non trovata." };
+  const fee = num(value);
+  if (fee == null || fee < 0) return { error: "Canone non valido." };
+  await prisma.storeSale.update({
+    where: { id },
+    data: { feeEur: new Prisma.Decimal(fee), feeSource: "MANUALE" },
+  });
+  revalidatePath("/admin/inserimenti");
+  revalidatePath("/admin/inserimenti/gara-tim");
   revalidatePath("/admin/inserimenti/registra");
   return null;
 }

@@ -9,7 +9,8 @@ import { usePathname } from "next/navigation";
  * listino, piani, input mensili) — un'unica sezione "Inserimenti" coerente.
  */
 const TABS = [
-  { href: "/admin/inserimenti", label: "Cruscotto", exact: true },
+  { href: "/admin/inserimenti", label: "Negozio", exact: true },
+  { href: "/admin/inserimenti/gara-tim", label: "Gara TIM" },
   { href: "/admin/inserimenti/registra", label: "Registra" },
   { href: "/admin/inserimenti/listino", label: "Listino" },
   { href: "/admin/inserimenti/piano", label: "Piani" },

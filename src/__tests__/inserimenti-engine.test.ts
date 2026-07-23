@@ -514,6 +514,62 @@ describe("prizeOpportunities — quando i cancelli non bastano", () => {
   });
 });
 
+// --------------------------------------------------------------------------
+// Addon a conteggio (lettera luglio 2026): bonus una tantum, non per-pezzo.
+// --------------------------------------------------------------------------
+
+describe("addon MNP a conteggio — bonus una tantum sopra soglia", () => {
+  const withAddons = (): Plan => ({
+    brand: "TIM",
+    month: "2026-07",
+    engineVersion: "tim-2026-07",
+    lines: [MNP, AL_PP],
+    prizes: [],
+    params: {
+      ...PARAMS,
+      addons: [
+        { key: "mnp_bill_alto", eur: 15, matchLineKey: "MNP", minFeeEur: 9.99, minCount: 12 },
+        { key: "mnp_ic_7", eur: 5, matchLineKey: "MNP", provenanceIn: ["ILIAD", "COOP"], minCount: 7, group: "ic" },
+        { key: "mnp_ic_14", eur: 15, matchLineKey: "MNP", provenanceIn: ["ILIAD", "COOP"], minCount: 14, group: "ic" },
+      ],
+    },
+  });
+
+  // 16 AL PP tolgono la penalità così l'addon è isolato dal resto del calcolo
+  const al16: Sale[] = Array.from({ length: 16 }, () => ({ lineKey: "AL_PP", feeEur: 10, domiciled: false }));
+
+  test("sotto la soglia di conteggio l'addon non scatta", () => {
+    const mnp: Sale[] = Array.from({ length: 11 }, () => mnpSale(10)); // 11 < 12
+    const r = computeTim(withAddons(), [...mnp, ...al16], {});
+    expect(r.extras).toBe(0);
+  });
+
+  test("≥12 MNP con canone ≥9,99 → +15€ una tantum (non per-pezzo)", () => {
+    const mnp: Sale[] = Array.from({ length: 12 }, () => mnpSale(10));
+    const r = computeTim(withAddons(), [...mnp, ...al16], {});
+    expect(r.extras).toBe(15); // una volta sola, non 12 × 15
+  });
+
+  test("il filtro canone conta: MNP a 9,98 non alimentano l'addon", () => {
+    const mnp: Sale[] = Array.from({ length: 12 }, () => mnpSale(9.98)); // sotto 9,99
+    const r = computeTim(withAddons(), [...mnp, ...al16], {});
+    expect(r.extras).toBe(0);
+  });
+
+  test("gruppo Iliad/COOP a scaglioni: ≥14 vale 15€, non 15+5", () => {
+    const mnp: Sale[] = Array.from({ length: 14 }, () => ({ lineKey: "MNP", feeEur: 10, domiciled: false, provenance: "ILIAD" }));
+    const r = computeTim(withAddons(), [...mnp, ...al16], {});
+    // canone≥9,99 (14≥12 → +15) + gruppo IC al max (≥14 → 15, non 20) = 30
+    expect(r.extras).toBe(30);
+  });
+
+  test("provenienza diversa da Iliad/COOP non alimenta il gruppo", () => {
+    const mnp: Sale[] = Array.from({ length: 8 }, () => ({ lineKey: "MNP", feeEur: 10, domiciled: false, provenance: "POSTE" }));
+    const r = computeTim(withAddons(), [...mnp, ...al16], {});
+    expect(r.extras).toBe(0); // 8<12 per il bill alto, e POSTE fuori dal gruppo IC
+  });
+});
+
 describe("focusNowWithPrizes — il premio entra nel consiglio", () => {
   const plan: Plan = {
     brand: "TIM",

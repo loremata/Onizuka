@@ -220,15 +220,15 @@ const TIM: SeedPlan = {
       unit: "EUR_PER_PIECE",
       hasTiers: true,
       target: 4,
-      pxqEur: 10,
-      status: "NON_ABILITATA",
-      statusNote: "Da iniziare a vendere (un paio di contratti da inserire)",
+      pxqEur: 0,
+      status: "ATTIVA",
+      statusNote: "In vendita (Luce e Gas)",
       rules:
-        "PxQ 10€ + qualitativa 70€ (extra, M+3) + volume. Luglio: PxQ sceso da 20 a 10. Luce+gas (dual) = doppio. Alimenta il +30% del Top Club a ≥4 contratti.",
+        "Gara a soglia, gettone TUTTO COMPRESO per contratto: ≥4 → 110€, ≥8 → 130€ (rivalutazione retroattiva su tutti). Sotto 4 non paga. Luce+gas (dual) = due contratti. Alimenta il +30% del Top Club a ≥4 contratti.",
       tiers: [
         { minQty: 0, value: 0 },
-        { minQty: 4, value: 20 },
-        { minQty: 8, value: 40 },
+        { minQty: 4, value: 110 },
+        { minQty: 8, value: 130 },
       ],
       sortOrder: 60,
     },
@@ -239,15 +239,15 @@ const TIM: SeedPlan = {
       unit: "EUR_PER_PIECE",
       hasTiers: true,
       target: 8,
-      pxqEur: 20,
+      pxqEur: 0,
       status: "IN_ABILITAZIONE",
       statusNote: "Dispositivi in spedizione",
       rules:
-        "Nuovo contratto Family: PxQ 20€ + volume. TWIN 10€ e Assistenza Europa 5€ come extra. Cancello del Top Club (≥8).",
+        "Gara a soglia, gettone TUTTO COMPRESO: da 8 pezzi in su 25€ a pezzo (le due soglie ≥8 e ≥15 valgono entrambe 25€). Sotto 8 non paga. TWIN 10€ e Assistenza Europa 5€ restano come extra separati. Cancello del Top Club (≥8).",
       tiers: [
         { minQty: 0, value: 0 },
-        { minQty: 8, value: 10 },
-        { minQty: 15, value: 20 },
+        { minQty: 8, value: 25 },
+        { minQty: 15, value: 25 },
       ],
       sortOrder: 70,
     },
@@ -275,20 +275,21 @@ const TIM: SeedPlan = {
       minPoints: 180,
       maxPoints: 300,
       minPrize: 1000,
-      maxPrize: 2000,
+      maxPrize: 3000,
       rules:
-        "Premio 1.000→2.000€ interpolato sul punteggio 180→300. CANCELLI IN AND: mancarne uno azzera il premio. +30% se Energia ≥ soglia 1 (4). Kena vale 2 punti.",
+        "Lettera luglio: soglia 1 = 180 pt → 1.000€, soglia 2 = 300 pt → 3.000€ (interpolato). CANCELLI IN AND (azzerano il premio se mancano): Accessi ≥16, MNP ≥34, Telepass ≥8. +30% se Energia ≥4. " +
+        "Punteggi lettera (per il calcolo live uso quelli deducibili dalle vendite; gli altri servono a mano dal consuntivo): Acc.netto FWA Ric 4 · SMB Fix 4 · TIM FIN 4 · Telepass 4 · Trasf. da prop. 3 · MNVO ICP 3 · MNP No ICP 2 · MNP KENA 2 · MNP Val 1,5 · AL PP net 0,5.",
       gates: [
         { lineKey: "ACCESSO_FISSO", minQty: 16 },
         { lineKey: "MNP", minQty: 34 },
         { lineKey: "TELEPASS_FAMILY", minQty: 8 },
       ],
       scoreKpis: [
-        { key: "ACCESSO_FISSO", label: "Accessi Consumer", points: 4, source: "DERIVED", sortOrder: 10 },
-        { key: "TIMFIN", label: "TIMFin", points: 4, source: "DERIVED", sortOrder: 20 },
-        { key: "TELEPASS_FAMILY", label: "Telepass Family", points: 4, source: "DERIVED", sortOrder: 30 },
-        { key: "MNP", label: "MNP (netto MVNO)", points: 2, source: "DERIVED", sortOrder: 40 },
-        { key: "AL_PP", label: "AL PP Nette", points: 0.5, source: "DERIVED", sortOrder: 50 },
+        { key: "ACCESSO_FISSO", label: "Accessi (FWA ric / SMB Fix)", points: 4, source: "DERIVED", sortOrder: 10 },
+        { key: "TIMFIN", label: "TIM Fin", points: 4, source: "DERIVED", sortOrder: 20 },
+        { key: "TELEPASS_FAMILY", label: "Telepass", points: 4, source: "DERIVED", sortOrder: 30 },
+        { key: "MNP", label: "MNP (No ICP)", points: 2, source: "DERIVED", sortOrder: 40 },
+        { key: "AL_PP", label: "AL PP net", points: 0.5, source: "DERIVED", sortOrder: 50 },
       ],
       bonuses: [{ conditionLineKey: "ENERGIA", conditionMinQty: 4, pct: 0.3, label: "+30% Energia" }],
       halvings: [],
@@ -299,21 +300,29 @@ const TIM: SeedPlan = {
       minPoints: 200,
       maxPoints: 450,
       minPrize: 200,
-      maxPrize: 1000,
+      maxPrize: 1500,
       rules:
-        "Premio 200→1.000€ sul punteggio 200→450. KPI da consuntivo TIM (M+1), inseriti a mano. Se volume Up-Selling < 8 il premio è dimezzato.",
+        "Lettera luglio: soglia 1 = 200 pt → 200€, soglia 2 = 450 pt → 1.500€ (interpolato). Soglia minima 8 Prop. Mobile/mese (cambio offerta + add-on dati): sotto 8 il premio è dimezzato. KPI da consuntivo TIM (M+1), inseriti a mano.",
       gates: [],
       scoreKpis: [
-        { key: "cb.trasfFibra", label: "Trasf. Fibra da Proponi", points: 15, source: "MANUAL", sortOrder: 10 },
-        { key: "cb.trasfFwa", label: "Trasf. FWA da Proponi", points: 15, source: "MANUAL", sortOrder: 20 },
-        { key: "cb.timfinFisso", label: "TIMFin Fisso", points: 10, source: "MANUAL", sortOrder: 30 },
-        { key: "cb.proponiMobileUp", label: "Proponi Mobile Up-Selling/ME", points: 6, source: "MANUAL", sortOrder: 40 },
-        { key: "cb.proponiMobileDati", label: "Proponi Mobile Dati/Altre", points: 3, source: "MANUAL", sortOrder: 50 },
-        { key: "cb.timUnicaCb", label: "TIM Unica Mobile CB", points: 2, source: "MANUAL", sortOrder: 60 },
-        { key: "cb.ricaricaAuto", label: "Ricarica Automatica (CB)", points: 1, source: "MANUAL", sortOrder: 70 },
+        { key: "cb.trasfFibra", label: "Trasf. FIBRA prop.", points: 15, source: "MANUAL", sortOrder: 10 },
+        { key: "cb.trasfFibraFwa", label: "Trasf. FIBRA FWA prop.", points: 15, source: "MANUAL", sortOrder: 20 },
+        { key: "cb.timfinFix", label: "TIMFin Fix", points: 10, source: "MANUAL", sortOrder: 30 },
+        { key: "cb.timfinMobProOff", label: "TIMFin Mob pro e off.", points: 10, source: "MANUAL", sortOrder: 40 },
+        { key: "cb.accMobOnly", label: "ACC Mob. Only", points: 10, source: "MANUAL", sortOrder: 50 },
+        { key: "cb.mnpFixOnly", label: "MNP Fix Only", points: 10, source: "MANUAL", sortOrder: 60 },
+        { key: "cb.altroPropFix", label: "Altro Prop. Fix", points: 10, source: "MANUAL", sortOrder: 70 },
+        { key: "cb.propMobUpSell", label: "Prop. Mob. Up Sel. (cambio offerta - ME)", points: 6, source: "MANUAL", sortOrder: 80 },
+        { key: "cb.propFixCont", label: "Prop. Fix Cont.", points: 6, source: "MANUAL", sortOrder: 90 },
+        { key: "cb.propMobDA", label: "Prop. Mob. D-A", points: 3, source: "MANUAL", sortOrder: 100 },
+        { key: "cb.timfinMobProp", label: "TIMFin Mob. prop.", points: 3, source: "MANUAL", sortOrder: 110 },
+        { key: "cb.timUnica", label: "TIM Unica", points: 2, source: "MANUAL", sortOrder: 120 },
+        { key: "cb.opzCbFix", label: "Opz. su CB Fix", points: 2, source: "MANUAL", sortOrder: 130 },
+        { key: "cb.subMob", label: "Sub Mob.", points: 1, source: "MANUAL", sortOrder: 140 },
+        { key: "cb.ricAutoCb", label: "Ric. Auto CB", points: 1, source: "MANUAL", sortOrder: 150 },
       ],
       bonuses: [],
-      halvings: [{ inputKey: "cb.upsellingVolume", minValue: 8, factor: 0.5, label: "Up-Selling < 8 → premio dimezzato" }],
+      halvings: [{ inputKey: "cb.upsellingVolume", minValue: 8, factor: 0.5, label: "Prop. Mobile < 8 → premio dimezzato" }],
     },
   ],
   params: [
@@ -322,13 +331,24 @@ const TIM: SeedPlan = {
     {
       key: "extras",
       valueJson: [
-        { key: "energia_qualitativa", eur: 70, matchLineKey: "ENERGIA" },
+        // La qualitativa Energia (70€) è ora inglobata nel gettone "tutto compreso" (110/130).
         { key: "telepass_twin", eur: 10, matchLineKey: "TELEPASS_TWIN" },
         { key: "telepass_europa", eur: 5, matchLineKey: "TELEPASS_EUROPA" },
         { key: "al_etnica", eur: 10, matchLineKey: "AL_ETNICA" },
         { key: "prime_pxq", eur: 3, matchLineKey: "CONTENUTI", matchSubtype: "PRIME" },
         { key: "trasformazione", eur: 50, matchLineKey: "TRASFORMAZIONE" },
         { key: "accesso_moroso", eur: -50, matchLineKey: "ACCESSO_MOROSO" },
+      ],
+    },
+    {
+      // Addon MNP dalla lettera luglio: bonus una tantum sul CONTEGGIO, non per-pezzo.
+      // Il gruppo "mnp_iliad_coop" è a scaglioni: vale solo il € più alto raggiunto
+      // (≥14 → 15€, non 15+5). L'addon canone≥9,99 è indipendente e si somma.
+      key: "addons",
+      valueJson: [
+        { key: "mnp_bill_alto", eur: 15, matchLineKey: "MNP", minFeeEur: 9.99, minCount: 12 },
+        { key: "mnp_iliad_coop_7", eur: 5, matchLineKey: "MNP", provenanceIn: ["ILIAD", "COOP"], minCount: 7, group: "mnp_iliad_coop" },
+        { key: "mnp_iliad_coop_14", eur: 15, matchLineKey: "MNP", provenanceIn: ["ILIAD", "COOP"], minCount: 14, group: "mnp_iliad_coop" },
       ],
     },
   ],
@@ -363,17 +383,30 @@ const linear = (
 });
 
 // Fastweb: mandato C.Net, soglie di gruppo già sfondate → scaglione massimo.
-// Valori 2023 (piano Computer Net), da aggiornare col 2026.
-const FASTWEB = linear(
-  "FASTWEB",
-  "Fastweb — via mandato C.Net (scaglione massimo)",
-  [
-    { key: "MOBILE", label: "Fastweb Mobile", category: "Mobile", eur: 48, sortOrder: 10, note: "Ricarica Automatica, scaglione ≥220 del piano C.Net 2023. Stima non garantita." },
-    { key: "TEL_INC", label: "Fastweb Telefono incluso", category: "Rate", eur: 48, sortOrder: 20, note: "Pista monitorata, senza target." },
-    { key: "FISSO", label: "Fastweb Fisso", category: "Fisso", eur: 180, sortOrder: 30, note: "NeXXt Casa scaglione ≥46 del piano C.Net 2023. Stima non garantita." },
+// Valori 2023 (piano Computer Net), da aggiornare col 2026. Le piste business
+// pagano 5 × canone (indicazione Lorenzo, in attesa del business TIM). Tutte le
+// piste stanno QUI nel seed così sopravvivono a un re-seed (prima vivevano in un
+// import separato e venivano cancellate a ogni riseed).
+const FASTWEB: SeedPlan = {
+  brand: "FASTWEB",
+  month: MONTH,
+  label: "Fastweb — via mandato C.Net (scaglione massimo)",
+  status: "ACTIVE",
+  engineVersion: "linear",
+  notes:
+    "Compensi STIMATI e non garantiti: dipendono dalle soglie di gruppo C.Net e possono cambiare in corsa. Valori 2023 da aggiornare. Business = 5 × canone.",
+  lines: [
+    { key: "MOBILE", label: "Fastweb Mobile", category: "Mobile", unit: "EUR_PER_PIECE", hasTiers: false, rules: "Ricarica Automatica, scaglione ≥220 del piano C.Net 2023. Stima non garantita.", tiers: [{ minQty: 0, value: 48 }], sortOrder: 10 },
+    { key: "TEL_INC", label: "Fastweb Telefono incluso", category: "Rate", unit: "EUR_PER_PIECE", hasTiers: false, rules: "Pista monitorata, senza target.", tiers: [{ minQty: 0, value: 48 }], sortOrder: 20 },
+    { key: "FISSO", label: "Fastweb Fisso", category: "Fisso", unit: "EUR_PER_PIECE", hasTiers: false, rules: "NeXXt Casa scaglione ≥46 del piano C.Net 2023. Stima non garantita.", tiers: [{ minQty: 0, value: 180 }], sortOrder: 30 },
+    { key: "ENERGIA", label: "Fastweb Energia (luce o gas)", category: "Energia", unit: "EUR_PER_PIECE", hasTiers: false, rules: "100 € a contratto (indicazione Lorenzo). Da confermare col piano 2026.", tiers: [{ minQty: 0, value: 100 }], sortOrder: 40 },
+    { key: "FISSO_BUSINESS", label: "Fastweb Fisso business", category: "Fisso", unit: "MULTIPLIER_ON_FEE", hasTiers: false, rules: "5 × canone (indicazione Lorenzo, in attesa del business TIM). Da confermare.", tiers: [{ minQty: 0, value: 5 }], sortOrder: 50 },
+    { key: "MOBILE_BUSINESS", label: "Fastweb Mobile business", category: "Mobile", unit: "MULTIPLIER_ON_FEE", hasTiers: false, rules: "5 × canone. Es. 12,95 € → 64,75 € a SIM.", tiers: [{ minQty: 0, value: 5 }], sortOrder: 60 },
+    { key: "ENERGIA_BUSINESS", label: "Fastweb Energia business", category: "Energia", unit: "EUR_PER_PIECE", hasTiers: false, rules: "⚠️ Compenso da confermare.", tiers: [{ minQty: 0, value: 0 }], sortOrder: 70 },
   ],
-  "Compensi STIMATI e non garantiti: dipendono dalle soglie di gruppo C.Net e possono cambiare in corsa. Valori 2023 da aggiornare.",
-);
+  prizes: [],
+  params: [],
+};
 
 const ENEL = linear("ENEL", "Enel — Energia", [
   { key: "ENERGIA", label: "Enel Energia (luce o gas)", category: "Energia", eur: 90, sortOrder: 10, note: "90€ a contratto, luce o gas." },

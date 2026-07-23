@@ -95,6 +95,19 @@ export interface Params {
   alPpPenalty?: { threshold: number; delta: number };
   /** Extra/PxQ/malus a gettone fisso: € per ogni vendita che matcha (per lineKey o subtype). */
   extras?: Array<{ key: string; eur: number; matchLineKey?: string; matchSubtype?: string }>;
+  /** Addon a gettone fisso condizionati dal NUMERO di vendite che superano una
+   *  soglia (non per-pezzo, una tantum). Es. MNP: +15€ se ≥12 con canone ≥9,99;
+   *  +5€/+15€ se ≥7/≥14 da Iliad-COOP. Gli addon con lo stesso `group` sono
+   *  scaglioni della stessa condizione: vale solo il € più alto raggiunto. */
+  addons?: Array<{
+    key: string;
+    eur: number;
+    matchLineKey?: string;
+    minFeeEur?: number;
+    provenanceIn?: string[];
+    minCount: number;
+    group?: string;
+  }>;
 }
 
 export interface Plan {
@@ -421,6 +434,28 @@ function computeExtras(params: Params, sales: Sale[]): number {
   return round2(sum);
 }
 
+/** Addon a gettone condizionati dal CONTEGGIO di vendite che matchano (§E.4bis).
+ *  Non per-pezzo: superata la soglia scatta una tantum. Gli addon dello stesso
+ *  `group` sono scaglioni della stessa condizione → vale solo il € più alto. */
+function computeAddons(params: Params, sales: Sale[]): number {
+  if (!params.addons) return 0;
+  let sum = 0;
+  const byGroup = new Map<string, number>();
+  for (const a of params.addons) {
+    const n = sales.filter(
+      (s) =>
+        (a.matchLineKey ? s.lineKey === a.matchLineKey : true) &&
+        (a.minFeeEur != null ? (s.feeEur ?? 0) >= a.minFeeEur : true) &&
+        (a.provenanceIn ? a.provenanceIn.includes(s.provenance ?? "") : true),
+    ).length;
+    if (n < a.minCount) continue;
+    if (a.group) byGroup.set(a.group, Math.max(byGroup.get(a.group) ?? 0, a.eur));
+    else sum += a.eur;
+  }
+  for (const v of Array.from(byGroup.values())) sum += v;
+  return round2(sum);
+}
+
 /** TIM: gare + extra + premi a punteggio. */
 export function computeTim(plan: Plan, sales: Sale[], inputs: MonthlyInputs): MonthResult {
   const bill = plan.params.billSize;
@@ -437,7 +472,7 @@ export function computeTim(plan: Plan, sales: Sale[], inputs: MonthlyInputs): Mo
     return computeTimLine(line, sales, bill, penalty);
   });
 
-  const extras = computeExtras(plan.params, sales);
+  const extras = round2(computeExtras(plan.params, sales) + computeAddons(plan.params, sales));
   const prizes = plan.prizes.map((p) => computePrize(p, sales, inputs));
 
   const linesTotal = lines.reduce((a, l) => a + l.compenso, 0);

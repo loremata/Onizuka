@@ -4,8 +4,6 @@ import { AdminPageHeader } from "@/components/onizuka/admin-page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { loadDashboard, currentMonth } from "@/lib/inserimenti/dashboard";
-import type { BrandBlock } from "@/lib/inserimenti/dashboard";
-import type { MonthOutlook } from "@/lib/inserimenti/projection";
 import { loadBreakdown, type Slice } from "@/lib/inserimenti/breakdown";
 import { DonutChart } from "@/components/onizuka/donut-chart";
 import { ChiusuraGiornata } from "./chiusura-giornata";
@@ -70,8 +68,8 @@ export default async function InserimentiPage({
   return (
     <div className="space-y-8">
       <AdminPageHeader
-        title="Inserimenti — compensi negozio"
-        lead="Compensi maturati sulle gare TIM e sui brand a gettone."
+        title="Negozio — colpo d'occhio"
+        lead="L'andamento complessivo: tutti i brand, pezzi e compensi. La pressione della gara sta nella tab Gara TIM."
         actions={
           <Button asChild size="sm">
             <Link href="/admin/inserimenti/registra">+ Registra</Link>
@@ -291,66 +289,36 @@ export default async function InserimentiPage({
         </div>
       ) : null}
 
-      {/* Premi a cancelli: vale davvero inseguirli? */}
-      {data.blocks
-        .flatMap((b) => b.opportunities ?? [])
-        .map((o) => (
-          <div
-            key={o.key}
-            className={
-              "rounded-lg border px-4 py-3 text-sm " +
-              (o.worthChasing
-                ? "border-amber-400/40 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
-                : "border-border bg-muted/40 text-muted-foreground")
-            }
-          >
-            <strong>{o.label}</strong> — mancano{" "}
-            {o.missingGates
-              .map(
-                (g) =>
-                  `${g.missing} ${g.lineKey}${
-                    data.daysLeft > 0 ? ` (${(g.missing / data.daysLeft).toFixed(1)}/gg)` : ""
-                  }`,
-              )
-              .join(" + ")}{" "}
-            = {o.totalMissingPieces} pezzi in {data.daysLeft} giorni. I cancelli sono in AND: mancarne uno azzera il
-            premio.
-            {o.worthChasing ? (
-              <>
-                {" "}
-                Chiudendoli arriveresti a {o.pointsIfClosed} punti e il premio varrebbe{" "}
-                <strong>{eur(o.prizeIfClosed)}</strong>.
-              </>
-            ) : (
-              <>
-                {" "}
-                Ma anche chiudendoli tutti saresti a <strong>{o.pointsIfClosed} punti</strong> sui {o.minPoints}{" "}
-                minimi: il premio resterebbe <strong>zero</strong>. Non conviene inseguirlo questo mese.
-              </>
-            )}
-          </div>
-        ))}
-
-      {/* Focus ora */}
-      {data.focusTop ? (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardHeader className="pb-2">
-            <CardDescription>🎯 Focus ora</CardDescription>
-            <CardTitle className="text-xl">
-              {data.focusTop.label}: mancano {data.focusTop.missing}, +{eur(data.focusTop.stepValue)}
-              {data.focusTop.unlocksPrize ? (
-                <span className="block text-sm font-normal text-primary">
-                  include lo sblocco di {data.focusTop.unlocksPrize}
-                </span>
-              ) : (
-                " allo scatto"
-              )}
-            </CardTitle>
-            {data.outlook && data.outlook.daysLeft > 0 ? (
-              <p className="pt-1 text-xs text-muted-foreground">
-                Restano {data.outlook.daysLeft} giorni di {data.outlook.daysInMonth}.
-              </p>
-            ) : null}
+      {/* Gara TIM: qui solo il riassunto — la pressione vive nella sua tab */}
+      {tim && tim.planStatus !== "MISSING" ? (
+        <Card className="border-primary/30">
+          <CardHeader className="pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardDescription>Gara TIM — l&apos;unico brand con target</CardDescription>
+                <CardTitle className="text-2xl">{eur(tim.result.total)}</CardTitle>
+                <p className="pt-1 text-xs text-muted-foreground">
+                  {tim.result.prizes.map((p) => {
+                    const gate = p.gateOpen
+                      ? "cancelli aperti"
+                      : p.worstGate
+                        ? `manca ${p.worstGate.lineKey} (−${p.worstGate.missing})`
+                        : "";
+                    return `${p.label}: ${p.points} pt${gate ? ` · ${gate}` : ""}`;
+                  }).join("  ·  ")}
+                </p>
+                {data.focusTop ? (
+                  <p className="pt-1 text-xs text-primary">
+                    🎯 {data.focusTop.label}: mancano {data.focusTop.missing} (+{eur(data.focusTop.stepValue)})
+                  </p>
+                ) : null}
+              </div>
+              <Button asChild>
+                <Link href={`/admin/inserimenti/gara-tim${month !== currentMonth() ? `?mese=${month}` : ""}`}>
+                  Apri Gara TIM →
+                </Link>
+              </Button>
+            </div>
           </CardHeader>
         </Card>
       ) : null}
@@ -376,9 +344,6 @@ export default async function InserimentiPage({
           </CardContent>
         </Card>
       ) : null}
-
-      {/* Zona TIM: gare, cancelli, premi */}
-      {tim ? <TimBlock block={tim} outlook={data.outlook} /> : null}
 
       {/* Zona brand lineari */}
       {linear.length ? (
@@ -471,124 +436,3 @@ function SpaccatoCard({ title, description, slices }: { title: string; descripti
   );
 }
 
-function TimBlock({ block, outlook }: { block: BrandBlock; outlook: MonthOutlook | null }) {
-  const r = block.result;
-  const gare = r.lines.filter((l) => l.qty > 0 || l.compenso !== 0);
-  const projByKey = new Map((outlook?.lines ?? []).map((p) => [p.key, p]));
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>TIM — gare del mese</CardTitle>
-        <CardDescription>{block.planLabel}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-muted-foreground">
-                <th className="py-2 pr-4">Gara</th>
-                <th className="py-2 pr-4 text-right">Pezzi</th>
-                <th className="py-2 pr-4 text-right">Scaglione</th>
-                <th className="py-2 pr-4 text-right">Mancano</th>
-                <th className="py-2 pr-4 text-right">Compenso</th>
-                <th className="py-2 pr-4 text-right">+€ scatto</th>
-                <th className="py-2 pr-4 text-right">A fine mese</th>
-              </tr>
-            </thead>
-            <tbody>
-              {gare.map((l) => {
-                const p = projByKey.get(l.key);
-                return (
-                  <tr key={l.key} className="border-b last:border-0">
-                    <td className="py-2 pr-4 font-medium">{l.label}</td>
-                    <td className="py-2 pr-4 text-right tabular-nums">{l.qty}</td>
-                    <td className="py-2 pr-4 text-right tabular-nums">{l.tierIndex + 1}</td>
-                    <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
-                      {l.nextThreshold != null ? l.missing : "—"}
-                    </td>
-                    <td className="py-2 pr-4 text-right tabular-nums font-medium">
-                      {/* "0" ambiguo: su una gara che moltiplica il canone, zero
-                          significa "canoni mancanti", non "non mi paga". Sulle
-                          piste a gettone zero è un vero zero (sotto soglia). */}
-                      {l.unit === "MULTIPLIER_ON_FEE" && l.qty > 0 && l.eligibleFee === 0 ? (
-                        <span
-                          className="text-amber-600 dark:text-amber-400"
-                          title="Compenso non calcolabile: mancano i canoni di queste vendite"
-                        >
-                          — canoni?
-                        </span>
-                      ) : (
-                        eur(l.compenso)
-                      )}
-                    </td>
-                    <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
-                      {l.stepValue > 0 ? "+" + eur(l.stepValue) : "—"}
-                    </td>
-                    <td className="py-2 pr-4 text-right tabular-nums text-xs">
-                      {p ? (
-                        <span
-                          className={
-                            p.willImprove
-                              ? "text-green-600"
-                              : p.nextThreshold != null && !p.reachable
-                                ? "text-muted-foreground line-through"
-                                : "text-muted-foreground"
-                          }
-                          title={
-                            p.nextThreshold != null && !p.reachable
-                              ? "prossima soglia fuori portata al ritmo attuale"
-                              : undefined
-                          }
-                        >
-                          ~{p.projectedQty} → sc. {p.projectedTierIndex + 1}
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-              {r.extras !== 0 ? (
-                <tr className="border-b last:border-0">
-                  <td className="py-2 pr-4 font-medium">Extra / PxQ</td>
-                  <td colSpan={3} />
-                  <td className="py-2 pr-4 text-right tabular-nums font-medium">{eur(r.extras)}</td>
-                  <td colSpan={2} />
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Premi a punteggio */}
-        {r.prizes.length ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {r.prizes.map((p) => (
-              <div key={p.key} className="rounded-lg border p-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">{p.label}</span>
-                  <span className="tabular-nums font-semibold">{eur(p.prize)}</span>
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Punteggio {p.points}
-                  {p.gateOpen ? (
-                    " · cancelli aperti"
-                  ) : p.worstGate ? (
-                    <span className="text-amber-700 dark:text-amber-300">
-                      {" "}· manca {p.worstGate.lineKey} (−{p.worstGate.missing})
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="flex justify-end border-t pt-3 text-sm">
-          <span className="font-semibold">Totale TIM: {eur(r.total)}</span>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}

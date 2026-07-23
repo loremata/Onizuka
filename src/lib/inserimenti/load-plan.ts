@@ -42,6 +42,7 @@ export async function loadPlan(
     billSize: paramMap.get("billSize") as Params["billSize"],
     alPpPenalty: paramMap.get("alPpPenalty") as Params["alPpPenalty"],
     extras: paramMap.get("extras") as Params["extras"],
+    addons: paramMap.get("addons") as Params["addons"],
   };
 
   // struttura per-pista: per ora derivata da convenzioni note (vedi lineStructure).
@@ -95,9 +96,12 @@ function lineStructure(brand: string, key: string): Partial<Line> {
     case "ACCESSO_FISSO":
       return { applyBillSize: false, domiciliationMode: "split", nonDomiciledValue: 1.7 };
     case "ENERGIA":
-      return { pxqEur: 10 };
+      // Gara luglio 2026: gettone "tutto compreso" a soglia (110/130 €). Niente
+      // PxQ additivo né qualitativa separata: il valore è già nello scaglione.
+      return { pxqEur: 0 };
     case "TELEPASS_FAMILY":
-      return { pxqEur: 20 };
+      // Gara luglio 2026: 25 € a pezzo "tutto compreso" oltre gli 8. Niente PxQ.
+      return { pxqEur: 0 };
     default:
       return {};
   }

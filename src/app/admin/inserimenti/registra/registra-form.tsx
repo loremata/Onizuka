@@ -38,6 +38,7 @@ export function RegistraForm({
   const [feeEur, setFeeEur] = useState("");
   const [domiciled, setDomiciled] = useState(false);
   const [provenance, setProvenance] = useState("");
+  const [fwaRic, setFwaRic] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastLabel, setLastLabel] = useState<string | null>(null);
@@ -55,7 +56,10 @@ export function RegistraForm({
   }, [brandOpt, q]);
   // il canone serve ovunque il compenso lo moltiplichi: gare TIM, business
   // Fastweb (5 × canone), Iliad (1 × canone). Non dipende dal brand.
-  const needsFee = line?.unit === "MULTIPLIER_ON_FEE";
+  const isFisso = brand === "TIM" && line?.key === "ACCESSO_FISSO";
+  // FWA ricaricabile: niente canone mensile, conta solo il pezzo (peso 0,5)
+  const isFwaRic = isFisso && fwaRic;
+  const needsFee = line?.unit === "MULTIPLIER_ON_FEE" && !isFwaRic;
   const isMnp = brand === "TIM" && line?.key === "MNP";
   // il bill size è una regola TIM: altrove non c'è soglia minima di canone
   const showBillWarning = brand === "TIM";
@@ -78,12 +82,18 @@ export function RegistraForm({
       setError("Seleziona una pista.");
       return;
     }
+    // canone obbligatorio dove moltiplica il compenso (senza sarebbe uno 0 silenzioso)
+    if (needsFee && !feeEur.trim()) {
+      setError("Inserisci il canone dell'offerta venduta: qui il compenso è moltiplicatore × canone.");
+      return;
+    }
     setSaving(true);
     const fd = new FormData();
     fd.set("brand", brand);
     fd.set("lineKey", lineKey);
     fd.set("date", date);
     if (offerCode) fd.set("offerCode", offerCode);
+    if (isFwaRic) fd.set("subtype", "FWA_RIC");
     if (needsFee) {
       fd.set("feeEur", feeEur);
       fd.set("feeSource", offerCode ? "LISTINO" : "MANUALE");
@@ -97,12 +107,15 @@ export function RegistraForm({
       return;
     }
     // registrazione in blocco: tieni data e brand, azzera il resto
-    setLastLabel(`${brand} · ${line?.label ?? lineKey}${needsFee && feeEur ? ` · ${feeEur} €` : ""}`);
+    setLastLabel(
+      `${brand} · ${line?.label ?? lineKey}${isFwaRic ? " · FWA ric" : ""}${needsFee && feeEur ? ` · ${feeEur} €` : ""}`,
+    );
     setLastId(res.id);
     setFeeEur("");
     setOfferCode("");
     setDomiciled(false);
     setProvenance("");
+    setFwaRic(false);
     router.refresh();
   }
 
@@ -170,7 +183,10 @@ export function RegistraForm({
         />
         <select
           value={lineKey}
-          onChange={(e) => setLineKey(e.target.value)}
+          onChange={(e) => {
+            setLineKey(e.target.value);
+            setFwaRic(false);
+          }}
           size={Math.min(8, Math.max(3, visibleLines.length + 1))}
           className="w-full rounded-md border bg-background px-3 py-2 text-sm"
         >
@@ -216,10 +232,21 @@ export function RegistraForm({
         </label>
       ) : null}
 
+      {isFisso ? (
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={fwaRic} onChange={(e) => setFwaRic(e.target.checked)} />
+          <span className="text-sm">
+            FWA Ricaricabile <span className="text-muted-foreground">(pesa 0,5 sulla soglia, senza canone)</span>
+          </span>
+        </label>
+      ) : null}
+
       {needsFee ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">Canone € (del cliente)</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              Canone € (del cliente) <span className="text-red-600">*obbligatorio</span>
+            </span>
             <input
               inputMode="decimal"
               value={feeEur}
