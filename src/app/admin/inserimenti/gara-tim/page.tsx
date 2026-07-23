@@ -9,6 +9,7 @@ import type { BrandBlock } from "@/lib/inserimenti/dashboard";
 import type { MonthOutlook } from "@/lib/inserimenti/projection";
 import { InserimentiNav } from "../module-nav";
 import { CanoniMancanti, type SaleSenzaCanone } from "./canoni-mancanti";
+import { GaraChart, type GaraChartData } from "./gara-chart";
 
 const eur = (n: number) => "€ " + n.toLocaleString("it-IT", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
@@ -36,7 +37,7 @@ export default async function GaraTimPage({ searchParams }: { searchParams: { me
   const plan = await prisma.incentivePlan.findFirst({
     where: { ownerUserId: session.user.id, brand: "TIM", month },
     include: {
-      lines: { orderBy: { sortOrder: "asc" } },
+      lines: { include: { tiers: { orderBy: { minQty: "asc" } } }, orderBy: { sortOrder: "asc" } },
       prizes: { include: { gates: true } },
       params: true,
     },
@@ -94,6 +95,50 @@ export default async function GaraTimPage({ searchParams }: { searchParams: { me
     if (a.provenanceIn) return `MNP da ${a.provenanceIn.join("/")}`;
     return a.key;
   };
+
+  // ------- dati per i grafici a colonne: pezzi (pesati) per giorno e pista -------
+  const dayOfMonth = data.daysInMonth - data.daysLeft;
+  const dailyByLine = new Map<string, number[]>();
+  for (const s of timSales) {
+    const w = s.lineKey === "ACCESSO_FISSO" && s.subtype === "FWA_RIC" ? 0.5 : 1;
+    const arr = dailyByLine.get(s.lineKey) ?? new Array(data.daysInMonth).fill(0);
+    const day = s.date.getUTCDate();
+    if (day >= 1 && day <= data.daysInMonth) arr[day - 1] += w;
+    dailyByLine.set(s.lineKey, arr);
+  }
+
+  const resultByKey = new Map((tim?.result.lines ?? []).map((l) => [l.key, l]));
+  const projByKey = new Map((data.outlook?.lines ?? []).map((p) => [p.key, p]));
+  const focusList = tim?.focus ?? [];
+  const topFocusKey = focusList[0]?.lineKey ?? null;
+
+  const chartData: GaraChartData[] = (plan?.lines ?? [])
+    .filter((l) => l.hasTiers)
+    .map((l) => {
+      const r = resultByKey.get(l.key);
+      const p = projByKey.get(l.key);
+      const f = focusList.find((x) => x.lineKey === l.key);
+      const qty = r?.qty ?? 0;
+      return {
+        key: l.key,
+        label: l.label,
+        unit: l.unit,
+        qty,
+        tiers: l.tiers.map((t) => ({ minQty: t.minQty, value: Number(t.value) })),
+        daily: dailyByLine.get(l.key) ?? new Array(data.daysInMonth).fill(0),
+        dayOfMonth,
+        daysInMonth: data.daysInMonth,
+        nextThreshold: r?.nextThreshold ?? null,
+        missing: r?.missing ?? 0,
+        stepValue: f?.stepValue ?? r?.stepValue ?? 0,
+        projectedQty: p?.projectedQty ?? qty,
+        perDayNeeded: p?.perDayNeeded ?? 0,
+        reachable: p?.reachable ?? true,
+        eligFeeZero: l.unit === "MULTIPLIER_ON_FEE" && qty > 0 && (r?.eligibleFee ?? 0) === 0,
+        isTopFocus: l.key === topFocusKey,
+        unlocksPrize: f?.unlocksPrize,
+      };
+    });
 
   return (
     <div className="space-y-8">
@@ -255,6 +300,24 @@ export default async function GaraTimPage({ searchParams }: { searchParams: { me
 
           {/* Le gare, tabella completa */}
           <TimBlock block={tim} outlook={data.outlook} />
+
+          {/* Andamento gara per gara: colonne giornaliere, soglie, medie, consigli */}
+          {chartData.length ? (
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold">Andamento per gara</h2>
+                <p className="text-sm text-muted-foreground">
+                  Colonne piene = cumulato reale · colonne chiare = proiezione al ritmo attuale · linee tratteggiate =
+                  soglie. Sotto, la striscia con tutte le soglie della gara.
+                </p>
+              </div>
+              <div className="grid gap-4 xl:grid-cols-2">
+                {chartData.map((c) => (
+                  <GaraChart key={c.key} d={c} />
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {/* Addon a conteggio */}
           {addons.length ? (
