@@ -216,6 +216,27 @@ export function billWeight(fee: number | null | undefined, bill?: Params["billSi
 
 const salesFor = (sales: Sale[], lineKey: string) => sales.filter((s) => s.lineKey === lineKey);
 
+/** Peso di una vendita sulla gara: FWA ricaricabile vale 0,5 sul Fisso (soglia
+ *  e canone), tutto il resto 1. UNICA definizione — la usano motore e UI. */
+export function fwaWeight(lineKey: string, subtype?: string | null): number {
+  return lineKey === "ACCESSO_FISSO" && subtype === "FWA_RIC" ? 0.5 : 1;
+}
+
+/**
+ * Numero di soglia come nella lettera di gara. Due numerazioni convivono:
+ *  - gare con base pagata (MNP/AL/Valore: il tier 0 ha già un valore) → il
+ *    tier 0 È la "Soglia 1", quindi soglia = indice + 1;
+ *  - gare che sotto la prima soglia non pagano (Fisso/Contenuti/…: tier 0
+ *    vale 0) → il tier 1 è la "Soglia 1", quindi soglia = indice.
+ * Ritorna null se l'indice cade sotto la prima soglia.
+ */
+export function sogliaNumber(tiers: Tier[], tierIdx: number): number | null {
+  const arr = sortTiers(tiers);
+  if (!arr.length) return null;
+  const n = arr[0].value === 0 ? tierIdx : tierIdx + 1;
+  return n >= 1 ? n : null;
+}
+
 // -------------------------------------------------------------- percorso lineare
 
 /** Fastweb/Enel/Eni/Iliad: qty × €/pezzo. Nessuna soglia, nessun bill size. */
@@ -268,7 +289,7 @@ function computeTimLine(
 ): LineResult {
   const mine = salesFor(sales, line.key);
   // FWA ricaricabile: pesa 0,5 sulla gara Fisso (soglia e canone), come da lettera.
-  const fwWeight = (s: Sale) => (line.key === "ACCESSO_FISSO" && s.subtype === "FWA_RIC" ? 0.5 : 1);
+  const fwWeight = (s: Sale) => fwaWeight(line.key, s.subtype);
   const qty = round2(mine.reduce((a, s) => a + fwWeight(s), 0));
 
   const idx = tierIndex(qty, line.tiers);
@@ -564,7 +585,7 @@ export function attributeSales(plan: Plan, sales: Sale[], inputs: MonthlyInputs 
   for (const line of plan.lines) {
     const mine = sales.map((s, i) => ({ s, i })).filter(({ s }) => s.lineKey === line.key);
     if (!mine.length) continue;
-    const fwWeight = (s: Sale) => (line.key === "ACCESSO_FISSO" && s.subtype === "FWA_RIC" ? 0.5 : 1);
+    const fwWeight = (s: Sale) => fwaWeight(line.key, s.subtype);
     const qty = round2(mine.reduce((a, { s }) => a + fwWeight(s), 0));
 
     if (line.unit === "EUR_PER_PIECE") {

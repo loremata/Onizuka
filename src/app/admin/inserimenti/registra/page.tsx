@@ -1,10 +1,8 @@
-import Link from "next/link";
 import { requireFullAdmin } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
 import { AdminPageHeader } from "@/components/onizuka/admin-page-header";
 import { InserimentiNav } from "../module-nav";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { currentMonth } from "@/lib/inserimenti/dashboard";
 import { lineOptionsForMonth } from "../actions";
 import { RegistraForm } from "./registra-form";
@@ -36,11 +34,6 @@ export default async function RegistraPage() {
       <AdminPageHeader
         title="Registra attivazione"
         lead="Una riga per pezzo. La data resta impostata per registrare in blocco."
-        actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/admin/inserimenti">← Cruscotto</Link>
-          </Button>
-        }
       />
 
       <InserimentiNav />

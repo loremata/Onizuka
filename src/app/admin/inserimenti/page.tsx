@@ -5,13 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { loadDashboard, currentMonth } from "@/lib/inserimenti/dashboard";
 import { loadBreakdown, type Slice } from "@/lib/inserimenti/breakdown";
+import { eur } from "@/lib/inserimenti/format";
+import { BRAND_TILES } from "@/lib/inserimenti/constants";
 import { DonutChart } from "@/components/onizuka/donut-chart";
 import { ChiusuraGiornata } from "./chiusura-giornata";
 import { Obiettivo } from "./obiettivo";
 import { RecapMatrixTable } from "./recap-matrix";
 import { InserimentiNav } from "./module-nav";
-
-const eur = (n: number) => "€ " + n.toLocaleString("it-IT", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+import { MonthNav } from "./month-nav";
 
 export default async function InserimentiPage({
   searchParams,
@@ -39,13 +40,6 @@ export default async function InserimentiPage({
     return "/admin/inserimenti" + (q ? `?${q}` : "") + "#recap";
   };
 
-  // navigazione mese precedente/successivo
-  const [yy, mm] = month.split("-").map(Number);
-  const shift = (delta: number) => {
-    const d = new Date(yy, mm - 1 + delta, 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  };
-  const monthLabel = new Date(yy, mm - 1, 1).toLocaleDateString("it-IT", { month: "long", year: "numeric" });
   const isCurrent = month === currentMonth();
   const delta = data.prevTotal > 0 ? ((data.grandTotal - data.prevTotal) / data.prevTotal) * 100 : 0;
 
@@ -57,9 +51,9 @@ export default async function InserimentiPage({
   const pezziTot = data.byBrand.reduce((a, b) => a + b.qty, 0);
   const giorniFatti = data.daysInMonth - data.daysLeft;
   const ritmo = giorniFatti > 0 ? pezziTot / giorniFatti : 0;
-  // schede per brand: tutti i brand del negozio, anche quelli a zero
-  const BRANDS_NEGOZIO = ["TIM", "FASTWEB", "ENEL", "ENI", "ILIAD"];
-  const brandTiles = BRANDS_NEGOZIO.map(
+  // schede per brand: tutti i brand del negozio, anche quelli a zero,
+  // nell'ordine fisso deciso da Lorenzo (stesso della tabella recap)
+  const brandTiles = BRAND_TILES.map(
     (name) => data.byBrand.find((b) => b.name === name) ?? { name, qty: 0, compenso: 0 },
   );
   const proiezione = isCurrent && giorniFatti > 0 ? (data.grandTotal / giorniFatti) * data.daysInMonth : data.grandTotal;
@@ -79,25 +73,11 @@ export default async function InserimentiPage({
 
       <InserimentiNav />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/admin/inserimenti?mese=${shift(-1)}`}>← Mese precedente</Link>
+      <MonthNav basePath="/admin/inserimenti" month={month}>
+        <Button asChild variant="ghost" size="sm">
+          <a href={`/admin/inserimenti/export?mese=${month}`}>Esporta CSV</a>
         </Button>
-        <span className="font-semibold capitalize">{monthLabel}</span>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/admin/inserimenti?mese=${shift(1)}`}>Mese successivo →</Link>
-        </Button>
-        {!isCurrent ? (
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/admin/inserimenti">Oggi</Link>
-          </Button>
-        ) : null}
-        <span className="ml-auto">
-          <Button asChild variant="ghost" size="sm">
-            <a href={`/admin/inserimenti/export?mese=${month}`}>Esporta CSV</a>
-          </Button>
-        </span>
-      </div>
+      </MonthNav>
 
       {/* Recap interattivo: filtri, torte, spaccato */}
       {bd.brands.length ? (

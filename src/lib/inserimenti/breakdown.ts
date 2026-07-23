@@ -10,6 +10,7 @@
 import { prisma } from "@/lib/prisma";
 import { loadPlan } from "./load-plan";
 import { attributeSales, computeMonth, type Sale } from "./engine";
+import { BRAND_ORDER } from "./constants";
 
 export interface Slice {
   name: string;
@@ -69,14 +70,16 @@ interface Row {
   feeEur: number | null;
   compenso: number;
   paysGettone: boolean;
+  /** true se la vendita sta su una gara a moltiplicatore SENZA canone (vale 0
+   *  finché non lo si completa). Le FWA ric sono escluse: un canone non ce
+   *  l'hanno. Stessa definizione della lista "canoni mancanti" in Gara TIM. */
+  senzaCanone: boolean;
 }
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
-/** Ordine fisso dei brand del negozio, per righe matrice e chip filtro. */
-const BRAND_ORDER = ["TIM", "FASTWEB", "ENEL", "ILIAD", "ENI", "KENA"];
 const brandRank = (b: string) => {
-  const i = BRAND_ORDER.indexOf(b);
+  const i = (BRAND_ORDER as readonly string[]).indexOf(b);
   return i === -1 ? BRAND_ORDER.length : i;
 };
 
@@ -179,6 +182,7 @@ export async function loadBreakdown(
         feeEur: s.feeEur == null ? null : Number(s.feeEur),
         compenso: a?.compenso ?? 0,
         paysGettone: a?.paysGettone ?? true,
+        senzaCanone: line?.unit === "MULTIPLIER_ON_FEE" && s.feeEur == null && s.subtype !== "FWA_RIC",
       });
     });
   }
@@ -201,7 +205,7 @@ export async function loadBreakdown(
 
   let detail: CategoryDetail | null = null;
   if (filtroCategoria) {
-    const senzaCanone = filtrate.filter((r) => r.feeEur == null && needsFee(r)).length;
+    const senzaCanone = filtrate.filter((r) => r.senzaCanone).length;
     detail = {
       category: filtroCategoria,
       qty: filtrate.length,
@@ -232,7 +236,7 @@ export async function loadBreakdown(
     totale: {
       qty: filtrate.length,
       compenso: round2(filtrate.reduce((a, r) => a + r.compenso, 0)),
-      senzaCanone: filtrate.filter((r) => r.feeEur == null && needsFee(r)).length,
+      senzaCanone: filtrate.filter((r) => r.senzaCanone).length,
     },
   };
 }
@@ -275,11 +279,6 @@ function buildMatrix(rows: Row[], planBrands: string[], planCats: Set<string>): 
     colTot,
     grand,
   };
-}
-
-/** Una riga "ha bisogno del canone" se sta su una gara che moltiplica. */
-function needsFee(r: Row): boolean {
-  return r.compenso === 0 && r.feeEur == null;
 }
 
 /** Totale del mese non filtrato, per la percentuale sul totale. */

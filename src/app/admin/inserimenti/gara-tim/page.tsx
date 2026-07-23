@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { loadDashboard, currentMonth } from "@/lib/inserimenti/dashboard";
 import type { BrandBlock } from "@/lib/inserimenti/dashboard";
 import type { MonthOutlook } from "@/lib/inserimenti/projection";
+import { fwaWeight, sogliaNumber, type Tier } from "@/lib/inserimenti/engine";
+import { eur } from "@/lib/inserimenti/format";
 import { InserimentiNav } from "../module-nav";
+import { MonthNav } from "../month-nav";
 import { CanoniMancanti, type SaleSenzaCanone } from "./canoni-mancanti";
 import { GaraChart, type GaraChartData } from "./gara-chart";
-
-const eur = (n: number) => "€ " + n.toLocaleString("it-IT", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
 /**
  * GARA TIM — la pagina della pressione. Qui vive solo quello che ha un target:
@@ -24,13 +25,6 @@ export default async function GaraTimPage({ searchParams }: { searchParams: { me
   const data = await loadDashboard(session.user.id, month);
   const tim = data.blocks.find((b) => b.brand === "TIM");
 
-  // navigazione mese
-  const [yy, mm] = month.split("-").map(Number);
-  const shift = (delta: number) => {
-    const d = new Date(yy, mm - 1 + delta, 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  };
-  const monthLabel = new Date(yy, mm - 1, 1).toLocaleDateString("it-IT", { month: "long", year: "numeric" });
   const isCurrent = month === currentMonth();
 
   // ------- dati extra dal DB: cancelli, addon, vendite senza canone -------
@@ -100,18 +94,18 @@ export default async function GaraTimPage({ searchParams }: { searchParams: { me
   const dayOfMonth = data.daysInMonth - data.daysLeft;
   const dailyByLine = new Map<string, number[]>();
   for (const s of timSales) {
-    const w = s.lineKey === "ACCESSO_FISSO" && s.subtype === "FWA_RIC" ? 0.5 : 1;
+    const w = fwaWeight(s.lineKey, s.subtype);
     const arr = dailyByLine.get(s.lineKey) ?? new Array(data.daysInMonth).fill(0);
     const day = s.date.getUTCDate();
     if (day >= 1 && day <= data.daysInMonth) arr[day - 1] += w;
     dailyByLine.set(s.lineKey, arr);
   }
 
-  // numerazione soglie come in lettera: dove il tier 0 vale 0 la "Soglia 1" è
-  // il tier 1 (Fisso/Contenuti/…); dove il tier 0 paga già, il tier 0 È la
-  // Soglia 1 (MNP/AL/Valore).
-  const zeroBase: Record<string, boolean> = {};
-  for (const l of plan?.lines ?? []) zeroBase[l.key] = Number(l.tiers[0]?.value ?? 0) === 0;
+  // soglie per pista: servono a TimBlock per la numerazione in stile lettera
+  // (la regola vive in sogliaNumber del motore, unica fonte)
+  const tiersByKey: Record<string, Tier[]> = {};
+  for (const l of plan?.lines ?? [])
+    tiersByKey[l.key] = l.tiers.map((t) => ({ minQty: t.minQty, value: Number(t.value) }));
 
   const resultByKey = new Map((tim?.result.lines ?? []).map((l) => [l.key, l]));
   const projByKey = new Map((data.outlook?.lines ?? []).map((p) => [p.key, p]));
@@ -160,18 +154,11 @@ export default async function GaraTimPage({ searchParams }: { searchParams: { me
 
       <InserimentiNav />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/admin/inserimenti/gara-tim?mese=${shift(-1)}`}>← Mese precedente</Link>
-        </Button>
-        <span className="font-semibold capitalize">{monthLabel}</span>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/admin/inserimenti/gara-tim?mese=${shift(1)}`}>Mese successivo →</Link>
-        </Button>
+      <MonthNav basePath="/admin/inserimenti/gara-tim" month={month}>
         {isCurrent && data.daysLeft > 0 ? (
-          <span className="ml-auto text-sm text-muted-foreground">{data.daysLeft} giorni alla fine del mese</span>
+          <span className="text-sm text-muted-foreground">{data.daysLeft} giorni alla fine del mese</span>
         ) : null}
-      </div>
+      </MonthNav>
 
       {!tim || tim.planStatus === "MISSING" ? (
         <Card>
@@ -305,7 +292,7 @@ export default async function GaraTimPage({ searchParams }: { searchParams: { me
           ) : null}
 
           {/* Le gare, tabella completa */}
-          <TimBlock block={tim} outlook={data.outlook} zeroBase={zeroBase} />
+          <TimBlock block={tim} outlook={data.outlook} tiersByKey={tiersByKey} />
 
           {/* Andamento gara per gara: colonne giornaliere, soglie, medie, consigli */}
           {chartData.length ? (
@@ -377,20 +364,18 @@ export default async function GaraTimPage({ searchParams }: { searchParams: { me
 function TimBlock({
   block,
   outlook,
-  zeroBase,
+  tiersByKey,
 }: {
   block: BrandBlock;
   outlook: MonthOutlook | null;
-  zeroBase: Record<string, boolean>;
+  tiersByKey: Record<string, Tier[]>;
 }) {
   const r = block.result;
   const gare = r.lines.filter((l) => l.qty > 0 || l.compenso !== 0);
   const projByKey = new Map((outlook?.lines ?? []).map((p) => [p.key, p]));
   /** Numero di soglia in stile lettera; null = sotto la prima soglia. */
-  const sogliaNum = (key: string, tierIdx: number): number | null => {
-    const n = zeroBase[key] ? tierIdx : tierIdx + 1;
-    return n >= 1 ? n : null;
-  };
+  const sogliaNum = (key: string, tierIdx: number): number | null =>
+    sogliaNumber(tiersByKey[key] ?? [], tierIdx);
   return (
     <Card>
       <CardHeader>

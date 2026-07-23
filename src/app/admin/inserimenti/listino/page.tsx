@@ -38,11 +38,6 @@ export default async function ListinoPage({ searchParams }: { searchParams: { br
       <AdminPageHeader
         title="Listino offerte"
         lead="La sorgente del canone al banco: scegli l'offerta e il canone si compila da solo."
-        actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/admin/inserimenti">← Cruscotto</Link>
-          </Button>
-        }
       />
 
       <InserimentiNav />
@@ -91,8 +86,8 @@ export default async function ListinoPage({ searchParams }: { searchParams: { br
         <CardContent>
           {offers.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              Nessuna offerta per {brand}. Importa il listino con{" "}
-              <code className="text-xs">npx tsx scripts/import-listino-tim.ts</code>.
+              Nessuna offerta per {brand}: il listino si popola dagli script di seed (vedi{" "}
+              <code className="text-xs">scripts/inserimenti-archive/</code> per lo storico).
             </p>
           ) : (
             <div className="overflow-x-auto">
