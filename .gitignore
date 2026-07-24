@@ -9,12 +9,23 @@ out
 build
 dist
 
-# Env
+# Env — regola generale: ogni variante .env* resta fuori da git,
+# tranne i template .example (senza segreti reali).
 .env
+.env.*
+!.env.example
+!.env.staging.example
 .env.local
 .env.*.local
 .env.staging.local
 .env.production
+
+# Chiavi e credenziali: mai in git
+*.pem
+*.p12
+*.pfx
+service-account*.json
+*credentials*.json
 
 # Local uploads (filesystem fallback)
 .uploads

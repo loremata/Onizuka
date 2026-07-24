@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureClientForLead } from "@/lib/ensure-client-for-lead";
+import { clampStr, PUBLIC_FIELD_LIMITS as L } from "@/lib/clamp-input";
 
 export const dynamic = "force-dynamic";
 
@@ -16,11 +17,13 @@ type Payload = {
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => ({}))) as Payload;
-    const displayName = String(body.displayName ?? "").trim();
-    const phone = String(body.phone ?? "").trim();
+    const displayName = clampStr(body.displayName, L.company);
+    const phone = clampStr(body.phone, L.phone);
     if (!displayName || !phone) {
       return NextResponse.json({ error: "Nome e telefono richiesti." }, { status: 400 });
     }
+    const need = clampStr(body.need, L.freeText);
+    const nextStep = clampStr(body.nextStep, L.freeText);
 
     const admin = await prisma.user.findFirst({
       where: { role: "ADMIN" },
@@ -46,14 +49,14 @@ export async function POST(request: NextRequest) {
         title: displayName,
         businessName: displayName,
         phone,
-        vatNumber: body.vatNumber?.trim() || undefined,
+        vatNumber: clampStr(body.vatNumber, L.vat) || undefined,
         source: referrerId ? "segnalatore_walkin" : "walk_in",
         referrerId,
         status: "NEW",
         commercialProspectStage: "PROSPECT_ENTERED",
         notes: JSON.stringify({
-          need: body.need ?? null,
-          nextStep: body.nextStep ?? null,
+          need: need || null,
+          nextStep: nextStep || null,
           walkin: true,
         }),
       },
@@ -67,7 +70,7 @@ export async function POST(request: NextRequest) {
         leadId: lead.id,
         type: "walkin_enrichment",
         scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        notes: `Enrichment walk-in. Bisogno: ${body.need ?? "n/d"} · Prossimo: ${body.nextStep ?? "n/d"}`,
+        notes: `Enrichment walk-in. Bisogno: ${need || "n/d"} · Prossimo: ${nextStep || "n/d"}`,
         outcome: "pending",
       },
     });

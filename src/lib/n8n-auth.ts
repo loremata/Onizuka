@@ -1,3 +1,5 @@
+import { timingSafeStrEqual } from "@/lib/timing-safe-str";
+
 const N8N_API_KEY = process.env.N8N_API_KEY;
 
 /**
@@ -8,11 +10,11 @@ const N8N_API_KEY = process.env.N8N_API_KEY;
 export function validateN8nApiKey(request: Request): boolean {
   if (!N8N_API_KEY) return false;
   const headerKey = request.headers.get("x-api-key");
-  if (headerKey && headerKey === N8N_API_KEY) return true;
+  if (headerKey && timingSafeStrEqual(headerKey, N8N_API_KEY)) return true;
   const auth = request.headers.get("authorization");
   if (auth?.startsWith("Bearer ")) {
     const token = auth.slice(7);
-    if (token === N8N_API_KEY) return true;
+    if (timingSafeStrEqual(token, N8N_API_KEY)) return true;
   }
   return false;
 }

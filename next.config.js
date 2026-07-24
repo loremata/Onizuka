@@ -46,6 +46,7 @@ function buildSecurityHeaders() {
 
 const nextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
   experimental: {
     serverComponentsExternalPackages: ["pdfkit"],
     // Includi logo/font Online Station nel bundle serverless (PDF audit/preventivi).

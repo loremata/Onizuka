@@ -1,3 +1,33 @@
+import { assertPublicHttpUrl } from "@/lib/ssrf-guard";
+
+/**
+ * Fetch con guardia SSRF e follow dei redirect MANUALE: ogni hop (URL iniziale
+ * incluso) viene validato con assertPublicHttpUrl prima di essere contattato.
+ * Blocca i redirect verso IP privati/interni (es. 302 → http://169.254.169.254).
+ * Il `signal` passato in `init` copre l'intera catena (timeout condiviso).
+ * Lancia se un hop è vietato o se si superano `maxHops` redirect.
+ */
+async function safeFetch(
+  initialUrl: string,
+  init: RequestInit,
+  maxHops = 5
+): Promise<Response> {
+  let url = initialUrl;
+  for (let hop = 0; hop <= maxHops; hop++) {
+    await assertPublicHttpUrl(url);
+    const res = await fetch(url, { ...init, redirect: "manual" });
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get("location");
+      if (!location) return res; // redirect senza Location: restituiamo così com'è
+      // Risolvi eventuale Location relativa rispetto all'URL corrente e prosegui.
+      url = new URL(location, url).toString();
+      continue;
+    }
+    return res;
+  }
+  throw new Error("Troppi redirect (limite SSRF-safe superato)");
+}
+
 export type WebsiteProbeResult = {
   url: string;
   ok: boolean;
@@ -262,7 +292,7 @@ async function probeSeoFiles(siteUrl: string): Promise<Pick<WebsiteProbeResult, 
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch(`${origin}${path}`, {
+      const res = await safeFetch(`${origin}${path}`, {
         signal: controller.signal,
         headers: { "User-Agent": "Onizuka-AuditBot/1.0 (+https://onizuka.it)" },
       });
@@ -310,9 +340,8 @@ export async function probeWebsite(rawUrl: string | null | undefined): Promise<W
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
 
-    const res = await fetch(url, {
+    const res = await safeFetch(url, {
       signal: controller.signal,
-      redirect: "follow",
       headers: {
         "User-Agent": "Onizuka-AuditBot/1.0 (+https://onizuka.it)",
         Accept: "text/html,application/xhtml+xml",
@@ -520,9 +549,8 @@ async function discoverInnerPageUrls(baseUrl: string, max = 2): Promise<string[]
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
-    const res = await fetch(baseUrl, {
+    const res = await safeFetch(baseUrl, {
       signal: controller.signal,
-      redirect: "follow",
       headers: {
         "User-Agent": "Onizuka-AuditBot/1.0 (+https://onizuka.it)",
         Accept: "text/html",

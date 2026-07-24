@@ -3,6 +3,7 @@
 // Node/undici (403), mentre curl passa. Retry con backoff su 429/403/5xx.
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { assertPublicHttpUrl } from "../ssrf-guard";
 
 const execFileP = promisify(execFile);
 const SENTINEL = "\n__HTTPSTATUS__:";
@@ -21,6 +22,14 @@ export interface FetchResult {
 }
 
 export async function fetchViaCurl(url: string, tentativi = 4): Promise<FetchResult> {
+  // Guardia SSRF: valida l'URL iniziale prima di invocare curl. curl segue i redirect
+  // (-sL) quindi limitiamo anche il numero di hop e i protocolli ammessi.
+  try {
+    await assertPublicHttpUrl(url);
+  } catch (err) {
+    return { ok: false, status: 0, html: "", error: `SSRF bloccato: ${String(err)}` };
+  }
+
   let ultimoErr = "";
   for (let i = 0; i < tentativi; i++) {
     try {
@@ -28,6 +37,7 @@ export async function fetchViaCurl(url: string, tentativi = 4): Promise<FetchRes
         "curl",
         [
           "-sL", "--compressed", "--max-time", "30",
+          "--max-redirs", "5", "--proto", "=http,https",
           "-A", UA,
           "-H", "Accept-Language: it-IT,it;q=0.9",
           "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",

@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { runWhatsAppInboundAutomationRules } from "@/lib/automation-rules-run";
 import { resolveWhatsAppPhoneLine } from "@/lib/whatsapp-phone-routing";
 import { prisma } from "@/lib/prisma";
@@ -17,6 +18,48 @@ type MetaWebhookBody = {
     }[];
   }[];
 };
+
+// Warning una-tantum: evita di intasare i log quando il secret non è configurato in prod.
+let signatureWarningLogged = false;
+
+/**
+ * Verifica la firma Meta `X-Hub-Signature-256: sha256=<hmac>` sul RAW body.
+ * Meta calcola l'HMAC-SHA256 del corpo grezzo con l'App Secret.
+ *
+ * Ritorna:
+ *  - `true`  → firma valida OPPURE secret non configurato (fail-open volontario: non
+ *              rompiamo la produzione finché il proprietario non aggiunge WHATSAPP_APP_SECRET).
+ *  - `false` → secret configurato ma firma assente/non combaciante → il chiamante DEVE rifiutare.
+ */
+export function verifyWhatsAppSignature(rawBody: string, signatureHeader: string | null): boolean {
+  const appSecret = process.env.WHATSAPP_APP_SECRET?.trim();
+
+  if (!appSecret) {
+    // Fail-open: nessun secret → non blocchiamo, ma avvisiamo una volta sola.
+    if (!signatureWarningLogged) {
+      signatureWarningLogged = true;
+      console.warn(
+        "[whatsapp] firma non verificata: WHATSAPP_APP_SECRET non configurato"
+      );
+    }
+    return true;
+  }
+
+  // Da qui in poi il secret c'è → la firma è obbligatoria e deve combaciare.
+  if (!signatureHeader) return false;
+
+  const expected = createHmac("sha256", appSecret).update(rawBody, "utf8").digest("hex");
+  // L'header ha forma "sha256=<hex>": normalizziamo togliendo il prefisso se presente.
+  const provided = signatureHeader.startsWith("sha256=")
+    ? signatureHeader.slice("sha256=".length)
+    : signatureHeader;
+
+  const expectedBuf = Buffer.from(expected, "utf8");
+  const providedBuf = Buffer.from(provided, "utf8");
+  // timingSafeEqual richiede buffer di ugual lunghezza: scarto subito le lunghezze diverse.
+  if (expectedBuf.length !== providedBuf.length) return false;
+  return timingSafeEqual(expectedBuf, providedBuf);
+}
 
 export async function ingestWhatsAppWebhookPayload(body: unknown): Promise<number> {
   const payload = body as MetaWebhookBody;
