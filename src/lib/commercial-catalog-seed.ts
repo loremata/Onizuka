@@ -133,6 +133,7 @@ export const COMMERCIAL_SERVICES: CatalogServiceSeed[] = [
   { slug: "energy", name: "Energia / luce", category: "ENERGY", brandSlug: "online-station", sortOrder: 30 },
   { slug: "gas", name: "Gas", category: "ENERGY", brandSlug: "online-station", sortOrder: 35 },
   { slug: "sky", name: "Sky / pay TV", category: "TELECOM", brandSlug: "online-station", sortOrder: 40 },
+  { slug: "telepass", name: "Telepass", category: "TELECOM", brandSlug: "online-station", sortOrder: 42 },
   { slug: "tim-vision", name: "TIM Vision", category: "TELECOM", brandSlug: "online-station", sortOrder: 45 },
   { slug: "streaming", name: "Streaming", category: "TELECOM", brandSlug: "online-station", sortOrder: 48 },
   { slug: "tv", name: "TV", category: "TELECOM", brandSlug: "online-station", sortOrder: 49 },
