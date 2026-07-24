@@ -8,18 +8,36 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { OpportunityForm } from "../opportunity-form";
 
-export default async function NewOpportunityPage() {
+type Props = {
+  searchParams: Record<string, string | string[] | undefined>;
+};
+
+function firstParam(v: string | string[] | undefined): string | undefined {
+  return Array.isArray(v) ? v[0] : v;
+}
+
+export default async function NewOpportunityPage({ searchParams }: Props) {
   const session = await requireAdminArea();
 
-  const clients = await prisma.client.findMany({
-    orderBy: { companyName: "asc" },
-    select: { id: true, companyName: true },
-  });
+  const clientIdParam = firstParam(searchParams.clientId);
+  const serviceSlug = firstParam(searchParams.service);
 
-  const assets = await prisma.asset.findMany({
-    orderBy: [{ clientId: "asc" }, { name: "asc" }],
-    select: { id: true, clientId: true, name: true },
-  });
+  const [clients, assets, service] = await Promise.all([
+    prisma.client.findMany({
+      orderBy: { companyName: "asc" },
+      select: { id: true, companyName: true },
+    }),
+    prisma.asset.findMany({
+      orderBy: [{ clientId: "asc" }, { name: "asc" }],
+      select: { id: true, clientId: true, name: true },
+    }),
+    serviceSlug
+      ? prisma.commercialService.findUnique({ where: { slug: serviceSlug }, select: { name: true } })
+      : Promise.resolve(null),
+  ]);
+
+  const presetClientId = clientIdParam && clients.some((c) => c.id === clientIdParam) ? clientIdParam : undefined;
+  const presetTitle = service?.name ?? undefined;
 
   return (
     <div className="space-y-6">
@@ -34,7 +52,12 @@ export default async function NewOpportunityPage() {
           <CardDescription>Collega una trattativa a un cliente CRM esistente.</CardDescription>
         </CardHeader>
         <CardContent>
-          <OpportunityForm clients={clients} assets={assets} />
+          <OpportunityForm
+            clients={clients}
+            assets={assets}
+            presetClientId={presetClientId}
+            presetTitle={presetTitle}
+          />
         </CardContent>
       </Card>
     </div>

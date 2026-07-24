@@ -37,6 +37,10 @@ type Props = {
   leads?: LeadOpt[];
   assets: AssetOption[];
   opportunity?: Opportunity;
+  /** Preselezione cliente in creazione (es. arrivo da "Proponi" con ?clientId=). */
+  presetClientId?: string;
+  /** Titolo precompilato in creazione (es. nome servizio da ?service=). */
+  presetTitle?: string;
 };
 
 function dueInputValue(d: Date | null | undefined) {
@@ -46,9 +50,16 @@ function dueInputValue(d: Date | null | undefined) {
   return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}T${pad(x.getHours())}:${pad(x.getMinutes())}`;
 }
 
-export function OpportunityForm({ clients, leads = [], assets, opportunity }: Props) {
+export function OpportunityForm({
+  clients,
+  leads = [],
+  assets,
+  opportunity,
+  presetClientId,
+  presetTitle,
+}: Props) {
   const isEdit = !!opportunity;
-  const defaultClientId = opportunity?.clientId ?? "";
+  const defaultClientId = opportunity?.clientId ?? presetClientId ?? "";
   const defaultLeadId = opportunity?.leadId ?? "";
   const initialAssetId =
     opportunity?.assetId &&
@@ -119,7 +130,7 @@ export function OpportunityForm({ clients, leads = [], assets, opportunity }: Pr
         </div>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="title">Titolo opportunità</Label>
-          <Input id="title" name="title" required defaultValue={opportunity?.title} />
+          <Input id="title" name="title" required defaultValue={opportunity?.title ?? presetTitle} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="status">Stato</Label>

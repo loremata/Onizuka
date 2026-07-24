@@ -84,8 +84,8 @@ const result = (mnp: number, fisso: number): MonthResult => ({
   total: 0,
   prizes: [],
   lines: [
-    { key: "MNP", label: "Mobile MNP", qty: mnp, eligibleFee: 0, compenso: 0, tierIndex: 0, nextThreshold: 19, missing: Math.max(0, 19 - mnp), stepValue: 0 },
-    { key: "ACCESSO_FISSO", label: "Accessi Fisso", qty: fisso, eligibleFee: 0, compenso: 0, tierIndex: 1, nextThreshold: 8, missing: Math.max(0, 8 - fisso), stepValue: 0 },
+    { key: "MNP", label: "Mobile MNP", unit: "MULTIPLIER_ON_FEE", qty: mnp, eligibleFee: 0, compenso: 0, tierIndex: 0, nextThreshold: 19, missing: Math.max(0, 19 - mnp), stepValue: 0 },
+    { key: "ACCESSO_FISSO", label: "Accessi Fisso", unit: "MULTIPLIER_ON_FEE", qty: fisso, eligibleFee: 0, compenso: 0, tierIndex: 1, nextThreshold: 8, missing: Math.max(0, 8 - fisso), stepValue: 0 },
   ],
 });
 

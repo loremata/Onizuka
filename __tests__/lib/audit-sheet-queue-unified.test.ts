@@ -2,7 +2,7 @@ import { processAuditSheetQueueBatch } from "@/lib/audit-sheet-queue-processor";
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    auditSheetQueueItem: { findMany: jest.fn(), update: jest.fn() },
+    auditSheetQueueItem: { findMany: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     digitalAudit: { findUnique: jest.fn(), update: jest.fn() },
   },
 }));
@@ -21,6 +21,7 @@ const { runDigitalAuditUnified } = jest.requireMock("@/lib/audit-commercial-entr
 describe("processAuditSheetQueueBatch", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    prisma.auditSheetQueueItem.updateMany.mockResolvedValue({ count: 0 });
     prisma.auditSheetQueueItem.findMany.mockResolvedValue([
       {
         id: "q1",
@@ -53,6 +54,7 @@ describe("processAuditSheetQueueBatch", () => {
     const result = await processAuditSheetQueueBatch(1);
     expect(result.done).toBe(1);
     expect(result.skipped).toBe(0);
+    expect(result.reclaimed).toBe(0);
     expect(runDigitalAuditUnified).toHaveBeenCalledWith(
       expect.objectContaining({
         vatNumber: "IT12345678901",

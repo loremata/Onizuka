@@ -19,6 +19,8 @@ import { platformLabel } from "@/lib/platform-label";
 import { buildClientTimeline, timelineKindLabel } from "@/lib/client-timeline";
 import { computeClientHealthScore } from "@/lib/client-health-score";
 import { computeCustomerScore, CUSTOMER_BAND_LABEL } from "@/lib/client-customer-scoring";
+import { getCustomerValueAnalysis } from "@/lib/customer-value";
+import { Badge } from "@/components/ui/badge";
 import { ensureCommercialCatalogSeeded } from "@/lib/commercial-catalog-seed";
 import { loadClientAssetCommercialSummary } from "@/lib/client-asset-commercial";
 import { loadClientServiceGaps } from "@/lib/client-commercial-gaps";
@@ -192,6 +194,7 @@ export default async function ClientOverviewPage({
     client360Profile,
     auditCommercialSummary,
     activeRetailCount,
+    customerValue,
   ] = await Promise.all([
       prisma.commercialService.findMany({
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -241,6 +244,7 @@ export default async function ClientOverviewPage({
       loadClient360Profile(id, session.user.id),
       loadAuditCommercialSummaryForClient(id, session.user.id),
       prisma.clientRetailContract.count({ where: { clientId: id, status: "ACTIVE" } }),
+      getCustomerValueAnalysis(id),
     ]);
   const linkByServiceId = new Map(clientLinks.map((l) => [l.commercialServiceId, l]));
   const serviceRows = catalog.map((s) => {
@@ -446,6 +450,73 @@ export default async function ClientOverviewPage({
 
         </ClientSchedaPanel>
         <ClientSchedaPanel id="commerciale">
+      {/* Pipeline up/cross-sell + CLV (motore portato dall'app Customer Scoring). */}
+      {customerValue ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Prossime mosse</CardTitle>
+            <CardDescription>
+              Opportunità up/cross-sell calcolate su servizi attivi, contratti retail e score cliente.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <div className="grid gap-3 border-b pb-4 sm:grid-cols-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">CLV realizzato</p>
+                <p className="text-lg font-bold tabular-nums">
+                  € {customerValue.clv.realizedEur.toLocaleString("it-IT")}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">CLV potenziale</p>
+                <p className="text-lg font-bold tabular-nums">
+                  € {customerValue.clv.potentialEur.toLocaleString("it-IT")}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pipeline totale</p>
+                <p className="text-lg font-bold tabular-nums">
+                  € {customerValue.pipelineTotalEur.toLocaleString("it-IT")}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Indice priorità</p>
+                <p className="text-lg font-bold tabular-nums">{customerValue.priorityIndex}</p>
+              </div>
+            </div>
+            {customerValue.opportunities.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nessuna mossa suggerita al momento: aggiorna servizi attivi e contratti retail per alimentare la pipeline.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {customerValue.opportunities.slice(0, 6).map((o) => (
+                  <li key={o.serviceSlug} className="rounded-md border border-border/60 bg-card/40 px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{o.name}</span>
+                      <Badge variant={o.kind === "up-sell" ? "default" : "secondary"}>
+                        {o.kind === "up-sell" ? "Up-sell" : "Cross-sell"}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {Math.round(o.probability * 100)}% · € {o.expectedValueEur.toLocaleString("it-IT")} attesi
+                      </span>
+                      <Button asChild size="sm" variant="outline" className="ml-auto h-7 text-xs">
+                        <Link
+                          href={`/admin/crm/opportunities/new?clientId=${client.id}&service=${encodeURIComponent(o.serviceSlug)}`}
+                        >
+                          Proponi
+                        </Link>
+                      </Button>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{o.rationale}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
+
       <ClientRetailContractsCard clientId={client.id} ownerUserId={session.user.id} />
 
       <GbpReviewsPanel

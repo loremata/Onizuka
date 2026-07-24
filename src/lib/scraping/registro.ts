@@ -99,30 +99,69 @@ function parseScheda(html: string, href: string, nomeLista: string): RegistroIte
   };
 }
 
+// Opzioni per il resume: cache = schede già scaricate da un run precedente
+// (vengono saltate nel loop); onCacheSave = persistenza incrementale della cache
+// (chiamata ogni CACHE_OGNI schede nuove e prima di abortire per rate-limit).
+const CACHE_OGNI = 25;
+
+export interface ScrapeRegistroOptions {
+  cache?: RegistroItem[];
+  onCacheSave?: (items: RegistroItem[]) => Promise<void>;
+}
+
 // Pipeline registro: risolve lo slug, raccoglie i link, scarica le schede.
+// Resumabile: con `cache` riparte dalle schede già fatte; con `onCacheSave`
+// il chiamante persiste il lavoro parziale (anche in caso di errore fatale).
 export async function scrapeRegistro(
   candidatiSlug: string[],
-  onProgress?: ProgressFn
+  onProgress?: ProgressFn,
+  opzioni: ScrapeRegistroOptions = {}
 ): Promise<{ slug: string; items: RegistroItem[] }> {
   const slug = await risolviSlug(candidatiSlug);
   if (!slug) throw new Error("Comune non trovato su registroaziende (slug non risolto).");
 
   const lista = await raccogliLink(slug, onProgress);
-  const items: RegistroItem[] = [];
+
+  // Riparte dalla cache: le schede già scaricate non vengono ri-fetchate.
+  const items: RegistroItem[] = [...(opzioni.cache ?? [])];
+  const giaFatte = new Set(items.map((i) => i.urlScheda));
+
+  // Best-effort: un errore nel salvataggio cache non deve rompere il crawl
+  // (né mascherare l'errore originale quando salviamo prima di rilanciare).
+  const salvaCache = async () => {
+    try {
+      await opzioni.onCacheSave?.(items);
+    } catch {
+      /* la cache è un'ottimizzazione: si prosegue comunque */
+    }
+  };
+
   let fatte = 0;
+  let nuoveDaUltimoSalvataggio = 0;
   let fallimenti = 0;
   for (const row of lista) {
+    // Scheda già in cache da un run precedente: conta come progresso e salta.
+    if (giaFatte.has(BASE + row.href)) {
+      fatte++;
+      continue;
+    }
     await delay();
     const { ok, html } = await fetchViaCurl(BASE + row.href);
     fatte++;
     if (!ok || !html) {
       if (++fallimenti >= STOP_DOPO_FALLIMENTI) {
+        // Prima di abortire persisti il lavoro fatto: un retry del job riprenderà da qui.
+        await salvaCache();
         throw new Error(`Registro: troppi errori consecutivi (rate-limit) dopo ${fatte} schede.`);
       }
       continue;
     }
     fallimenti = 0;
     items.push(parseScheda(html, row.href, row.nome));
+    if (++nuoveDaUltimoSalvataggio >= CACHE_OGNI) {
+      await salvaCache();
+      nuoveDaUltimoSalvataggio = 0;
+    }
     if (fatte % 10 === 0 || fatte === lista.length) {
       await onProgress?.({ phase: "registro", current: fatte, total: lista.length });
     }

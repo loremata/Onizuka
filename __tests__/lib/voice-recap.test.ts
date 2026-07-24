@@ -14,6 +14,10 @@ describe("buildVoiceRecapText", () => {
         recentMemories: [],
         dormantClients: 0,
         opportunitiesOpen: 4,
+        leadsNew: 0,
+        openTickets: 0,
+        quotesDraft: 0,
+        pipelineWeightedEur: "0",
       },
       "Europe/Rome"
     );

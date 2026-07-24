@@ -1,7 +1,4 @@
-import {
-  ensureOpportunityFromDigitalAudit,
-  syncOpportunitiesOnLeadConversion,
-} from "@/lib/audit-opportunity-from-audit";
+import { ensureOpportunityFromDigitalAudit } from "@/lib/audit-opportunity-from-audit";
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
@@ -83,14 +80,49 @@ describe("ensureOpportunityFromDigitalAudit with leadId", () => {
   });
 });
 
-describe("syncOpportunitiesOnLeadConversion", () => {
-  it("updates opportunities with clientId", async () => {
-    prisma.opportunity.updateMany.mockResolvedValue({ count: 2 });
-    const n = await syncOpportunitiesOnLeadConversion("lead-1", "client-1");
-    expect(n).toBe(2);
-    expect(prisma.opportunity.updateMany).toHaveBeenCalledWith({
-      where: { leadId: "lead-1" },
-      data: { clientId: "client-1" },
+// La sync massiva post-conversione (ex syncOpportunitiesOnLeadConversion) oggi vive
+// inline nella server action di conversione lead (src/app/admin/crm/leads/actions.ts:
+// opportunity.updateMany where { leadId, clientId: null }). Qui verifichiamo l'intento
+// equivalente rimasto in questo modulo: quando arriva il cliente, l'opportunità del
+// lead passa al cliente e il leadId viene azzerato (esclusione mutua).
+describe("passaggio lead→cliente sull'opportunità dell'audit", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("aggiorna l'opportunità del lead con clientId e azzera leadId", async () => {
+    prisma.digitalAudit.findFirst.mockResolvedValue({
+      overallScore: 45,
+      priorityProblem: null,
+      businessName: "Bar",
+      clientId: null,
+      leadId: "lead-1",
+      client: { companyName: "Bar Srl" },
+      lead: { businessName: "Bar", title: "Lead" },
+      recommendedService: { id: "s1", name: "Sito", slug: "website" },
+      recommendedBrand: null,
+      sections: [],
     });
+    prisma.opportunity.findFirst.mockResolvedValue({
+      id: "opp-1",
+      status: "OPEN",
+      leadId: "lead-1",
+      clientId: null,
+    });
+    prisma.opportunity.update.mockResolvedValue({});
+    prisma.opportunityQuote.findFirst.mockResolvedValue({ id: "q0" });
+
+    const result = await ensureOpportunityFromDigitalAudit({
+      ownerUserId: "u1",
+      auditId: "a1",
+      clientId: "client-1",
+    });
+
+    expect(result?.updated).toBe(true);
+    expect(prisma.opportunity.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "opp-1" },
+        data: expect.objectContaining({ clientId: "client-1", leadId: null }),
+      })
+    );
+    expect(prisma.opportunity.create).not.toHaveBeenCalled();
   });
 });

@@ -59,10 +59,10 @@ describeDb("audit commercial CRM smoke (local DB)", () => {
     await prisma.$disconnect();
   });
 
-  it("assertOpportunityParty accepts lead-only and client-only", () => {
+  it("assertOpportunityParty accepts lead-only and client-only, rejects both or neither", () => {
     expect(assertOpportunityParty({ leadId: "l1" })).toBeNull();
     expect(assertOpportunityParty({ clientId: "c1" })).toBeNull();
-    expect(assertOpportunityParty({ leadId: "l1", clientId: "c1" })).toBeNull();
+    expect(assertOpportunityParty({ leadId: "l1", clientId: "c1" })).toMatch(/non entrambi/i);
     expect(assertOpportunityParty({})).toMatch(/cliente o un lead/i);
   });
 

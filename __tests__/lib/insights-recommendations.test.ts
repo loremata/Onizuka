@@ -11,6 +11,7 @@ const base = {
   memoryTotal: 10,
   openTickets: 0,
   outreachPending: 0,
+  activeReachSequences: 0,
   timeZoneLabel: "Europe/Rome",
 };
 
