@@ -1,5 +1,8 @@
 import { buildDeployStatusReport } from "@/lib/deploy-status";
 
+// NODE_ENV è tipizzato read-only da @types/node: cast mirato del solo process.env per i test.
+const env = process.env as Record<string, string | undefined>;
+
 describe("deploy-status", () => {
   const prev = {
     nodeEnv: process.env.NODE_ENV,
@@ -9,7 +12,7 @@ describe("deploy-status", () => {
   };
 
   afterEach(() => {
-    process.env.NODE_ENV = prev.nodeEnv;
+    env.NODE_ENV = prev.nodeEnv;
     process.env.NEXTAUTH_SECRET = prev.secret;
     process.env.NEXTAUTH_URL = prev.url;
     process.env.S3_BUCKET = prev.s3;
@@ -26,7 +29,7 @@ describe("deploy-status", () => {
   });
 
   it("flags missing storage in production", () => {
-    process.env.NODE_ENV = "production";
+    env.NODE_ENV = "production";
     process.env.NEXTAUTH_SECRET = "x".repeat(32);
     process.env.NEXTAUTH_URL = "https://onizuka.it";
     delete process.env.S3_BUCKET;

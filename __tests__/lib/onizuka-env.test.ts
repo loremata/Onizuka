@@ -1,5 +1,8 @@
 import { getOnizukaEnv, stagingDatabaseMismatchWarning } from "@/lib/onizuka-env";
 
+// NODE_ENV è tipizzato read-only da @types/node: cast mirato del solo process.env per i test.
+const env = process.env as Record<string, string | undefined>;
+
 describe("onizuka-env", () => {
   const prev = {
     onizuka: process.env.ONIZUKA_ENV,
@@ -12,7 +15,7 @@ describe("onizuka-env", () => {
   afterEach(() => {
     process.env.ONIZUKA_ENV = prev.onizuka;
     process.env.VERCEL_ENV = prev.vercel;
-    process.env.NODE_ENV = prev.node;
+    env.NODE_ENV = prev.node;
     process.env.DATABASE_URL = prev.db;
     process.env.ONIZUKA_STAGING_DB_MARKER = prev.marker;
   });

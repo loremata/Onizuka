@@ -48,6 +48,8 @@ describe("GET /api/cron/notifications", () => {
     AUTOMATION_QUEUE_CRON: process.env.AUTOMATION_QUEUE_CRON,
     NOTIFY_DIGEST_CRON: process.env.NOTIFY_DIGEST_CRON,
     QUOTE_NO_RESPONSE_CRON: process.env.QUOTE_NO_RESPONSE_CRON,
+    RETAIL_SWITCH_CRON: process.env.RETAIL_SWITCH_CRON,
+    RISK_SIGNAL_CRON: process.env.RISK_SIGNAL_CRON,
   };
 
   beforeEach(() => {
@@ -60,6 +62,8 @@ describe("GET /api/cron/notifications", () => {
     process.env.AUTOMATION_QUEUE_CRON = "0";
     process.env.NOTIFY_DIGEST_CRON = "0";
     process.env.QUOTE_NO_RESPONSE_CRON = "0";
+    process.env.RETAIL_SWITCH_CRON = "0";
+    process.env.RISK_SIGNAL_CRON = "0";
   });
 
   afterEach(() => {

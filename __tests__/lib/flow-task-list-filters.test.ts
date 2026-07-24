@@ -16,7 +16,7 @@ describe("flow-task-list-filters", () => {
     const dayEnd = new Date("2026-05-15T23:59:59.999Z");
     const where = buildOwnedFlowTaskWhere(
       "user-1",
-      { q: "", status: null, clientId: "", due: "today" },
+      { q: "", status: null, clientId: "", due: "today", source: "" },
       { dayStart, dayEnd }
     );
     expect(where).toMatchObject({

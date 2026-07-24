@@ -10,6 +10,9 @@ describe("agency partner official flags", () => {
     sapOfficial: false,
     zucchettiPartnerRef: null,
     sapPartnerRef: null,
+    zucchettiContractDriveUrl: null,
+    sapContractDriveUrl: null,
+    legalArchiveNotes: null,
     contractSignedAt: null,
   };
 

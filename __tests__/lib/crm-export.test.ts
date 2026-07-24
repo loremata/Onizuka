@@ -1,5 +1,5 @@
 import { formatLeadsCsv, formatOpportunitiesCsv } from "@/lib/crm-export";
-import { LeadStatus, OpportunityPriority, OpportunityStatus } from "@prisma/client";
+import { LeadStatus, OpportunityPriority, OpportunityStatus, Prisma } from "@prisma/client";
 
 describe("crm-export", () => {
   it("formats leads csv with titolo and azienda", () => {
@@ -12,11 +12,19 @@ describe("crm-export", () => {
         email: "m@acme.it",
         phone: null,
         vatNumber: null,
+        fiscalCode: null,
+        clientMacroCategory: null,
+        commercialProspectStage: null,
         source: "web",
+        referrerId: null,
         status: LeadStatus.NEW,
         notes: null,
         ownerUserId: "u1",
         convertedClientId: null,
+        clientId: null,
+        website: null,
+        city: null,
+        googlePlaceId: null,
         createdAt: new Date(),
         updatedAt: new Date("2026-05-15T10:00:00.000Z"),
         convertedClient: { companyName: "Acme Client" },
@@ -33,11 +41,14 @@ describe("crm-export", () => {
         id: "o1",
         title: "Renewal",
         clientId: "c1",
+        leadId: null,
         assetId: null,
         ownerUserId: "u1",
+        source: null,
+        digitalAuditId: null,
         status: OpportunityStatus.OPEN,
         priority: OpportunityPriority.MEDIUM,
-        estimatedValue: 1200,
+        estimatedValue: new Prisma.Decimal(1200),
         probability: 50,
         description: null,
         nextAction: "Call",

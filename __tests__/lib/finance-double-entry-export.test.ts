@@ -12,6 +12,8 @@ describe("formatFinanceDoubleEntryCsv", () => {
         status: "RECEIVED",
         label: "Fattura test",
         amountEur: { toString: () => "500" } as never,
+        recurringMonthly: false,
+        renewalDate: null,
         invoiceNumber: null,
         dueDate: new Date("2026-05-01"),
         paidAt: new Date("2026-05-02"),

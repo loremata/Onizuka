@@ -18,6 +18,8 @@ describe("finance-accounting-export", () => {
         status: "RECEIVED",
         label: "Consulenza maggio",
         amountEur: { toString: () => "1200.5" } as never,
+        recurringMonthly: false,
+        renewalDate: null,
         invoiceNumber: "FT-2026-12",
         dueDate: new Date("2026-05-15"),
         paidAt: new Date("2026-05-20"),

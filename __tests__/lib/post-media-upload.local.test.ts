@@ -3,19 +3,26 @@ import path from "path";
 import { prisma } from "@/lib/prisma";
 import { createPostWithMedia } from "@/lib/post-media-upload";
 import { isS3Configured } from "@/lib/storage";
+import { runWithDb } from "@/lib/with-db";
 
 describe("createPostWithMedia (locale)", () => {
   it("crea post con media su storage locale", async () => {
     if (isS3Configured()) return;
 
-    const client = await prisma.client.findFirst({
-      where: { slug: "demo-client" },
-      select: { id: true },
-    });
-    const admin = await prisma.user.findFirst({
-      where: { email: "admin@agency.com" },
-      select: { id: true },
-    });
+    // Precondizioni ambientali (DB locale acceso + seed demo): senza, il test
+    // salta come già fa per i dati seed mancanti.
+    const seed = await runWithDb(async () => ({
+      client: await prisma.client.findFirst({
+        where: { slug: "demo-client" },
+        select: { id: true },
+      }),
+      admin: await prisma.user.findFirst({
+        where: { email: "admin@agency.com" },
+        select: { id: true },
+      }),
+    }));
+    if (!seed.ok) return;
+    const { client, admin } = seed.data;
     if (!client || !admin) return;
 
     const png = readFileSync(path.join(process.cwd(), "e2e/fixtures/test.png"));

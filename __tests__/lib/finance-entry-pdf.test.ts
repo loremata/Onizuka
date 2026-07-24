@@ -15,6 +15,7 @@ describe("finance-entry-pdf", () => {
       amountEur: "1.500,00",
       clientName: "Demo Srl",
       clientVat: "IT12345678901",
+      assetName: null,
       dueDate: "15 marzo 2026",
       paidAt: null,
       notes: "Pagamento trimestrale",
