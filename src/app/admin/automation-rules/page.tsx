@@ -22,6 +22,13 @@ function firstParam(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;
 }
 
+const AUTOMATION_RUN_STATUS_LABEL: Record<string, string> = {
+  PENDING: "In coda",
+  RUNNING: "In esecuzione",
+  DONE: "Completata",
+  FAILED: "Fallita",
+};
+
 export default async function AutomationRulesPage({ searchParams }: Props) {
   const session = await requireAdminArea();
   const { from, to, fromDay, toDay } = resolveAutomationKpiRange({
@@ -29,7 +36,9 @@ export default async function AutomationRulesPage({ searchParams }: Props) {
     to: firstParam(searchParams.to),
   });
 
-  const [rules, executionLogs, recentAll] = await Promise.all([
+  const runId = firstParam(searchParams.run);
+
+  const [rules, executionLogs, recentAll, runDetail] = await Promise.all([
     prisma.automationRule.findMany({
       where: { ownerUserId: session.user.id },
       orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
@@ -46,6 +55,12 @@ export default async function AutomationRulesPage({ searchParams }: Props) {
       orderBy: { createdAt: "desc" },
       take: 2000,
     }),
+    runId
+      ? prisma.automationFlowRun.findFirst({
+          where: { id: runId, ownerUserId: session.user.id },
+          include: { rule: { select: { name: true } } },
+        })
+      : Promise.resolve(null),
   ]);
 
   const exportHref = `/api/admin/automation-rules/executions/export?from=${encodeURIComponent(fromDay)}&to=${encodeURIComponent(toDay)}`;
@@ -79,6 +94,43 @@ export default async function AutomationRulesPage({ searchParams }: Props) {
           retry/backoff.
         </p>
       </div>
+
+      {runId ? (
+        <Card
+          id="run-detail"
+          className={runDetail?.status === "FAILED" ? "border-destructive/60" : "border-primary/60"}
+        >
+          <CardHeader>
+            <CardTitle className="text-base">Dettaglio run coda</CardTitle>
+            <CardDescription>
+              Run <code className="text-xs">{runId}</code> dall&apos;inbox azioni.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            {runDetail ? (
+              <>
+                <p>
+                  <strong>{runDetail.rule.name}</strong> · stato:{" "}
+                  <strong>{AUTOMATION_RUN_STATUS_LABEL[runDetail.status] ?? runDetail.status}</strong> · tentativi:{" "}
+                  {runDetail.attemptCount}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Pianificata: {runDetail.scheduledAt.toLocaleString("it-IT")}
+                  {runDetail.startedAt ? ` · Avviata: ${runDetail.startedAt.toLocaleString("it-IT")}` : ""}
+                  {runDetail.completedAt ? ` · Conclusa: ${runDetail.completedAt.toLocaleString("it-IT")}` : ""}
+                </p>
+                {runDetail.errorDetail ? (
+                  <p className="rounded-md border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">
+                    {runDetail.errorDetail}
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <p className="text-muted-foreground">Run non trovata (eliminata o di un altro utente).</p>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <AutomationSandboxPanel rules={rules.map((r) => ({ id: r.id, name: r.name }))} />
       <AutomationQueuePanel rules={rules.map((r) => ({ id: r.id, name: r.name }))} />

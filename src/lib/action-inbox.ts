@@ -201,7 +201,7 @@ export async function loadActionInbox(ownerUserId: string, limit = 80): Promise<
       kind: "automation",
       title: "Automazione fallita",
       detail: (r.errorDetail ?? "Vedi regola").slice(0, 120),
-      href: `/admin/automations?run=${r.id}`,
+      href: `/admin/automation-rules?run=${r.id}#run-detail`,
       priority: "high",
       createdAt: r.scheduledAt,
     });
