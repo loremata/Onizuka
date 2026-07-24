@@ -2,6 +2,9 @@
 // (registroaziende blocca il TLS di Node → serve curl; e lo scraping supera il limite
 // 5 min delle funzioni serverless). Polla i ScrapeJob in coda, esegue registro →
 // Places → dedup → import Lead, aggiornando progresso e contatori sul job.
+// La fase registro è RESUMABILE: le schede scaricate vengono persistite in
+// registroCacheJson (ogni 25 + prima di un abort per rate-limit); un job in
+// ERROR rimesso in coda (bottone "Riprova" nella UI) riprende da lì.
 //
 // Avvio PC (loop continuo):  npx tsx scripts/scraper-worker.ts   (o il file .bat)
 // Avvio CI (single-pass):    WORKER_ONCE=1 tsx scripts/scraper-worker.ts
@@ -31,6 +34,7 @@ async function main() {
   const { importScrapedCompanies } = await import("@/lib/scraping/import-leads");
   const { PROVINCE_ITALIA } = await import("@/lib/scraping/comuni-italia");
   type ProgressArg = { phase: string; current?: number; total?: number; note?: string };
+  type RegistroItem = import("@/lib/scraping/types").RegistroItem;
 
   const apiKey = process.env.GOOGLE_PLACES_API_KEY || "";
   console.log(`[worker] avviato. DB: ${mask(process.env.DATABASE_URL)} · Places key: ${apiKey ? "presente" : "ASSENTE"}`);
@@ -69,14 +73,43 @@ async function main() {
       });
     };
 
+    // Cache incrementale del crawl registro (resume): se il job era già fallito
+    // a metà, riparte dalle schede già scaricate invece che da zero.
+    let cacheRegistro: RegistroItem[] = [];
+    if (job.registroCacheJson) {
+      try {
+        cacheRegistro = JSON.parse(job.registroCacheJson) as RegistroItem[];
+        console.log(`[worker] job ${job.id} → riprendo da ${cacheRegistro.length} schede già in cache`);
+      } catch {
+        cacheRegistro = []; // cache corrotta: si riparte da zero
+      }
+    }
+    // Persiste il lavoro parziale sul job: chiamata da scrapeRegistro ogni 25
+    // schede nuove e comunque prima di un abort per rate-limit.
+    const salvaCacheRegistro = async (items: RegistroItem[]) => {
+      await prisma.scrapeJob.update({
+        where: { id: job.id },
+        data: { registroCacheJson: JSON.stringify(items), heartbeatAt: new Date() },
+      });
+    };
+
     try {
       // 1) Registro (base): stato, P.IVA, ATECO.
       const candidati = registroSlugCandidates(job.comune, job.provincia);
-      const { items: registro } = await scrapeRegistro(candidati, onProgress);
+      const { items: registro } = await scrapeRegistro(candidati, onProgress, {
+        cache: cacheRegistro,
+        onCacheSave: salvaCacheRegistro,
+      });
       const active = registro.filter((r) => r.stato === "attiva").length;
       await prisma.scrapeJob.update({
         where: { id: job.id },
-        data: { totalFound: registro.length, activeCount: active, excludedCount: registro.length - active },
+        data: {
+          totalFound: registro.length,
+          activeCount: active,
+          excludedCount: registro.length - active,
+          // Fase registro completata: la cache non serve più (peso morto sul DB).
+          registroCacheJson: null,
+        },
       });
 
       // 2) Places (arricchimento): sito, telefono, recensioni.

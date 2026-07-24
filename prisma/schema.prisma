@@ -2007,6 +2007,10 @@ model ScrapeJob {
   leadsCreated   Int @default(0) // nuovi Lead inseriti in Onizuka
   dedupSkipped   Int @default(0) // saltate perché già presenti nel CRM
 
+  // Cache incrementale delle schede registro già scaricate (JSON di RegistroItem[]):
+  // permette il resume di un job fallito a metà crawl senza ripartire da zero.
+  registroCacheJson String? @db.Text
+
   error       String?   @db.Text
   startedAt   DateTime?
   finishedAt  DateTime?

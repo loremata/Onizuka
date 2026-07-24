@@ -35,6 +35,7 @@ export function ScrapingClient({ province }: { province: Provincia[] }) {
   const [comune, setComune] = useState("");
   const [loadingComuni, setLoadingComuni] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [job, setJob] = useState<Job | null>(null);
   const [errore, setErrore] = useState("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -72,6 +73,21 @@ export function ScrapingClient({ province }: { province: Provincia[] }) {
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
+  // Al primo caricamento recupera l'ultimo job non completato (in coda, in corso
+  // o fallito): così un job in errore resta visibile — e riprovabile — anche
+  // dopo un refresh della pagina.
+  useEffect(() => {
+    fetch("/api/admin/crm/scraping/status")
+      .then((r) => r.json())
+      .then((d) => {
+        const ultimo: Job | undefined = d.jobs?.[0];
+        if (!ultimo || ultimo.status === "DONE") return;
+        setJob(ultimo);
+        if (ultimo.status === "QUEUED" || ultimo.status === "RUNNING") pollStatus(ultimo.id);
+      })
+      .catch(() => { /* non bloccante */ });
+  }, [pollStatus]);
+
   async function avvia() {
     setErrore("");
     setStarting(true);
@@ -89,6 +105,29 @@ export function ScrapingClient({ province }: { province: Provincia[] }) {
       setErrore("Errore di rete.");
     } finally {
       setStarting(false);
+    }
+  }
+
+  // Rimette in coda un job fallito: il worker riprende dalla cache del crawl
+  // registro (schede già scaricate), senza ripartire da zero.
+  async function riprova() {
+    if (!job) return;
+    setErrore("");
+    setRetrying(true);
+    try {
+      const r = await fetch("/api/admin/crm/scraping/retry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId: job.id }),
+      });
+      const d = await r.json();
+      if (!r.ok) { setErrore(d.error || "Errore nel riavvio."); return; }
+      setJob({ ...job, status: "QUEUED", error: null });
+      pollStatus(job.id);
+    } catch {
+      setErrore("Errore di rete.");
+    } finally {
+      setRetrying(false);
     }
   }
 
@@ -175,8 +214,18 @@ export function ScrapingClient({ province }: { province: Provincia[] }) {
             </div>
           )}
 
-          {job.status === "ERROR" && job.error && (
-            <p className="text-sm text-red-600">{job.error}</p>
+          {job.status === "ERROR" && (
+            <div className="space-y-2">
+              {job.error && <p className="text-sm text-red-600">{job.error}</p>}
+              <div className="flex items-center gap-3">
+                <Button variant="outline" size="sm" onClick={riprova} disabled={retrying}>
+                  {retrying ? "Riavvio…" : "Riprova"}
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Riprende dal punto raggiunto: le schede registro già scaricate non vengono rifatte.
+                </span>
+              </div>
+            </div>
           )}
         </div>
       )}
