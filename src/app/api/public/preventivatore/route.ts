@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureClientForLead } from "@/lib/ensure-client-for-lead";
+import { clampStr, PUBLIC_FIELD_LIMITS as L } from "@/lib/clamp-input";
 
 export const dynamic = "force-dynamic";
 
@@ -96,11 +97,11 @@ export async function POST(request: NextRequest) {
     }
 
     const kind: "PRIVATE" | "BUSINESS" = body.kind === "BUSINESS" ? "BUSINESS" : "PRIVATE";
-    const firstName = String(body.firstName ?? "").trim();
-    const lastName = String(body.lastName ?? "").trim();
-    const email = String(body.email ?? "").trim().toLowerCase();
-    const phone = String(body.phone ?? "").trim();
-    const companyName = String(body.companyName ?? "").trim();
+    const firstName = clampStr(body.firstName, L.name);
+    const lastName = clampStr(body.lastName, L.name);
+    const email = clampStr(body.email, L.email).toLowerCase();
+    const phone = clampStr(body.phone, L.phone);
+    const companyName = clampStr(body.companyName, L.company);
     const consent = body.consent === true;
     const goals = Array.isArray(body.goals)
       ? body.goals.filter((g): g is GoalKey => g in GOAL_LABEL)
@@ -121,9 +122,9 @@ export async function POST(request: NextRequest) {
       return jsonRes({ error: "Consenso privacy richiesto." }, { status: 400, origin });
     }
 
-    const vatNumber = kind === "BUSINESS" ? String(body.vatNumber ?? "").trim() || undefined : undefined;
-    const fiscalCode = kind === "PRIVATE" ? String(body.fiscalCode ?? "").trim() || undefined : undefined;
-    const city = String(body.city ?? "").trim() || undefined;
+    const vatNumber = kind === "BUSINESS" ? clampStr(body.vatNumber, L.vat) || undefined : undefined;
+    const fiscalCode = kind === "PRIVATE" ? clampStr(body.fiscalCode, L.fiscalCode) || undefined : undefined;
+    const city = clampStr(body.city, L.city) || undefined;
 
     // Anti-doppione: stesso contatto dal preventivatore negli ultimi 15 minuti → ritorna il lead esistente.
     const since = new Date(Date.now() - 15 * 60 * 1000);
