@@ -19,6 +19,9 @@ on:
   repository_dispatch:
     types: [scrape]
 
+permissions:
+  contents: read
+
 # Un solo worker alla volta: il claim job non è del tutto atomico, evitiamo run paralleli.
 concurrency:
   group: scraper-worker
