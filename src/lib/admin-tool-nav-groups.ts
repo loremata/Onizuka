@@ -8,12 +8,16 @@ export type AdminToolNavGroup = {
 
 /**
  * Voci «Strumenti» raggruppate per AREA DI LAVORO (job-to-be-done), non per tipo di tabella.
- * Riorganizzazione 26/06/2026 (Fase 3 semplificazione): menu deduplicato e snellito da
- * 50 a ~38 voci, gruppi riequilibrati. Le pagine non elencate NON sono state rimosse:
- * restano raggiungibili via URL e dai rispettivi hub (es. Insights, Reach, Settings).
- * Spostate fuori dal menu perché tecniche/occasionali o sovrapposte: regia-operativa,
- * crm/commercial, opportunity-bottlenecks, crm/bottlenecks, crm/analytics, crm/dedupe,
- * crm/leads/quick, crm/people, webhooks, voice, go-live, approvals (già in nav primaria).
+ * Riorganizzazione 26/06/2026 (Fase 3 semplificazione) + revisione 24/07/2026.
+ * Le pagine non elencate NON sono state rimosse: sono raggiungibili dai rispettivi hub —
+ *  - regia-operativa e crm/commercial: schede dell'hub Insights (AnalyticsHubTabs);
+ *  - crm/people: scheda della Rubrica (CrmDirectoryTabs, hub raggiunto da «Clienti»);
+ *  - crm/bottlenecks (lead oltre SLA) e crm/opportunity-bottlenecks (opportunità oltre SLA):
+ *    pagine distinte, linkate dal pannello Ops del CRM e dal Command Center;
+ *  - crm/analytics, crm/leads/quick, webhooks, voice, go-live, approvals: tecniche/occasionali
+ *    o già in nav primaria.
+ * /admin/automations (control center cron & integrazioni) e /admin/automation-rules (regole
+ * in-app) sono pagine con scopi diversi: entrambe in menu con etichette distinte.
  */
 export const ADMIN_TOOL_NAV_GROUPS: AdminToolNavGroup[] = [
   {
@@ -29,6 +33,7 @@ export const ADMIN_TOOL_NAV_GROUPS: AdminToolNavGroup[] = [
       { href: "/admin/crm/cross-sell", label: "Cross-sell" },
       { href: "/admin/crm/renewals", label: "Rinnovi retail" },
       { href: "/admin/crm/referrers", label: "Segnalatori" },
+      { href: "/admin/crm/dedupe", label: "Dedupe & merge clienti" },
     ],
   },
   {
@@ -61,7 +66,8 @@ export const ADMIN_TOOL_NAV_GROUPS: AdminToolNavGroup[] = [
       { href: "/admin/calendar", label: "Calendario" },
       // Hub Social: Contenuti apre le schede Contenuti/Calendario/Engagement/Inbox.
       { href: "/admin/posts", label: "Social / Contenuti" },
-      { href: "/admin/automation-rules", label: "Automazioni" },
+      { href: "/admin/automation-rules", label: "Automazioni (regole)" },
+      { href: "/admin/automations", label: "Automazioni (cron & integrazioni)" },
       { href: "/admin/documents", label: "Documenti" },
     ],
   },
