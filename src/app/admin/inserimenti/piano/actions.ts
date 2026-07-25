@@ -132,7 +132,7 @@ export async function setPlanStatus(
 /** Aggiorna una pista: obiettivo, stato di abilitazione, regole in chiaro. */
 export async function updateLine(
   lineId: string,
-  patch: { target?: string; status?: string; statusNote?: string; rules?: string; label?: string },
+  patch: { target?: string; status?: string; statusNote?: string; rules?: string; label?: string; unit?: string },
 ): Promise<{ error: string } | null> {
   const session = await requireFullAdmin();
   const line = await prisma.incentiveLine.findFirst({
@@ -141,6 +141,9 @@ export async function updateLine(
   if (!line) return { error: "Pista non trovata." };
 
   const STATI = ["ATTIVA", "IN_ABILITAZIONE", "NON_ABILITATA", "BLOCCATA"];
+  // il tipo di compenso si può correggere quando arriva la cifra vera
+  // (es. Fastweb business: da 5×canone stimato a 112 € a pezzo confermato)
+  const UNITS = ["MULTIPLIER_ON_FEE", "EUR_PER_PIECE"];
   await prisma.incentiveLine.update({
     where: { id: lineId },
     data: {
@@ -149,6 +152,7 @@ export async function updateLine(
       ...(patch.status !== undefined && STATI.includes(patch.status) ? { status: patch.status as never } : {}),
       ...(patch.statusNote !== undefined ? { statusNote: patch.statusNote.trim() || null } : {}),
       ...(patch.rules !== undefined ? { rules: patch.rules.trim() || null } : {}),
+      ...(patch.unit !== undefined && UNITS.includes(patch.unit) ? { unit: patch.unit as never } : {}),
     },
   });
   revalidatePath("/admin/inserimenti/piano");

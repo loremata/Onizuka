@@ -29,15 +29,16 @@ export function LineEditor({ line }: { line: Line }) {
   const [status, setStatus] = useState(line.status);
   const [statusNote, setStatusNote] = useState(line.statusNote ?? "");
   const [rules, setRules] = useState(line.rules ?? "");
+  const [unit, setUnit] = useState(line.unit);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const isMult = line.unit === "MULTIPLIER_ON_FEE";
+  const isMult = unit === "MULTIPLIER_ON_FEE";
 
   async function save() {
     setSaving(true);
     setMsg(null);
-    const r1 = await updateLine(line.id, { target, status, statusNote, rules });
+    const r1 = await updateLine(line.id, { target, status, statusNote, rules, unit });
     const r2 = await replaceTiers(line.id, tiers);
     setSaving(false);
     const err = r1?.error ?? r2?.error;
@@ -139,6 +140,20 @@ export function LineEditor({ line }: { line: Line }) {
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">Tipo di compenso</span>
+              <select
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                className="w-full rounded border bg-background px-2 py-1 text-sm"
+              >
+                <option value="EUR_PER_PIECE">€ per pezzo</option>
+                <option value="MULTIPLIER_ON_FEE">moltiplicatore × canone</option>
+              </select>
+              <span className="text-xs text-muted-foreground">
+                Cambialo solo quando arriva la cifra vera (es. business: da stima ×canone a € fissi).
+              </span>
             </label>
           </div>
 

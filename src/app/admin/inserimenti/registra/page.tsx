@@ -18,10 +18,11 @@ export default async function RegistraPage() {
   const month = currentMonth();
   const options = await lineOptionsForMonth(session.user.id, month);
 
+  // TUTTE le vendite del mese, non solo le ultime: da qui si correggono anche
+  // le vecchie (canone, offerta) — con 20 righe le prime del mese sparivano.
   const recent = await prisma.storeSale.findMany({
     where: { ownerUserId: session.user.id, month },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-    take: 20,
   });
 
   const offers = await prisma.storeOffer.findMany({
@@ -68,8 +69,8 @@ export default async function RegistraPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Ultime del mese</CardTitle>
-              <CardDescription>{recent.length} registrate a {month}</CardDescription>
+              <CardTitle>Vendite del mese</CardTitle>
+              <CardDescription>{recent.length} registrate a {month} — ✎ per correggere canone o offerta</CardDescription>
             </CardHeader>
             <CardContent>
               <RecentSales
@@ -78,9 +79,17 @@ export default async function RegistraPage() {
                   date: s.date.toISOString().slice(0, 10),
                   brand: s.brand,
                   lineKey: s.lineKey,
+                  offerCode: s.offerCode,
                   feeEur: s.feeEur == null ? null : Number(s.feeEur),
                   domiciled: s.domiciled,
                   notes: s.notes,
+                }))}
+                offers={offers.map((o) => ({
+                  code: o.code,
+                  name: o.name,
+                  brand: o.brand,
+                  lineKey: o.lineKey,
+                  compensoEur: o.compensoEur == null ? null : Number(o.compensoEur),
                 }))}
               />
             </CardContent>
