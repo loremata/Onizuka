@@ -2,13 +2,24 @@
  * Piano provvigionale LUGLIO 2026 — dati di seed.
  *
  * Fonti (in ordine di autorità per i VALORI):
- *  1. Avanzamento gara di Mirko Ceccherini al 10/07/2026 (soglie in pezzi "per la
- *     vs insegna" — decisione utente 17/07: "prendi per buone le soglie di Mirko").
- *  2. Mail incentivazione di Mirko (struttura completa di gare, extra, Top Club).
- *  3. Lettere .docx Multibrand luglio 2026 (moltiplicatori/gettoni).
+ *  1. "Incentivazione TIM" (Lorenzo, 23/07/2026) — divisione DEFINITIVA delle piste:
+ *     soglie in pezzi e valore di ogni scaglione, gara per gara.
+ *  2. Foglio [INSERIMENTI TIM] (tab "Compensi", 25/07/2026) — stessa tabella, più
+ *     l'indicazione di COME si paga ogni pista (vedi sotto).
+ *  3. Mail incentivazione di Mirko (extra, penalità incrociate, bill size, Top Club:
+ *     cose che i due documenti sopra non coprono).
  *
- * ⚠️ Valori da riverificare con Lorenzo/Mirko (vedi Onizuka-Inserimenti_DOMANDE-APERTE):
- *  - MNP/AL/Contenuti: soglie in PEZZI dall'avanzamento (più basse delle lettere).
+ * Come si paga (dalla colonna "canoni" del tab Compensi):
+ *  - MULTIPLIER_ON_FEE — AL, MNP, Fisso: canone dell'offerta × moltiplicatore
+ *    della soglia raggiunta, retroattivo su tutto il mese.
+ *  - EUR_PER_PIECE — Customer Base, Top Club, Contenuti, Energia, Valore,
+ *    Telepass, Unica: gettone fisso PxQ (o premio secco, per i due a punteggio).
+ *
+ * ⚠️ Valori ancora da riverificare con Lorenzo/Mirko:
+ *  - Domiciliazione: i due documenti definitivi NON la nominano. Qui i tier sono
+ *    modellati come "valore documento − bonus domiciliazione" (vedi nota sulle
+ *    righe MNP/AL): se invece il moltiplicatore del documento vale per TUTTE le
+ *    vendite, domiciliate o no, il motore sta sottopagando le non domiciliate.
  *  - Eni Telepass 5 € è provvisorio; Fastweb usa i valori 2023 (scaglione massimo).
  *
  * Questo file è DATO, non logica: il motore (engine.ts) lo consuma. A luglio+1
@@ -103,11 +114,12 @@ const TIM: SeedPlan = {
   brand: "TIM",
   month: MONTH,
   label: "TIM — Incentivazione Luglio 2026 (Multibrand)",
-  sourceDoc: "Avanzamento gara Mirko 10/07/2026 + mail incentivazione + lettere .docx luglio",
+  sourceDoc: "Incentivazione TIM 23/07/2026 (divisione definitiva piste) + tab Compensi di [INSERIMENTI TIM] + mail incentivazione Mirko",
   status: "ACTIVE",
   engineVersion: "tim-2026-07",
   notes:
-    "Soglie in pezzi dall'avanzamento di Mirko (più basse delle lettere). Moltiplicatori dalle lettere. Da riverificare: se le soglie sono di insegna o di PdV (§M spec).",
+    "Soglie e valori allineati alla divisione definitiva delle piste (23/07). Restano da riverificare: (a) se i moltiplicatori del documento siano già comprensivi di domiciliazione; (b) se le soglie siano di insegna o di PdV (§M spec). " +
+    "KENA: canale separato, incentivazione ancora ignota, ma ha due paletti da rispettare — AL ≥2 e MNP ≥8. Le MNP Kena alzano la soglia MNP TIM e valgono 2 pt Top Club, senza pagare la gara TIM.",
   lines: [
     {
       key: "MNP",
@@ -120,7 +132,11 @@ const TIM: SeedPlan = {
       domiciliationMode: "bonus",
       domiciliationValue: 1.2,
       rules:
-        "Moltiplicatore × somma canoni. Domiciliato +1,2. Bill size: ≥9€ pieno, 8-8,99 metà, <8 escluso (nel listino TIM non c'è nulla tra 8 e 9: o pieno o zero). Se AL PP < soglia 2 (16), tutte le MNP perdono 0,5. Kena alza la soglia ma non paga gara.",
+        "Moltiplicatore × somma canoni. Domiciliato +1,2. Bill size: ≥9€ pieno, 8-8,99 metà, <8 escluso (nel listino TIM non c'è nulla tra 8 e 9: o pieno o zero). Se AL PP < soglia 2 (15), tutte le MNP perdono 0,5. Kena alza la soglia ma non paga gara. " +
+        "Addon confermati dal documento definitivo: ≥12 MNP con canone ≥9,99€ → +15€; ≥7 MNP da Iliad/COOP → +5€, che salgono a +15€ da 14 in su.",
+      // Documento definitivo: 2,4 · 3,5 · 4,1 · 5,2 · 6,4 · 7 canoni.
+      // Qui ogni tier è quel valore MENO il bonus domiciliazione (1,2): una MNP
+      // domiciliata torna esatta al documento, una non domiciliata prende meno.
       tiers: [
         { minQty: 0, value: 1.2 },
         { minQty: 19, value: 2.3 },
@@ -137,12 +153,14 @@ const TIM: SeedPlan = {
       category: "Mobile",
       unit: "MULTIPLIER_ON_FEE",
       hasTiers: true,
-      target: 16,
+      target: 15,
       applyBillSize: true,
       domiciliationMode: "bonus",
       domiciliationValue: 1.5,
       rules:
-        "Nuove attivazioni (non portabilità). Moltiplicatore × canoni. Domiciliato +1,5. Bill size come MNP. Sotto soglia 2 (16 pezzi) penalizza tutte le MNP di -0,5.",
+        "Nuove attivazioni (non portabilità). Moltiplicatore × canoni. Domiciliato +1,5. Bill size come MNP. Sotto soglia 2 (15 pezzi) penalizza tutte le MNP di -0,5.",
+      // Documento definitivo: 1,7 · 2,1 · 3,6 · 3,8 · 4 canoni, meno il bonus
+      // domiciliazione (1,5) come per le MNP.
       tiers: [
         { minQty: 0, value: 0.2 },
         { minQty: 15, value: 0.6 },
@@ -200,8 +218,8 @@ const TIM: SeedPlan = {
       hasTiers: true,
       target: 16,
       pxqEur: 0,
-      status: "IN_ABILITAZIONE",
-      statusNote: "Abilitazione a giorni",
+      status: "ATTIVA",
+      statusNote: "In vendita: primi finanziamenti il 22 e 24/07",
       rules:
         "Telefono a rate. Gettone a soglia sul volume mensile. Pack 2x1 pesa ×2, pack X3 ×3. Rata ≤2€: solo soglia, gettone fisso 15€.",
       tiers: [
@@ -240,8 +258,8 @@ const TIM: SeedPlan = {
       hasTiers: true,
       target: 8,
       pxqEur: 0,
-      status: "IN_ABILITAZIONE",
-      statusNote: "Dispositivi in spedizione",
+      status: "ATTIVA",
+      statusNote: "In vendita: 4 pezzi a luglio (17 e 22/07)",
       rules:
         "Gara a soglia, gettone TUTTO COMPRESO: da 8 pezzi in su 25€ a pezzo (le due soglie ≥8 e ≥15 valgono entrambe 25€). Sotto 8 non paga. TWIN 10€ e Assistenza Europa 5€ restano come extra separati. Cancello del Top Club (≥8).",
       tiers: [
@@ -327,7 +345,9 @@ const TIM: SeedPlan = {
   ],
   params: [
     { key: "billSize", valueJson: { full: 9, half: 8 } },
-    { key: "alPpPenalty", valueJson: { threshold: 16, delta: 0.5 } },
+    // La penalità scatta "sotto la soglia 2 delle AL": il documento definitivo
+    // fissa quella soglia a 15 (prima qui c'era 16, preso dall'avanzamento di Mirko).
+    { key: "alPpPenalty", valueJson: { threshold: 15, delta: 0.5 } },
     {
       key: "extras",
       valueJson: [
@@ -408,9 +428,19 @@ const FASTWEB: SeedPlan = {
   params: [],
 };
 
-const ENEL = linear("ENEL", "Enel — Energia", [
-  { key: "ENERGIA", label: "Enel Energia (luce o gas)", category: "Energia", eur: 90, sortOrder: 10, note: "90€ a contratto, luce o gas." },
-]);
+// Il compenso Enel dipende da come arriva il contratto, non da cosa contiene:
+// luce e gas valgono uguale, ma inserirli insieme li paga di più. Due piste
+// separate perché è la scelta che fai al momento della registrazione; il dual
+// si registra come due vendite su ENERGIA_DUAL (90 € l'una, 180 € il cliente).
+const ENEL = linear(
+  "ENEL",
+  "Enel — Energia",
+  [
+    { key: "ENERGIA", label: "Enel Energia singola (luce o gas)", category: "Energia", eur: 70, sortOrder: 10, note: "70 € a contratto singolo, indifferentemente luce o gas (cifre confermate da Lorenzo il 25/07)." },
+    { key: "ENERGIA_DUAL", label: "Enel Energia dual (luce + gas)", category: "Energia", eur: 90, sortOrder: 20, note: "90 € A CONTRATTO quando luce e gas entrano contestualmente: un dual completo vale 180 €. Registra due vendite, una per contratto." },
+  ],
+  "Compensi confermati da Lorenzo il 25/07: 70 € il contratto singolo, 90 € a contratto se il dual è contestuale.",
+);
 
 const ENI = linear(
   "ENI",
