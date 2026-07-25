@@ -35,7 +35,8 @@ export function AgencyPartnerCertPanel({ initial }: Props) {
       <CardHeader>
         <CardTitle>Certificazioni partner ERP</CardTitle>
         <CardDescription>
-          Badge Time/go-live + archivio legale contratti (URL Drive o cartella documentale).
+          Sperimentale — integrazione non attiva. Questi flag sono solo indicativi (badge Time/go-live +
+          archivio legale contratti): non abilitano né certificano alcun invio reale verso Zucchetti/SAP.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">

@@ -1,4 +1,4 @@
-import type { Platform } from "@prisma/client";
+import type { Platform, SocialAccount } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { publishPostToMetaPage, isMetaNativePublishConfigured } from "@/lib/social-publish-meta";
 import {
@@ -36,7 +36,15 @@ export async function publishPostItemNative(postId: string): Promise<NativePubli
   let externalRef: string | undefined;
   let publishUrl: string | undefined;
 
-  if (post.platform === "FACEBOOK" || post.platform === "INSTAGRAM") {
+  if (post.platform === "INSTAGRAM") {
+    // Il flusso Instagram (Content Publishing API) non è ancora implementato:
+    // instradare IG sull'edge Facebook /feed produrrebbe un errore garantito.
+    // Falliamo in modo onesto invece di tentare una POST sbagliata.
+    return {
+      error:
+        "Pubblicazione Instagram non ancora supportata via API: usa la pubblicazione manuale (segna pubblicato + metriche).",
+    };
+  } else if (post.platform === "FACEBOOK") {
     if (!accountToken && !isMetaNativePublishConfigured()) {
       return { error: "Meta publish non configurato (nessun account collegato né META_PAGE_ACCESS_TOKEN/META_PAGE_ID)." };
     }
@@ -92,9 +100,21 @@ export async function publishPostItemNative(postId: string): Promise<NativePubli
   return { ok: true, externalRef: externalRef!, publishUrl };
 }
 
-export function nativePublishAvailableForPlatform(platform: Platform): boolean {
-  if (platform === "LINKEDIN") return isLinkedInNativePublishConfigured();
-  if (platform === "FACEBOOK" || platform === "INSTAGRAM") return isMetaNativePublishConfigured();
-  if (platform === "GBP") return isGbpNativePublishConfigured();
+export function nativePublishAvailableForPlatform(
+  platform: Platform,
+  account?: Pick<SocialAccount, "tokenCipher" | "status"> | null
+): boolean {
+  // Instagram non è pubblicabile via API nativa (flusso non implementato, vedi publishPostItemNative).
+  if (platform === "INSTAGRAM") return false;
+
+  // La pubblicazione riesce anche con un token salvato sull'account social collegato
+  // (setup multi-tenant), non solo con gli env globali: replichiamo qui la stessa
+  // logica di recupero token usata da publishPostItemNative.
+  const hasAccountToken =
+    !!account && account.status === "CONNECTED" && !!getSocialAccountToken(account);
+
+  if (platform === "LINKEDIN") return hasAccountToken || isLinkedInNativePublishConfigured();
+  if (platform === "FACEBOOK") return hasAccountToken || isMetaNativePublishConfigured();
+  if (platform === "GBP") return hasAccountToken || isGbpNativePublishConfigured();
   return false;
 }

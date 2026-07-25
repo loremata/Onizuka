@@ -18,6 +18,7 @@ export default async function AdminPostDetailPage({
     include: {
       client: true,
       media: true,
+      socialAccount: true,
       comments: { include: { user: { select: { name: true, email: true } } }, orderBy: { createdAt: "asc" } },
     },
   });
@@ -108,7 +109,7 @@ export default async function AdminPostDetailPage({
             awaitingClientReview={post.awaitingClientReview}
             publishedAt={post.publishedAt}
             platform={post.platform}
-            nativePublishAvailable={nativePublishAvailableForPlatform(post.platform)}
+            nativePublishAvailable={nativePublishAvailableForPlatform(post.platform, post.socialAccount)}
             socialAccountId={post.socialAccountId}
             socialAccounts={socialAccounts}
           />

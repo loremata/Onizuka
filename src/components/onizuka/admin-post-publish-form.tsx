@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ITALY_TZ } from "@/lib/datetime-it";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { platformLabelIt } from "@/lib/post-ui-labels";
 import type { Platform } from "@prisma/client";
 
 type Props = {
@@ -81,7 +82,7 @@ export function AdminPostPublishForm({
       <p className="text-sm font-medium">Pubblica (Social Pro) · {platform}</p>
       {nativePublishAvailable ? (
         <Button type="button" size="sm" variant="secondary" disabled={loading} onClick={publishNative}>
-          Pubblica su {platform === "LINKEDIN" ? "LinkedIn" : "Meta"} (API)
+          Pubblica su {platformLabelIt[platform]} (API)
         </Button>
       ) : (
         <p className="text-xs text-muted-foreground">
