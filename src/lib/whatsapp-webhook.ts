@@ -19,31 +19,19 @@ type MetaWebhookBody = {
   }[];
 };
 
-// Warning una-tantum: evita di intasare i log quando il secret non è configurato in prod.
-let signatureWarningLogged = false;
-
 /**
  * Verifica la firma Meta `X-Hub-Signature-256: sha256=<hmac>` sul RAW body.
  * Meta calcola l'HMAC-SHA256 del corpo grezzo con l'App Secret.
  *
- * Ritorna:
- *  - `true`  → firma valida OPPURE secret non configurato (fail-open volontario: non
- *              rompiamo la produzione finché il proprietario non aggiunge WHATSAPP_APP_SECRET).
- *  - `false` → secret configurato ma firma assente/non combaciante → il chiamante DEVE rifiutare.
+ * Fail-closed: senza `WHATSAPP_APP_SECRET` non c'è modo di autenticare il
+ * messaggio → ritorna `false` (il chiamante DEVE rifiutare). Ritorna `true`
+ * solo se la firma è presente e combacia.
  */
 export function verifyWhatsAppSignature(rawBody: string, signatureHeader: string | null): boolean {
   const appSecret = process.env.WHATSAPP_APP_SECRET?.trim();
 
-  if (!appSecret) {
-    // Fail-open: nessun secret → non blocchiamo, ma avvisiamo una volta sola.
-    if (!signatureWarningLogged) {
-      signatureWarningLogged = true;
-      console.warn(
-        "[whatsapp] firma non verificata: WHATSAPP_APP_SECRET non configurato"
-      );
-    }
-    return true;
-  }
+  // Nessun secret → non possiamo verificare nulla: rifiutiamo (fail-closed).
+  if (!appSecret) return false;
 
   // Da qui in poi il secret c'è → la firma è obbligatoria e deve combaciare.
   if (!signatureHeader) return false;

@@ -21,13 +21,21 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  // Fail-closed: se l'integrazione WhatsApp non è configurata (nessun App Secret,
+  // quindi nessun modo di verificare l'autenticità dei messaggi), il webhook
+  // inbound è DISATTIVATO. Rispondiamo 404 per non esporre un endpoint che
+  // processa payload arbitrari. Appena si aggiunge WHATSAPP_APP_SECRET la
+  // ricezione si attiva e pretende la firma valida.
+  if (!process.env.WHATSAPP_APP_SECRET?.trim()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   // Leggiamo il RAW body PRIMA di fare JSON.parse: l'HMAC di Meta è calcolato
   // sul corpo grezzo esatto, quindi non possiamo ri-serializzare l'oggetto.
   const rawBody = await request.text();
   const signature = request.headers.get("x-hub-signature-256");
 
-  // Se WHATSAPP_APP_SECRET è settato e la firma non combacia → 401, non processiamo.
-  // Se non è settato → fail-open volontario (vedi verifyWhatsAppSignature).
+  // Secret configurato → la firma è obbligatoria e deve combaciare, altrimenti 401.
   if (!verifyWhatsAppSignature(rawBody, signature)) {
     return NextResponse.json({ error: "Firma non valida" }, { status: 401 });
   }
