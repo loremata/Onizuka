@@ -19,7 +19,24 @@ type Job = {
   leadsCreated: number;
   dedupSkipped: number;
   error: string | null;
+  // Campi per rilevare un job RUNNING orfano (worker morto): serializzati come ISO.
+  heartbeatAt: string | null;
+  startedAt: string | null;
+  updatedAt: string | null;
 };
+
+// Oltre questa soglia senza heartbeat un job RUNNING è "bloccato" (deve coincidere
+// con STALE_RUNNING_MS lato route /scraping/retry).
+const STALE_RUNNING_MS = 30 * 60_000;
+
+// True se il job è in RUNNING ma non dà segni di vita da oltre la soglia: il worker
+// che lo teneva è morto e nessuno lo rimette in coda. Va sbloccato a mano.
+function isRunningBloccato(job: Job): boolean {
+  if (job.status !== "RUNNING") return false;
+  const riferimento = job.heartbeatAt ?? job.startedAt ?? job.updatedAt;
+  if (!riferimento) return false;
+  return new Date(riferimento).getTime() < Date.now() - STALE_RUNNING_MS;
+}
 
 const PHASE_LABEL: Record<string, string> = {
   "registro:lista": "Elenco registro",
@@ -131,6 +148,7 @@ export function ScrapingClient({ province }: { province: Provincia[] }) {
     }
   }
 
+  const bloccato = job ? isRunningBloccato(job) : false;
   const inCorso = job && (job.status === "QUEUED" || job.status === "RUNNING");
   const pct =
     job && job.progressTotal > 0
@@ -181,7 +199,7 @@ export function ScrapingClient({ province }: { province: Provincia[] }) {
         <div className="rounded-lg border p-4 space-y-3">
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium">
-              Stato: {job.status === "DONE" ? "✅ Completato" : job.status === "ERROR" ? "❌ Errore" : job.status === "QUEUED" ? "In coda (attende il worker)" : "In esecuzione"}
+              Stato: {job.status === "DONE" ? "✅ Completato" : job.status === "ERROR" ? "❌ Errore" : job.status === "QUEUED" ? "In coda (attende il worker)" : bloccato ? "⚠️ Bloccato (worker non risponde)" : "In esecuzione"}
             </span>
             {job.phase && inCorso && (
               <span className="text-muted-foreground">
@@ -201,6 +219,21 @@ export function ScrapingClient({ province }: { province: Provincia[] }) {
             <p className="text-xs text-amber-600">
               Il job è in coda. Se non parte, verifica che il <strong>worker sul PC</strong> sia avviato.
             </p>
+          )}
+
+          {bloccato && (
+            <div className="space-y-2">
+              <p className="text-xs text-amber-600">
+                Il job risulta <strong>in esecuzione</strong> ma non aggiorna il progresso da oltre 30 minuti:
+                probabilmente il <strong>worker</strong> è stato chiuso. Puoi sbloccarlo e rimetterlo in coda —
+                riprende dal punto raggiunto (le schede registro già scaricate non vengono rifatte).
+              </p>
+              <div className="flex items-center gap-3">
+                <Button variant="outline" size="sm" onClick={riprova} disabled={retrying}>
+                  {retrying ? "Sblocco…" : "Sblocca e riprova"}
+                </Button>
+              </div>
+            </div>
           )}
 
           {(job.status === "DONE" || job.status === "RUNNING") && (

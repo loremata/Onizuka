@@ -203,7 +203,13 @@ export async function processAutomationFlowQueue(limit = 20): Promise<{
   }
 
   const remaining = Math.max(0, limit - processed);
-  const pending =
+  // Fallback DB (nessuna coda Redis/SQS, oppure per riempire il budget residuo):
+  // questo blocco è drenato SIA dal cron automation-queue (*/10) SIA dal cron
+  // notifications (6:00). Selezioniamo i candidati PENDING e poi facciamo un
+  // CLAIM ATOMICO per riga (PENDING→RUNNING condizionato sullo stato ancora
+  // PENDING): processiamo SOLO le righe di cui vinciamo il lock. Così due
+  // drenaggi concorrenti non prendono mai la stessa riga → niente doppio invio.
+  const candidati =
     remaining > 0
       ? await prisma.automationFlowRun.findMany({
           where: {
@@ -213,27 +219,21 @@ export async function processAutomationFlowQueue(limit = 20): Promise<{
           },
           orderBy: { scheduledAt: "asc" },
           take: remaining,
-          include: {
-            rule: {
-              select: {
-                id: true,
-                trigger: true,
-                ownerUserId: true,
-                enabled: true,
-                conditionKey: true,
-                conditionOperator: true,
-                conditionValue: true,
-                flowBranchesJson: true,
-                emailSubjectTemplate: true,
-                emailBodyTemplate: true,
-                webhookPayloadTemplate: true,
-              },
-            },
-          },
+          select: { id: true },
         })
       : [];
 
-  for (const run of pending) {
+  for (const { id } of candidati) {
+    // updateMany condizionale = lock ottimistico senza colonne extra: se un altro
+    // processo ha già preso la riga, count===0 e la saltiamo. processSingleFlowRun
+    // riporta comunque lo stato a RUNNING e incrementa attemptCount (idempotente).
+    const claim = await prisma.automationFlowRun.updateMany({
+      where: { id, status: "PENDING" },
+      data: { status: "RUNNING" },
+    });
+    if (claim.count === 0) continue; // lock perso: la processa l'altro drenaggio
+
+    const run = await loadFlowRunById(id);
     const result = await processSingleFlowRun(run);
     processed += 1;
     if (result === "done") done += 1;
