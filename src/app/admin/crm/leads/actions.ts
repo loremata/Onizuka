@@ -22,7 +22,7 @@ import { leadLifecycleForStage, representativeStageForStatus } from "@/lib/lead-
 import { inferClientKind } from "@/lib/client-kind";
 import { normalizeFiscalCode, normalizeFiscalIdentity, normalizeVatNumber } from "@/lib/fiscal-normalize";
 import { runLeadCreatedAutomationRules } from "@/lib/automation-rules-run";
-import { ensureClientForLead } from "@/lib/ensure-client-for-lead";
+import { ensureClientForLead, syncLeadIdentityToClient } from "@/lib/ensure-client-for-lead";
 
 export type LeadActionResult = { error: string } | { ok: true } | null;
 
@@ -189,6 +189,8 @@ export async function updateLead(
         ...(convertedClientId ? { clientId: convertedClientId } : {}),
       },
     });
+    // Ripropaga l'anagrafica modificata sul Client collegato (evita divergenza Lead↔Client).
+    await syncLeadIdentityToClient(leadId).catch(() => undefined);
     void logAuditEvent({
       actorUserId: session.user.id,
       action: "lead.update",

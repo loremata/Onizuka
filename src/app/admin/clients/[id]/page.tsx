@@ -18,7 +18,7 @@ import { opportunityStatusLabel } from "@/lib/crm-opportunity";
 import { platformLabel } from "@/lib/platform-label";
 import { buildClientTimeline, timelineKindLabel } from "@/lib/client-timeline";
 import { computeClientHealthScore } from "@/lib/client-health-score";
-import { computeCustomerScore, CUSTOMER_BAND_LABEL } from "@/lib/client-customer-scoring";
+import { CUSTOMER_BAND_LABEL } from "@/lib/client-customer-scoring";
 import { getCustomerValueAnalysis } from "@/lib/customer-value";
 import { Badge } from "@/components/ui/badge";
 import { ensureCommercialCatalogSeeded } from "@/lib/commercial-catalog-seed";
@@ -193,7 +193,6 @@ export default async function ClientOverviewPage({
     recentTickets,
     client360Profile,
     auditCommercialSummary,
-    activeRetailCount,
     customerValue,
   ] = await Promise.all([
       prisma.commercialService.findMany({
@@ -243,7 +242,6 @@ export default async function ClientOverviewPage({
       }),
       loadClient360Profile(id, session.user.id),
       loadAuditCommercialSummaryForClient(id, session.user.id),
-      prisma.clientRetailContract.count({ where: { clientId: id, status: "ACTIVE" } }),
       getCustomerValueAnalysis(id),
     ]);
   const linkByServiceId = new Map(clientLinks.map((l) => [l.commercialServiceId, l]));
@@ -275,29 +273,10 @@ export default async function ClientOverviewPage({
   const healthBandLabel =
     healthScore.band === "healthy" ? "Solido" : healthScore.band === "watch" ? "Da monitorare" : "A rischio";
 
-  // Customer scoring composito (6 dimensioni) — affianca health/audit score.
-  // activeRetailCount è caricato nel Promise.all sopra.
-  const wonValueEur = oppForScore
-    .filter((o) => o.status === "WON")
-    .reduce((sum, o) => sum + (o.estimatedValue ? Number(o.estimatedValue.toString()) : 0), 0);
-  const activeCategoryCount = new Set(serviceRows.filter((r) => r.active).map((r) => r.category)).size;
-  const monthsSinceActivity = Math.max(
-    0,
-    Math.floor((now.getTime() - client.updatedAt.getTime()) / (1000 * 60 * 60 * 24 * 30)),
-  );
-  const customerScore = computeCustomerScore({
-    status: client.status,
-    kind: client.kind,
-    macroCategory: client.clientMacroCategory,
-    hasVat: Boolean(client.vatNumber?.trim()),
-    wonValueEur,
-    activeRecurringCount: activeRetailCount,
-    activeCategoryCount,
-    monthsSinceActivity,
-    overdueFinance,
-    openTickets,
-    contactsCount: client._count.contacts,
-  });
+  // Customer scoring composito (6 dimensioni): FONTE UNICA = getCustomerValueAnalysis.
+  // Lo stesso score alimenta sia la card "Valore cliente/band" sia l'indice di priorità,
+  // evitando il doppio calcolo inline (che poteva divergere, es. su activeCategoryCount).
+  const customerScore = customerValue?.score ?? null;
 
   const opportunitiesRecent = client.opportunities.slice(0, 12);
 
@@ -413,15 +392,21 @@ export default async function ClientOverviewPage({
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Valore commerciale</p>
-              <p className="text-3xl font-bold">
-                {customerScore.score}/100{" "}
-                <span className="text-base font-normal text-muted-foreground">({CUSTOMER_BAND_LABEL[customerScore.band]})</span>
-              </p>
-              <ul className="mt-2 grid gap-1 text-xs text-muted-foreground">
-                {customerScore.factors.map((f) => (
-                  <li key={f}>{f}</li>
-                ))}
-              </ul>
+              {customerScore ? (
+                <>
+                  <p className="text-3xl font-bold">
+                    {customerScore.score}/100{" "}
+                    <span className="text-base font-normal text-muted-foreground">({CUSTOMER_BAND_LABEL[customerScore.band]})</span>
+                  </p>
+                  <ul className="mt-2 grid gap-1 text-xs text-muted-foreground">
+                    {customerScore.factors.map((f) => (
+                      <li key={f}>{f}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">Dati insufficienti.</p>
+              )}
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Salute relazione</p>

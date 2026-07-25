@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureClientForLead } from "@/lib/ensure-client-for-lead";
 import { clampStr, PUBLIC_FIELD_LIMITS as L } from "@/lib/clamp-input";
+import { checkRateLimitPublicWalkin, getRequestIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +13,28 @@ type Payload = {
   need?: string;
   nextStep?: string;
   refToken?: string;
+  /** Honeypot anti-bot: deve restare vuoto. */
+  company_website?: string;
 };
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate-limit generoso per IP (mitiga abuso/flooding del form pubblico).
+    const rl = await checkRateLimitPublicWalkin(getRequestIp(request));
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: `Troppe richieste. Riprova tra ${rl.retryAfter}s.` },
+        { status: 429 },
+      );
+    }
+
     const body = (await request.json().catch(() => ({}))) as Payload;
+
+    // Honeypot: un bot compila il campo nascosto → fingiamo successo, non creiamo nulla.
+    if (String(body.company_website ?? "").trim()) {
+      return NextResponse.json({ ok: true }, { status: 200 });
+    }
+
     const displayName = clampStr(body.displayName, L.company);
     const phone = clampStr(body.phone, L.phone);
     if (!displayName || !phone) {
@@ -24,6 +42,21 @@ export async function POST(request: NextRequest) {
     }
     const need = clampStr(body.need, L.freeText);
     const nextStep = clampStr(body.nextStep, L.freeText);
+
+    // Anti-doppione: stesso telefono da walk-in negli ultimi 15 minuti → ritorna il lead esistente.
+    const since = new Date(Date.now() - 15 * 60 * 1000);
+    const dup = await prisma.lead.findFirst({
+      where: {
+        source: { in: ["walk_in", "segnalatore_walkin"] },
+        createdAt: { gte: since },
+        phone,
+      },
+      select: { id: true },
+      orderBy: { createdAt: "desc" },
+    });
+    if (dup) {
+      return NextResponse.json({ ok: true, leadId: dup.id, deduped: true }, { status: 200 });
+    }
 
     const admin = await prisma.user.findFirst({
       where: { role: "ADMIN" },
