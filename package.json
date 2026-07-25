@@ -32,7 +32,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:sync": "node scripts/db-sync.mjs",
-    "db:repair": "node scripts/repair-client-status-enum.mjs && prisma db execute --file prisma/repair-partial-migrations.sql && prisma db execute --file prisma/repair-lead-table.sql && prisma db execute --file prisma/repair-memory-item.sql && prisma db execute --file prisma/repair-asset-table.sql && prisma db execute --file prisma/repair-opportunity.sql",
+    "db:repair": "node scripts/repair-client-status-enum.mjs && prisma db execute --file prisma/_archivio-repair/repair-partial-migrations.sql && prisma db execute --file prisma/_archivio-repair/repair-lead-table.sql && prisma db execute --file prisma/_archivio-repair/repair-memory-item.sql && prisma db execute --file prisma/_archivio-repair/repair-asset-table.sql && prisma db execute --file prisma/_archivio-repair/repair-opportunity.sql",
     "db:fresh": "prisma migrate deploy && npm run db:seed",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:e2e": "node scripts/db-seed-e2e.mjs",
