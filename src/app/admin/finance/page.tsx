@@ -21,6 +21,7 @@ import { FinanceEntryForm } from "./finance-entry-form";
 import { FinanceEntryRowActions } from "./finance-entry-row-actions";
 import { FinanceReconciliationPanel } from "./finance-reconciliation-panel";
 import { ClientLink } from "@/components/onizuka/client-link";
+import { isSdiBridgeConfigured } from "@/lib/finance-sdi";
 
 const statusLabel: Record<string, string> = {
   PLANNED: "Pianificato",
@@ -95,6 +96,7 @@ export default async function AdminFinancePage({ searchParams }: Props) {
   const s = result.stats;
   const l = ledger.ok ? ledger.stats : null;
   const dateFmt = dateTimeFormatIt({ dateStyle: "short" });
+  const sdiBridgeConfigured = isSdiBridgeConfigured();
 
   return (
     <div className="space-y-8">
@@ -241,7 +243,12 @@ export default async function AdminFinancePage({ searchParams }: Props) {
                       {row.dueDate ? ` · scad. ${dateFmt.format(row.dueDate)}` : ""}
                     </p>
                   </div>
-                  <FinanceEntryRowActions entryId={row.id} type={row.type} status="OVERDUE" />
+                  <FinanceEntryRowActions
+                    entryId={row.id}
+                    type={row.type}
+                    status="OVERDUE"
+                    sdiBridgeConfigured={sdiBridgeConfigured}
+                  />
                 </li>
               ))}
             </ul>
@@ -346,6 +353,7 @@ export default async function AdminFinancePage({ searchParams }: Props) {
                     sdiExportedAt={e.sdiExportedAt}
                     recurringMonthly={e.recurringMonthly}
                     renewalDate={e.renewalDate?.toISOString() ?? null}
+                    sdiBridgeConfigured={sdiBridgeConfigured}
                   />
                 </li>
               ))}

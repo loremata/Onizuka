@@ -87,6 +87,7 @@ export const ADMIN_TOOL_NAV_GROUPS: AdminToolNavGroup[] = [
       // Commerciale, Salute portafoglio, NBA, Economics, Regia operativa).
       { href: "/admin/insights", label: "Insights (hub analitiche)" },
       { href: "/admin/crm/dormant", label: "Dormienti" },
+      { href: "/admin/ai-runs", label: "Esecuzioni AI (osservabilità)" },
       { href: "/admin/memory", label: "Memoria" },
       { href: "/admin/chat", label: "Chat assistente" },
     ],

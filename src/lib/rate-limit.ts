@@ -100,6 +100,11 @@ export async function checkRateLimitPublicReferrer(ip: string): Promise<RateLimi
   return checkLimit("refer-public", ip, 12);
 }
 
+/** Walk-in banco pubblico (`/api/public/walkin/quick`): soglia generosa per IP al minuto. */
+export async function checkRateLimitPublicWalkin(ip: string): Promise<RateLimitResult> {
+  return checkLimit("walkin-public", ip, 30);
+}
+
 if (typeof setInterval !== "undefined") {
   setInterval(cleanup, 60000);
 }

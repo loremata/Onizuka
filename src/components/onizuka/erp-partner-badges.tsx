@@ -11,7 +11,11 @@ export async function ErpPartnerBadges() {
   const status = await getErpPartnerStatus();
 
   return (
-    <div className="flex flex-wrap gap-3 text-sm">
+    <div className="space-y-1">
+      <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+        Sperimentale — integrazione non attiva. Badge indicativi: nessun push/pull ERP è certificato o garantito.
+      </p>
+      <div className="flex flex-wrap gap-3 text-sm">
       {(["zucchetti", "sap"] as const).map((key) => {
         const row = status[key];
         return (
@@ -25,6 +29,7 @@ export async function ErpPartnerBadges() {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

@@ -104,3 +104,61 @@ export async function ensureClientForLead(leadId: string): Promise<string | null
     return null;
   }
 }
+
+/**
+ * Ripropaga l'anagrafica del Lead sul Client collegato (stessa entità, modello satellite).
+ * Va chiamata dopo l'update di un Lead: alla creazione/conversione l'anagrafica viene copiata
+ * una volta sola, quindi senza questa sync i due record divergono a ogni modifica successiva.
+ *
+ * Aggiorna SOLO i campi anagrafici condivisi (businessName→companyName, email→contactEmail,
+ * phone, vatNumber, fiscalCode, website, city, clientMacroCategory). NON tocca campi specifici
+ * del Client (slug, relationshipState, status, tags, note). Idempotente e best-effort:
+ * se il lead non ha Client collegato o il Client non esiste, è un no-op; eventuali conflitti
+ * (es. P.IVA/CF già usati da un altro Client) non devono rompere l'update del Lead.
+ */
+export async function syncLeadIdentityToClient(leadId: string): Promise<void> {
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    select: {
+      clientId: true,
+      convertedClientId: true,
+      businessName: true,
+      email: true,
+      phone: true,
+      vatNumber: true,
+      fiscalCode: true,
+      website: true,
+      city: true,
+      clientMacroCategory: true,
+    },
+  });
+  if (!lead) return;
+  const clientId = lead.clientId ?? lead.convertedClientId;
+  if (!clientId) return;
+
+  const client = await prisma.client.findUnique({ where: { id: clientId }, select: { id: true } });
+  if (!client) return;
+
+  // Non azzeriamo mai i campi obbligatori del Client (companyName/contactEmail) né sovrascriviamo
+  // con null i campi opzionali: propaghiamo solo i valori presenti sul Lead (?? undefined = skip).
+  const companyName = lead.businessName?.trim() || undefined;
+  const contactEmail = lead.email?.trim() || undefined;
+
+  try {
+    await prisma.client.update({
+      where: { id: clientId },
+      data: {
+        ...(companyName ? { companyName } : {}),
+        ...(contactEmail ? { contactEmail } : {}),
+        phone: lead.phone ?? undefined,
+        vatNumber: lead.vatNumber ?? undefined,
+        fiscalCode: lead.fiscalCode ?? undefined,
+        website: lead.website ?? undefined,
+        city: lead.city ?? undefined,
+        clientMacroCategory: lead.clientMacroCategory ?? undefined,
+      },
+    });
+  } catch (e) {
+    console.error("syncLeadIdentityToClient failed", e);
+  }
+}
