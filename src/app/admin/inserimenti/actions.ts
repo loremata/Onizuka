@@ -102,6 +102,10 @@ export async function updateSale(id: string, formData: FormData): Promise<{ erro
   const provenanceRaw = String(formData.get("provenance") ?? "").trim();
   const PROVS = ["ILIAD", "COOP", "POSTE", "FASTWEB", "KENA", "ALTRO"];
   const provenance = PROVS.includes(provenanceRaw) ? (provenanceRaw as Prisma.StoreSaleCreateInput["provenance"]) : null;
+  // offerta della vendita: dove il compenso è per-offerta (Fastweb) è il dato
+  // che decide quanto paga. Assente dal form = non toccare; "" = scollega.
+  const offerCodeRaw = formData.get("offerCode");
+  const offerCode = offerCodeRaw == null ? undefined : String(offerCodeRaw).trim() || null;
 
   await prisma.storeSale.update({
     where: { id },
@@ -114,6 +118,7 @@ export async function updateSale(id: string, formData: FormData): Promise<{ erro
       feeSource: feeEur == null ? existing.feeSource : "MANUALE",
       domiciled,
       provenance,
+      ...(offerCode !== undefined ? { offerCode } : {}),
     },
   });
 
