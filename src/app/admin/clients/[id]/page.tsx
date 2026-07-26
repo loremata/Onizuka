@@ -40,6 +40,7 @@ import { Client360CommercialPanels } from "@/components/onizuka/client-360-comme
 import { loadClient360Profile } from "@/lib/client-360-profile";
 import { loadAuditCommercialSummaryForClient } from "@/lib/load-audit-commercial-summary";
 import { AuditCommercialSummaryCard } from "@/components/onizuka/audit-commercial-summary-card";
+import { ClientCampaignsPanel } from "@/components/onizuka/client-campaigns-panel";
 import { clientKindLabel } from "@/lib/client-kind";
 import { Select } from "@/components/ui/select";
 
@@ -501,6 +502,8 @@ export default async function ClientOverviewPage({
           </CardContent>
         </Card>
       ) : null}
+
+      <ClientCampaignsPanel clientId={client.id} />
 
       <ClientRetailContractsCard clientId={client.id} ownerUserId={session.user.id} />
 
