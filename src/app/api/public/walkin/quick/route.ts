@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ensureClientForLead } from "@/lib/ensure-client-for-lead";
 import { clampStr, PUBLIC_FIELD_LIMITS as L } from "@/lib/clamp-input";
 import { checkRateLimitPublicWalkin, getRequestIp } from "@/lib/rate-limit";
+import { notifyInboundLead } from "@/lib/lead-inbound-notify";
 
 export const dynamic = "force-dynamic";
 
@@ -107,6 +108,17 @@ export async function POST(request: NextRequest) {
         outcome: "pending",
       },
     });
+
+    // Notifica in tempo reale all'admin (best-effort: non deve mai rompere la submission).
+    void notifyInboundLead({
+      source: "walkin",
+      leadId: lead.id,
+      businessName: displayName,
+      contactName: null,
+      phone,
+      city: null,
+      payloadSummary: `Esigenza: ${need || "n/d"}. Prossimo passo: ${nextStep || "n/d"}.`,
+    }).catch(() => {});
 
     return NextResponse.json({ ok: true, leadId: lead.id }, { status: 201 });
   } catch (e) {

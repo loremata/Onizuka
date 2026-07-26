@@ -546,6 +546,12 @@ model Client {
   dedupeEmbeddingVector Unsupported("vector(1536)")?
   /// Ore SLA ticket portale per questo cliente (override globale TICKET_SLA_HOURS).
   ticketSlaHours        Int?
+  /// Base legale per email marketing cross-sell (GDPR). SOFT_OPT_IN = clienti esistenti su prodotti simili.
+  marketingConsentBasis MarketingConsentBasis        @default(SOFT_OPT_IN)
+  /// Quando il cliente si è disiscritto dal marketing (null = iscritto). Ferma tutte le campagne.
+  marketingOptOutAt     DateTime?
+  /// Token URL-safe per il link "disiscriviti" nelle email di campagna.
+  marketingOptOutToken  String?                      @unique
   workspaceId           String?                      @default("ws_default")
   createdAt             DateTime                     @default(now())
   updatedAt             DateTime                     @updatedAt
@@ -581,6 +587,7 @@ model Client {
   competitors         Competitor[]
   personRoles         PersonClientRole[]
   attributes          ClientAttribute[]
+  campaignEnrollments CampaignEnrollment[]
   // NB: unique parziali normalizzati su vatNumber/fiscalCode applicati via migration
   // 20260711120000 (espressione non rappresentabile in Prisma — non rimuovere con migrate dev).
 
@@ -2381,4 +2388,140 @@ model StoreMonthlyInput {
 
   @@unique([ownerUserId, month, key])
   @@index([ownerUserId, month])
+}
+
+// ============================================================================
+// CAMPAGNE CROSS-SELL — motore marketing automation guidato dallo stato cliente.
+// Fase 0: tutto in SIMULAZIONE (nessun invio reale finché non si attiva).
+// Principio: una sola fonte di verità = servizi posseduti/mancanti del cliente;
+// il cliente è iscritto a UNA campagna alla volta, la più prioritaria idonea.
+// Spec: Ecosistema Commerciale/Onizuka — Campagne cross-sell.
+// ============================================================================
+
+/// Base legale per l'email marketing (GDPR).
+enum MarketingConsentBasis {
+  NONE        // nessuna base → non contattabile
+  SOFT_OPT_IN // cliente esistente su prodotti/servizi simili (legittimo interesse)
+  EXPLICIT    // consenso esplicito raccolto (form/negozio)
+}
+
+enum CampaignChannel {
+  EMAIL
+  // futuri: WHATSAPP, SMS
+}
+
+enum CampaignStatus {
+  DRAFT    // in preparazione, non arruola
+  ACTIVE   // arruola e (se invii accesi) invia
+  PAUSED   // sospesa
+  ARCHIVED
+}
+
+enum CampaignEnrollmentStatus {
+  ACTIVE     // in corso
+  CONVERTED  // il cliente ha acquistato il servizio target → uscita positiva
+  EXITED     // uscito (risposta, opt-out, stato cambiato…)
+  COMPLETED  // tutti gli step inviati senza conversione
+  SUPPRESSED // bloccato (consenso mancante/disiscritto)
+}
+
+enum CampaignSendStatus {
+  SIMULATED // Fase 0: calcolato ma NON inviato
+  SENT
+  SKIPPED
+  FAILED
+}
+
+/// Campagna cross-sell riutilizzabile: vende un servizio target a chi non ce l'ha.
+model CrossSellCampaign {
+  id          String          @id @default(cuid())
+  key         String          @unique // "tim-vision", "fibra-casa", "tim-energia"…
+  name        String
+  description String?         @db.Text
+  /// Priorità: numero più basso = più importante (1 = massima). Determina quale
+  /// campagna arruola il cliente quando è idoneo a più di una.
+  priority    Int             @default(100)
+  channel     CampaignChannel @default(EMAIL)
+  status      CampaignStatus  @default(DRAFT)
+  /// Slug del servizio venduto (match CommercialService.slug o slug retail).
+  /// La conversione = questo servizio diventa attivo sul cliente.
+  targetServiceSlug String
+  /// Idoneità: il cliente deve possedere ALMENO UNO di questi slug. Vuoto = nessun prerequisito.
+  requiresAnyOwnedSlug String[] @default([])
+  /// Idoneità: esclude i clienti che possiedono uno di questi slug (di norma il targetServiceSlug).
+  excludesOwnedSlug    String[] @default([])
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  steps       CrossSellCampaignStep[]
+  enrollments CampaignEnrollment[]
+
+  @@index([status, priority])
+}
+
+/// Uno step (email) di una campagna, con ritardo dall'iscrizione.
+model CrossSellCampaignStep {
+  id         String   @id @default(cuid())
+  campaignId String
+  stepIndex  Int
+  delayDays  Int      @default(0)
+  subject    String
+  body       String   @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  campaign CrossSellCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sends    CampaignSend[]
+
+  @@unique([campaignId, stepIndex])
+  @@index([campaignId])
+}
+
+/// Iscrizione di un cliente a una campagna (storicizzata per le analitiche).
+model CampaignEnrollment {
+  id               String                   @id @default(cuid())
+  clientId         String
+  campaignId       String
+  status           CampaignEnrollmentStatus @default(ACTIVE)
+  enrolledAt       DateTime                 @default(now())
+  currentStepIndex Int                      @default(0)
+  nextStepAt       DateTime?
+  convertedAt      DateTime?
+  exitedAt         DateTime?
+  exitReason       String?
+  /// True se creata in simulazione (nessun invio reale associato).
+  simulated        Boolean                  @default(true)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  client   Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  campaign CrossSellCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sends    CampaignSend[]
+
+  @@index([clientId, status])
+  @@index([campaignId, status])
+  @@index([status, nextStepAt])
+}
+
+/// Un invio (o invio simulato) di uno step a un iscritto, con tracking.
+model CampaignSend {
+  id           String             @id @default(cuid())
+  enrollmentId String
+  stepId       String
+  stepIndex    Int
+  status       CampaignSendStatus @default(SIMULATED)
+  /// Token HMAC per pixel/link tracking (come l'outreach a freddo).
+  trackToken   String?            @unique
+  scheduledFor DateTime
+  sentAt       DateTime?
+  openedAt     DateTime?
+  clickedAt    DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  enrollment CampaignEnrollment    @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  step       CrossSellCampaignStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@index([enrollmentId])
+  @@index([status, scheduledFor])
 }

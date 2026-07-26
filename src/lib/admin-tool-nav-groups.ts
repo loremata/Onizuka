@@ -31,6 +31,7 @@ export const ADMIN_TOOL_NAV_GROUPS: AdminToolNavGroup[] = [
       // Rubrica: le schede (Clienti/Contatti/Persone/Segmenti) sono ora sull'hub
       // raggiungibile da "Clienti" — voce di menu separata rimossa per deduplicare.
       { href: "/admin/crm/cross-sell", label: "Cross-sell" },
+      { href: "/admin/campaigns", label: "Campagne cross-sell" },
       { href: "/admin/crm/renewals", label: "Rinnovi retail" },
       { href: "/admin/crm/referrers", label: "Segnalatori" },
       { href: "/admin/crm/dedupe", label: "Dedupe & merge clienti" },
