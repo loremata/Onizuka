@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureClientForLead } from "@/lib/ensure-client-for-lead";
 import { clampStr, PUBLIC_FIELD_LIMITS as L } from "@/lib/clamp-input";
+import { notifyInboundLead } from "@/lib/lead-inbound-notify";
 
 export const dynamic = "force-dynamic";
 
@@ -207,6 +208,18 @@ export async function POST(request: NextRequest) {
         outcome: "pending",
       },
     });
+
+    // Notifica in tempo reale all'admin (best-effort: non deve mai rompere la submission).
+    void notifyInboundLead({
+      source: "configuratore",
+      leadId: lead.id,
+      businessName: kind === "BUSINESS" ? companyName || fullName : null,
+      contactName: fullName,
+      email,
+      phone,
+      city: city ?? null,
+      payloadSummary: `Servizi: ${servicesLabel}. Stima risparmio: ${rangeLabel}.`,
+    }).catch(() => {});
 
     return jsonRes({ ok: true, leadId: lead.id }, { status: 201, origin });
   } catch (e) {
