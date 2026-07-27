@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { RETAIL_KIND_TO_SLUG } from "@/lib/customer-pipeline";
 import {
   DIGITAL_AI_SERVICE_SLUGS,
   RETAIL_STORE_SERVICE_SLUGS,
@@ -96,15 +97,28 @@ async function loadActiveServiceSlugsByClient(
   clientIds: string[]
 ): Promise<Map<string, Set<string>>> {
   if (clientIds.length === 0) return new Map();
-  const rows = await prisma.clientCommercialService.findMany({
-    where: { clientId: { in: clientIds }, active: true },
-    include: { commercialService: { select: { slug: true } } },
-  });
+  // Fonte unica del "posseduto" (coerente con campagne e prossime-mosse):
+  // servizi commerciali attivi ∪ contratti retail ACTIVE mappati a slug.
+  const [services, contracts] = await Promise.all([
+    prisma.clientCommercialService.findMany({
+      where: { clientId: { in: clientIds }, active: true },
+      include: { commercialService: { select: { slug: true } } },
+    }),
+    prisma.clientRetailContract.findMany({
+      where: { clientId: { in: clientIds }, status: "ACTIVE" },
+      select: { clientId: true, kind: true },
+    }),
+  ]);
   const map = new Map<string, Set<string>>();
-  for (const r of rows) {
-    const set = map.get(r.clientId) ?? new Set<string>();
-    set.add(r.commercialService.slug);
-    map.set(r.clientId, set);
+  const add = (clientId: string, slug: string) => {
+    const set = map.get(clientId) ?? new Set<string>();
+    set.add(slug);
+    map.set(clientId, set);
+  };
+  for (const r of services) add(r.clientId, r.commercialService.slug);
+  for (const c of contracts) {
+    const slug = RETAIL_KIND_TO_SLUG[c.kind];
+    if (slug) add(c.clientId, slug);
   }
   return map;
 }
@@ -191,7 +205,8 @@ export async function runCrossSellQuery(
         detail = "Sito attivo da ~12 mesi";
         break;
       case "tim-fiber-without-tim-vision":
-        match = hasSlug(slugs, "fiber") && !hasSlug(slugs, "tim-vision");
+        // Allineato alla campagna "tim-vision": esclude chi ha già tim-vision O tv.
+        match = hasSlug(slugs, "fiber") && !hasAnySlug(slugs, ["tim-vision", "tv"]);
         detail = "Fibra senza TIM Vision";
         break;
       case "mobile-without-fiber":

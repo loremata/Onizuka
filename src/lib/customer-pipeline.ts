@@ -61,7 +61,7 @@ const SERVICE_NAME_BY_SLUG: Record<string, string> = {
   gas: "Gas",
   sky: "Sky / pay TV",
   telepass: "Telepass",
-  "tim-vision": "TIM Vision",
+  "tim-vision": "TIM Vision / intrattenimento",
   streaming: "Streaming",
   tv: "TV",
   pbx: "Centralino",
@@ -141,6 +141,17 @@ export function computeCustomerPipeline(input: CustomerPipelineInput): CustomerO
       slug: "mobile",
       probability: 0.45,
       rationale: "Ha già la connettività fissa: una linea mobile abbinata semplifica gestione e fatturazione.",
+    });
+  }
+
+  // --- TV / intrattenimento: TIM Vision per chi ha la fibra ---
+  // Coerente con la campagna "tim-vision" (richiede fiber, esclude tim-vision e tv).
+  if (owned.has("fiber") && !owned.has("tim-vision") && !owned.has("tv")) {
+    proposals.push({
+      slug: "tim-vision",
+      probability: 0.3,
+      kind: "cross-sell",
+      rationale: "Ha già la fibra: TIM Vision aggiunge film, serie e sport sulla stessa connessione, con un unico referente.",
     });
   }
 
