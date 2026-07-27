@@ -5,12 +5,14 @@ import { usePathname } from "next/navigation";
 
 /**
  * Barra di navigazione interna del modulo Inserimenti: presente su ogni pagina,
- * così tutta la sezione è raggiungibile da qualsiasi punto (cruscotto, registra,
- * listino, piani, input mensili) — un'unica sezione "Inserimenti" coerente.
+ * così tutta la sezione è raggiungibile da qualsiasi punto (cruscotto, gara,
+ * avanzamento ufficiale, registra, listino, piani, input mensili) — un'unica
+ * sezione "Inserimenti" coerente.
  */
 const TABS = [
   { href: "/admin/inserimenti", label: "Negozio", exact: true },
   { href: "/admin/inserimenti/gara-tim", label: "Gara TIM" },
+  { href: "/admin/inserimenti/avanzamento", label: "Avanzamento gara" },
   { href: "/admin/inserimenti/registra", label: "Registra" },
   { href: "/admin/inserimenti/listino", label: "Listino" },
   { href: "/admin/inserimenti/piano", label: "Piani" },

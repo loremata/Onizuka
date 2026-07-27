@@ -2242,6 +2242,13 @@ model IncentiveScoreKpi {
   points    Decimal            @db.Decimal(12, 2)
   source    IncentiveKpiSource @default(DERIVED)
   sortOrder Int                @default(0)
+  /// Pista da contare, se diversa da `key`. Serve quando la STESSA pista pesa su
+  /// più righe di punteggio (es. Top Club: una MNP vale 2 pt "No ICP" + 1,5 pt
+  /// "Val") — l'unique (prizeId,key) impedisce di ripetere la chiave.
+  sourceLineKey String?
+  /// Conta solo le vendite con questo subtype (es. FWA_RIC): il Top Club premia
+  /// gli accessi FWA ricaricabile, non tutti gli accessi fisso.
+  matchSubtype  String?
 
   prize IncentivePrize @relation(fields: [prizeId], references: [id], onDelete: Cascade)
 
@@ -2529,4 +2536,37 @@ model CampaignSend {
 
   @@index([enrollmentId])
   @@index([status, scheduledFor])
+}
+
+/// Avanzamento UFFICIALE di una gara, come comunicato dal gestore (consuntivo
+/// periodico). È distinto dalle vendite registrate al banco (StoreSale): questo
+/// è ciò che il gestore RICONOSCE, quindi è la verità che paga. Il delta tra
+/// "registrato da me" e "riconosciuto" è la lista delle attivazioni da inseguire
+/// (scarti, portabilità ancora in corso, pratiche non caricate).
+/// Storicizzato per data: più avanzamenti nello stesso mese raccontano la corsa.
+model IncentiveOfficialProgress {
+  id           String     @id @default(cuid())
+  /// Admin che l'ha inserito. Nessuna FK: è una tabella di registro.
+  ownerUserId  String
+  brand        StoreBrand @default(TIM)
+  /// "YYYY-MM".
+  month        String
+  /// Data a cui si riferisce l'avanzamento comunicato (es. 2026-07-25).
+  asOfDate     DateTime   @db.Date
+  /// Pista/gara: MNP, AL_PP, ACCESSO_FISSO, CONTENUTI, ENERGIA, TIMFIN,
+  /// TELEPASS_FAMILY, TIM_UNICA, TOP_CLUB, CUSTOMER_BASE.
+  lineKey      String
+  /// Quantità o punteggio riconosciuto. Decimale: il Fisso conta 0,5 per FWA ric.
+  qty          Decimal    @db.Decimal(12, 2)
+  /// Di cui domiciliate (solo dove ha senso: MNP, AL PP).
+  domiciledQty Int?
+  /// Composizione dichiarata dal gestore (es. scomposizione del Top Club).
+  breakdown    String?    @db.Text
+  notes        String?    @db.Text
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([ownerUserId, brand, month, asOfDate, lineKey])
+  @@index([ownerUserId, month])
+  @@index([brand, month, asOfDate])
 }
