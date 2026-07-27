@@ -40,6 +40,9 @@ export default async function AdminLayout({
     { href: "/admin", label: "Oggi" },
     { href: "/admin/approvals", label: "Approvazioni", badge: approvalPending },
     { href: "/admin/clients", label: "Clienti" },
+    // Il modulo più usato della giornata (registrazione vendite e gara TIM):
+    // stava a 4 click dentro "Strumenti".
+    { href: "/admin/inserimenti", label: "Negozio" },
     { href: "/admin/audit/digital", label: "Audit digitale" },
   ];
 

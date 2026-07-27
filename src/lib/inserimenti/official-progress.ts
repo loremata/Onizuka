@@ -15,6 +15,13 @@
 
 import { prisma } from "@/lib/prisma";
 import { Prisma, type StoreBrand } from "@prisma/client";
+// Il peso di gara di una vendita ha UNA sola definizione, nel motore: qui la si
+// importa invece di riscriverla. Prima questo file pesava a mano solo il Fisso
+// con una costante locale, e i Contenuti finivano nel confronto a pezzi grezzi:
+// con 2 TIMVision L registrati (= 6 pezzi di gara) e 6 comunicati da TIM
+// stampava "TIM ne riconosce 4 in più: 4 vendite non registrate", mandando a
+// registrare quattro vendite fantasma.
+import { saleWeight } from "@/lib/inserimenti/engine";
 
 /** Sottotipo delle vendite Fisso che nella gara pesa 0,5 invece di 1. */
 const FWA_RIC = "FWA_RIC";
@@ -320,7 +327,10 @@ export type CompareRow = {
   registeredDomiciled: number;
   /** Solo ACCESSO_FISSO: quante delle registrate sono FWA ricaricabili (peso 0,5 in gara). */
   registeredFwaRic: number | null;
-  /** Solo ACCESSO_FISSO: le stesse vendite pesate come le pesa la gara. */
+  /** Le stesse vendite pesate come le pesa la gara (`saleWeight`).
+   *  Valorizzato solo quando il peso cambia qualcosa (Fisso con FWA ricaricabili,
+   *  Contenuti con bundle multi-OTT): altrove pezzi e peso coincidono e mostrare
+   *  due numeri uguali confonderebbe. È il valore usato per delta e hint. */
   registeredWeighted: number | null;
   /** Quantità/punteggio riconosciuto da TIM. null = non comunicato. */
   official: number | null;
@@ -412,9 +422,11 @@ export async function compareOfficialVsRegistered({
   const upTo = official.asOfDate ? new Date(`${official.asOfDate}T23:59:59.999Z`) : null;
   const saleWhere = { ownerUserId, brand, month, ...(upTo ? { date: { lte: upTo } } : {}) };
 
-  const [byLine, byLineDomiciled, fwaRic] = await Promise.all([
+  // Si raggruppa anche per subtype: senza il subtype non si può applicare
+  // `saleWeight`, e il peso di gara è esattamente ciò che TIM comunica.
+  const [bySubtype, byLineDomiciled] = await Promise.all([
     prisma.storeSale.groupBy({
-      by: ["lineKey"],
+      by: ["lineKey", "subtype"],
       where: saleWhere,
       _count: { _all: true },
     }),
@@ -423,12 +435,17 @@ export async function compareOfficialVsRegistered({
       where: { ...saleWhere, domiciled: true },
       _count: { _all: true },
     }),
-    prisma.storeSale.count({
-      where: { ...saleWhere, lineKey: "ACCESSO_FISSO", subtype: FWA_RIC },
-    }),
   ]);
 
-  const regCount = new Map(byLine.map((r) => [r.lineKey, r._count._all]));
+  const regCount = new Map<string, number>();
+  const regWeighted = new Map<string, number>();
+  let fwaRic = 0;
+  for (const r of bySubtype) {
+    const n = r._count._all;
+    regCount.set(r.lineKey, (regCount.get(r.lineKey) ?? 0) + n);
+    regWeighted.set(r.lineKey, (regWeighted.get(r.lineKey) ?? 0) + n * saleWeight(r.lineKey, r.subtype));
+    if (r.lineKey === "ACCESSO_FISSO" && r.subtype === FWA_RIC) fwaRic += n;
+  }
   const regDom = new Map(byLineDomiciled.map((r) => [r.lineKey, r._count._all]));
 
   // tutte le piste da mostrare: quelle note + eventuali extra (vendite fuori
@@ -452,10 +469,13 @@ export async function compareOfficialVsRegistered({
     const officialQty = off ? off.qty : null;
 
     const isFisso = lineKey === "ACCESSO_FISSO";
-    // Il Fisso si confronta a PUNTI, non a pezzi: TIM comunica 6,5 perché una FWA
-    // ricaricabile pesa mezzo punto. Sulle altre piste pezzi e punti coincidono.
-    const weighted = isFisso ? round2(sold - fwaRic * 0.5) : null;
-    const registeredForDelta = isFisso ? weighted : registered;
+    // Il confronto si fa a PESO DI GARA, non a pezzi: TIM comunica 6,5 sul Fisso
+    // perché una FWA ricaricabile pesa mezzo punto, e comunica 6 sui Contenuti
+    // quando ho registrato 2 TIMVision L (che valgono 3 ciascuno). Dove il peso
+    // non cambia nulla si resta al conteggio pezzi.
+    const soldWeighted = round2(regWeighted.get(lineKey) ?? 0);
+    const weighted = known !== false && soldWeighted !== sold ? soldWeighted : null;
+    const registeredForDelta = known === false ? null : soldWeighted;
     const delta =
       registeredForDelta != null && officialQty != null ? round2(registeredForDelta - officialQty) : null;
     const { status, hint } = buildHint(registeredForDelta, officialQty, delta);

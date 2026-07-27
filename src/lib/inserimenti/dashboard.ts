@@ -228,10 +228,17 @@ export async function loadDashboard(ownerUserId: string, month: string): Promise
   };
 }
 
-/** Totale compensi di un mese (per il confronto mese-su-mese). */
+/** Totale compensi di un mese (per il confronto mese-su-mese).
+ *  Carica anche gli input mensili del mese confrontato: i KPI del Customer Base
+ *  sono tutti MANUAL, quindi passando `{}` il premio risultava sempre zero e il
+ *  mese precedente perdeva fino a 1.500 € — facendo sembrare in crescita un mese
+ *  che magari era in calo. Il mese corrente li carica: qui deve fare lo stesso. */
 async function totalOf(ownerUserId: string, month: string): Promise<number> {
   const sales = await prisma.storeSale.findMany({ where: { ownerUserId, month } });
   if (!sales.length) return 0;
+  const inputRows = await prisma.storeMonthlyInput.findMany({ where: { ownerUserId, month } });
+  const inputMap: Record<string, number> = {};
+  for (const i of inputRows) inputMap[i.key] = Number(i.value);
   const offerCompenso = await loadOfferCompenso(ownerUserId);
   const byBrand = new Map<string, Sale[]>();
   for (const s of sales) {
@@ -243,7 +250,7 @@ async function totalOf(ownerUserId: string, month: string): Promise<number> {
   for (const [brand, brandSales] of Array.from(byBrand)) {
     const plan = await loadPlan(ownerUserId, brand, month);
     if (!plan) continue;
-    total += computeMonth(plan, brandSales, {}).total;
+    total += computeMonth(plan, brandSales, inputMap).total;
   }
   return round2(total);
 }

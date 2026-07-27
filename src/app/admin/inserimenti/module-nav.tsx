@@ -1,7 +1,8 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 /**
  * Barra di navigazione interna del modulo Inserimenti: presente su ogni pagina,
@@ -19,8 +20,15 @@ const TABS = [
   { href: "/admin/inserimenti/mese", label: "Input mensili" },
 ];
 
-export function InserimentiNav() {
+function InserimentiNavInner() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // Il mese in cui si sta lavorando viaggia con la navigazione: senza questo,
+  // da "giugno" bastava cambiare tab per ritrovarsi su luglio senza accorgersene.
+  // Il mese corrente non si propaga: è già il default di ogni pagina.
+  const mese = searchParams.get("mese");
+  const query = mese && /^\d{4}-\d{2}$/.test(mese) ? `?mese=${mese}` : "";
+
   const isActive = (t: (typeof TABS)[number]) =>
     t.exact ? pathname === t.href : pathname === t.href || pathname.startsWith(t.href + "/");
 
@@ -29,7 +37,7 @@ export function InserimentiNav() {
       {TABS.map((t) => (
         <Link
           key={t.href}
-          href={t.href}
+          href={t.href + query}
           className={
             "rounded-md px-3 py-1.5 transition-colors " +
             (isActive(t) ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:bg-background/60")
@@ -39,5 +47,15 @@ export function InserimentiNav() {
         </Link>
       ))}
     </nav>
+  );
+}
+
+export function InserimentiNav() {
+  // `useSearchParams` va sempre dentro un confine Suspense: la barra è usata da
+  // 8 pagine e non deve poter far fallire il build di nessuna di loro.
+  return (
+    <Suspense fallback={<nav className="h-9 rounded-lg border bg-muted/40" aria-hidden />}>
+      <InserimentiNavInner />
+    </Suspense>
   );
 }

@@ -104,6 +104,10 @@ export async function loadAdminDashboardStats(
       prisma.opportunity.findMany({
         where: { ownerUserId: ownerId, status: "OPEN" },
         select: { estimatedValue: true, priority: true },
+        // orderBy deterministico: con più di 300 opportunità aperte, senza un
+        // ordine il taglio cadeva su righe diverse a ogni caricamento e la
+        // pipeline pesata ballava da sola fra due refresh.
+        orderBy: { updatedAt: "desc" },
         take: 300,
       }),
     ]);

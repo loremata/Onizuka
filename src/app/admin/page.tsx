@@ -84,7 +84,11 @@ export default async function AdminDashboardPage({ searchParams }: Props) {
   ];
 
   const createActions: { label: string; href: string; primary?: boolean }[] = [
-    { label: "Nuovo task", href: "/admin/flow", primary: true },
+    // Le due azioni del banco vengono prima: sono quelle che si fanno più volte
+    // al giorno, mentre task e cliente sono occasionali.
+    { label: "Registra vendita", href: "/admin/inserimenti/registra", primary: true },
+    { label: "Lead banco", href: "/admin/crm/leads/quick" },
+    { label: "Nuovo task", href: "/admin/flow" },
     { label: "Nuovo cliente", href: "/admin/clients/new" },
     { label: "Audit digitale", href: "/admin/audit/digital" },
     { label: "Nuova memoria", href: "/admin/memory/new" },

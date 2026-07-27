@@ -13,10 +13,21 @@ function todayISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export default async function RegistraPage() {
+export default async function RegistraPage({ searchParams }: { searchParams: { mese?: string } }) {
   const session = await requireFullAdmin();
-  const month = currentMonth();
+  // Il mese arriva dall'URL come nelle altre tab del modulo: passando da un mese
+  // passato, "Registra" restava inchiodata al mese corrente e mostrava le vendite
+  // sbagliate (o nessuna).
+  const month = /^\d{4}-\d{2}$/.test(searchParams.mese ?? "") ? searchParams.mese! : currentMonth();
   const options = await lineOptionsForMonth(session.user.id, month);
+  // piste del mese, appiattite per brand: servono alla tendina della modifica
+  const lineChoices = options.flatMap((o) =>
+    o.lines.map((l) => ({ brand: o.brand, key: l.key, label: l.label })),
+  );
+
+  // La data proposta è oggi solo se stiamo davvero registrando nel mese corrente
+  const today = todayISO();
+  const defaultDate = today.slice(0, 7) === month ? today : `${month}-01`;
 
   // TUTTE le vendite del mese, non solo le ultime: da qui si correggono anche
   // le vecchie (canone, offerta) — con 20 righe le prime del mese sparivano.
@@ -63,7 +74,7 @@ export default async function RegistraPage() {
             <CardContent>
               <RegistraForm
                 options={options}
-                today={todayISO()}
+                today={defaultDate}
                 clients={clients}
                 offers={offers.map((o) => ({
                   code: o.code,
@@ -100,6 +111,7 @@ export default async function RegistraPage() {
                   lineKey: o.lineKey,
                   compensoEur: o.compensoEur == null ? null : Number(o.compensoEur),
                 }))}
+                lines={lineChoices}
               />
             </CardContent>
           </Card>

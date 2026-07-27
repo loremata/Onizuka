@@ -244,6 +244,25 @@ export function saleWeight(lineKey: string, subtype?: string | null): number {
 export const fwaWeight = saleWeight;
 
 /**
+ * DEFINIZIONE UNICA di "quanti pezzi ho su questa pista" per la GARA.
+ *
+ * È la somma dei pesi (`saleWeight`), non il numero di righe registrate: è così
+ * che TIM comunica l'avanzamento (il Fisso lo dichiara come 6,5, cioè pesato) ed
+ * è il numero che finisce in `LineResult.qty`, nei cancelli dei premi, nella
+ * proiezione (`buildOutlook`), in `prizeOpportunities` e nelle card della UI.
+ *
+ * Perché esiste: i cancelli usavano il conteggio GREZZO mentre tutto il resto
+ * usava il pesato. Con 10 fibra + 6 FWA ricaricabili la card diceva "13/16,
+ * mancano 3" e il motore apriva lo stesso il cancello, incassando 1.000-3.000 €
+ * di Top Club mai maturati. Da qui in avanti il conteggio di gara è UNO SOLO:
+ * questa funzione. Chi ha bisogno del conteggio grezzo usa `qtyOf` e spiega
+ * perché (punteggi, extra e addon: lì si contano le pratiche, non i pesi).
+ */
+export function weightedQtyOf(sales: Sale[], lineKey: string): number {
+  return round2(salesFor(sales, lineKey).reduce((a, s) => a + saleWeight(lineKey, s.subtype), 0));
+}
+
+/**
  * Numero di soglia come nella lettera di gara. Due numerazioni convivono:
  *  - gare con base pagata (MNP/AL/Valore: il tier 0 ha già un valore) → il
  *    tier 0 È la "Soglia 1", quindi soglia = indice + 1;
@@ -311,7 +330,8 @@ function computeTimLine(
   const mine = salesFor(sales, line.key);
   // FWA ricaricabile: pesa 0,5 sulla gara Fisso (soglia e canone), come da lettera.
   const fwWeight = (s: Sale) => saleWeight(line.key, s.subtype);
-  const qty = round2(mine.reduce((a, s) => a + fwWeight(s), 0));
+  // conteggio di gara: la definizione unica (vedi weightedQtyOf).
+  const qty = weightedQtyOf(sales, line.key);
 
   const idx = tierIndex(qty, line.tiers);
   const arr = sortTiers(line.tiers);
@@ -398,7 +418,17 @@ function computeTimLine(
   };
 }
 
-/** Conta i pezzi di una pista (per cancelli e punteggi). */
+/**
+ * Conteggio GREZZO: quante pratiche ho registrato su questa pista, senza pesi.
+ *
+ * NON è il conteggio di gara (quello è `weightedQtyOf`). Serve solo dove la
+ * lettera conta le PRATICHE e non i pezzi-gara:
+ *  - punteggi Top Club/Customer Base (una FWA ricaricabile porta i suoi 4 punti
+ *    interi, non 2: il peso 0,5 vale sulla soglia della gara Fisso, non sul
+ *    punteggio) — vedi `qtyOfKpi`;
+ *  - extra/PxQ/malus e addon a conteggio (`computeExtras`, `computeAddons`).
+ * Ogni chiamante spiega sul posto perché lì il grezzo è quello giusto.
+ */
 function qtyOf(sales: Sale[], lineKey: string): number {
   return salesFor(sales, lineKey).length;
 }
@@ -415,6 +445,9 @@ function qtyOf(sales: Sale[], lineKey: string): number {
  */
 function qtyOfKpi(sales: Sale[], kpi: ScoreKpi): number {
   const mine = salesFor(sales, kpi.sourceLineKey ?? kpi.key);
+  // Conteggio GREZZO di proposito: il punteggio va a PRATICA. La riga "Acc.
+  // netto FWA Ric" vale 4 punti per ogni FWA ricaricabile, non 2 — il peso 0,5
+  // agisce sulla soglia della gara Fisso, non sui punti del Top Club.
   return kpi.matchSubtype ? mine.filter((s) => s.subtype === kpi.matchSubtype).length : mine.length;
 }
 
@@ -432,11 +465,14 @@ function computePrize(
   }
 
   // cancelli in AND: mancarne uno azzera. Trova il messo peggio (per la UI).
+  // Il conteggio è quello PESATO (weightedQtyOf): stessa identica definizione
+  // della card "Cancelli Top Club", di buildOutlook e di prizeOpportunities.
+  // Col conteggio grezzo il motore apriva cancelli che la UI dava per chiusi.
   let gateOpen = true;
   let worstGate: PrizeResult["worstGate"] = null;
   for (const gate of prize.gates) {
-    const have = qtyOf(sales, gate.lineKey);
-    const missing = Math.max(0, gate.minQty - have);
+    const have = weightedQtyOf(sales, gate.lineKey);
+    const missing = round2(Math.max(0, gate.minQty - have));
     if (missing > 0) {
       gateOpen = false;
       if (!worstGate || missing > worstGate.missing) worstGate = { lineKey: gate.lineKey, missing };
@@ -458,10 +494,12 @@ function computePrize(
     if ((inputs[h.inputKey] ?? 0) < h.minValue) base *= h.factor;
   }
 
-  // bonus % condizionato dal volume di un'altra pista (Energia ≥4 → +30% Top Club)
+  // bonus % condizionato dal volume di un'altra pista (Energia ≥4 → +30% Top
+  // Club). Anche qui il volume è quello di gara (pesato): è la stessa soglia in
+  // pezzi che la UI mostra sulla pista, non un secondo modo di contare.
   let bonus = 0;
   for (const b of prize.bonuses) {
-    if (qtyOf(sales, b.conditionLineKey) >= b.conditionMinQty) bonus += base * b.pct;
+    if (weightedQtyOf(sales, b.conditionLineKey) >= b.conditionMinQty) bonus += base * b.pct;
   }
 
   return {
@@ -476,7 +514,11 @@ function computePrize(
   };
 }
 
-/** Extra/PxQ/malus a gettone fisso (§E.4). */
+/** Extra/PxQ/malus a gettone fisso (§E.4).
+ *  Conteggio GREZZO di proposito: il gettone si prende UNA volta per ogni
+ *  pratica che matcha (è "€ per vendita", non "€ per pezzo di gara"). Il peso
+ *  dei bundle multi-OTT è già dentro il compenso della pista Contenuti, che
+ *  moltiplica per la qty pesata: pesare anche qui pagherebbe due volte. */
 function computeExtras(params: Params, sales: Sale[]): number {
   if (!params.extras) return 0;
   let sum = 0;
@@ -493,7 +535,10 @@ function computeExtras(params: Params, sales: Sale[]): number {
 
 /** Addon a gettone condizionati dal CONTEGGIO di vendite che matchano (§E.4bis).
  *  Non per-pezzo: superata la soglia scatta una tantum. Gli addon dello stesso
- *  `group` sono scaglioni della stessa condizione → vale solo il € più alto. */
+ *  `group` sono scaglioni della stessa condizione → vale solo il € più alto.
+ *  Conteggio GREZZO di proposito: la lettera dice "≥12 MNP con canone ≥9,99",
+ *  cioè dodici PRATICHE. Gli addon in uso stanno tutti su piste a peso 1 (MNP),
+ *  quindi grezzo e pesato coincidono comunque. */
 function computeAddons(params: Params, sales: Sale[]): number {
   if (!params.addons) return 0;
   let sum = 0;
@@ -518,9 +563,12 @@ export function computeTim(plan: Plan, sales: Sale[], inputs: MonthlyInputs): Mo
   const bill = plan.params.billSize;
 
   // penalità AL PP → MNP: se AL PP sotto soglia, i moltiplicatori MNP scendono.
+  // La soglia si legge sullo STESSO numero che la UI mostra sulla pista AL PP,
+  // cioè il conteggio di gara (su AL PP il peso è 1, quindi il valore non
+  // cambia: usarlo qui serve a non avere due modi di contare la stessa pista).
   let mnpPenalty = 0;
   if (plan.params.alPpPenalty) {
-    const alPpQty = qtyOf(sales, "AL_PP");
+    const alPpQty = weightedQtyOf(sales, "AL_PP");
     if (alPpQty < plan.params.alPpPenalty.threshold) mnpPenalty = plan.params.alPpPenalty.delta;
   }
 
@@ -611,10 +659,10 @@ export function attributeSales(plan: Plan, sales: Sale[], inputs: MonthlyInputs 
   const bill = plan.params.billSize;
   const out: SaleAttribution[] = [];
 
-  // penalità AL PP: identica a computeTim
+  // penalità AL PP: identica a computeTim (stesso conteggio di gara pesato)
   let mnpPenalty = 0;
   if (!isLinear && plan.params.alPpPenalty) {
-    const alQty = sales.filter((s) => s.lineKey === "AL_PP").length;
+    const alQty = weightedQtyOf(sales, "AL_PP");
     if (alQty < plan.params.alPpPenalty.threshold) mnpPenalty = plan.params.alPpPenalty.delta;
   }
 
@@ -622,7 +670,8 @@ export function attributeSales(plan: Plan, sales: Sale[], inputs: MonthlyInputs 
     const mine = sales.map((s, i) => ({ s, i })).filter(({ s }) => s.lineKey === line.key);
     if (!mine.length) continue;
     const fwWeight = (s: Sale) => saleWeight(line.key, s.subtype);
-    const qty = round2(mine.reduce((a, { s }) => a + fwWeight(s), 0));
+    // stesso conteggio di gara di computeTimLine: le soglie si leggono uguali
+    const qty = weightedQtyOf(sales, line.key);
 
     if (line.unit === "EUR_PER_PIECE") {
       const pxq = line.pxqEur ?? 0;
@@ -698,6 +747,8 @@ function prizeAtPoints(prize: Prize, points: number): number {
  * il premio stesso, perché dice quando smettere di inseguirlo.
  */
 export function prizeOpportunities(plan: Plan, result: MonthResult): PrizeOpportunity[] {
+  // `LineResult.qty` è già il conteggio di gara pesato (weightedQtyOf): stessa
+  // identica definizione usata dai cancelli in computePrize e dalla UI.
   const qtyOf = new Map(result.lines.map((l) => [l.key, l.qty]));
   const out: PrizeOpportunity[] = [];
 

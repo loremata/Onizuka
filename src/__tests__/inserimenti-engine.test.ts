@@ -19,10 +19,13 @@ import {
   billWeight,
   tierIndex,
   tierValue,
+  saleWeight,
+  weightedQtyOf,
   type Line,
   type Plan,
   type Sale,
 } from "@/lib/inserimenti/engine";
+import { buildOutlook } from "@/lib/inserimenti/projection";
 
 // --- fixture piste TIM (valori lettera luglio 2026) ---
 
@@ -668,6 +671,160 @@ describe("addon MNP a conteggio — bonus una tantum sopra soglia", () => {
     const mnp: Sale[] = Array.from({ length: 8 }, () => ({ lineKey: "MNP", feeEur: 10, domiciled: false, provenance: "POSTE" }));
     const r = computeTim(withAddons(), [...mnp, ...al16], {});
     expect(r.extras).toBe(0); // 8<12 per il bill alto, e POSTE fuori dal gruppo IC
+  });
+});
+
+// --------------------------------------------------------------------------
+// Un solo modo di contare i pezzi di una pista (27/07/2026).
+//
+// I cancelli dei premi contavano le RIGHE registrate, tutto il resto contava i
+// pezzi PESATI. Con 10 fibra + 6 FWA ricaricabili la card diceva "13/16,
+// mancano 3" e il motore apriva lo stesso il cancello, incassando un Top Club
+// da 1.000-3.000 € mai maturato. Questi test bloccano la doppia definizione.
+// --------------------------------------------------------------------------
+
+describe("conteggio dei pezzi — cancelli, motore e UI dicono lo stesso numero", () => {
+  const CONTENUTI: Line = {
+    key: "CONTENUTI",
+    label: "Contenuti",
+    unit: "EUR_PER_PIECE",
+    hasTiers: true,
+    tiers: [{ minQty: 0, value: 10 }],
+  };
+
+  /** Premio piatto a 1.000 € (min = max): così l'unica variabile sotto esame è
+   *  il cancello, non l'interpolazione sul punteggio. */
+  const gatePlan = (minQty: number, bonusMinQty?: number): Plan => ({
+    brand: "TIM",
+    month: "2026-07",
+    engineVersion: "tim-2026-07",
+    lines: [FISSO, CONTENUTI],
+    params: PARAMS,
+    prizes: [
+      {
+        key: "TOP_CLUB",
+        label: "Top Club",
+        minPoints: 0,
+        maxPoints: 100,
+        minPrize: 1000,
+        maxPrize: 1000,
+        gates: [{ lineKey: "ACCESSO_FISSO", minQty }],
+        scoreKpis: [
+          { key: "ACCESSO_FISSO", label: "Acc. netto FWA Ric", points: 4, source: "DERIVED", matchSubtype: "FWA_RIC" },
+        ],
+        bonuses: bonusMinQty != null ? [{ conditionLineKey: "CONTENUTI", conditionMinQty: bonusMinQty, pct: 0.3 }] : [],
+        halvings: [],
+      },
+    ],
+  });
+
+  const fibra = (n: number): Sale[] =>
+    Array.from({ length: n }, () => ({ lineKey: "ACCESSO_FISSO", feeEur: 30, domiciled: true }));
+  const fwaRic = (n: number): Sale[] =>
+    Array.from({ length: n }, () => ({ lineKey: "ACCESSO_FISSO", feeEur: null, domiciled: false, subtype: "FWA_RIC" }));
+
+  test("weightedQtyOf è la definizione unica: FWA ric 0,5 · TIMVision L 3 · MyClub 2", () => {
+    expect(saleWeight("ACCESSO_FISSO", "FWA_RIC")).toBe(0.5);
+    expect(saleWeight("CONTENUTI", "TIMVISION_L")).toBe(3);
+    expect(saleWeight("CONTENUTI", "MYCLUB")).toBe(2);
+    expect(weightedQtyOf([...fibra(10), ...fwaRic(6)], "ACCESSO_FISSO")).toBe(13);
+  });
+
+  test("10 fibra + 6 FWA = 13 pezzi di gara: il cancello a 16 resta CHIUSO e il premio è zero", () => {
+    const plan = gatePlan(16);
+    const sales = [...fibra(10), ...fwaRic(6)];
+    const r = computeTim(plan, sales, {});
+    const fisso = r.lines.find((l) => l.key === "ACCESSO_FISSO")!;
+    const tc = r.prizes[0];
+
+    // il numero che la UI stampa nella card "Cancelli Top Club"
+    expect(fisso.qty).toBe(13);
+    // …e quello che usa il motore per decidere: devono essere lo stesso
+    expect(tc.gateOpen).toBe(false);
+    expect(tc.worstGate).toEqual({ lineKey: "ACCESSO_FISSO", missing: 3 });
+    expect(16 - fisso.qty).toBe(tc.worstGate!.missing);
+    expect(tc.prize).toBe(0); // col conteggio grezzo (16 righe) valeva 1.000 €
+  });
+
+  test("la stessa situazione vista da prizeOpportunities e da buildOutlook dà 3", () => {
+    const plan = gatePlan(16);
+    const r = computeTim(plan, [...fibra(10), ...fwaRic(6)], {});
+
+    const [opp] = prizeOpportunities(plan, r);
+    expect(opp.missingGates).toEqual([{ lineKey: "ACCESSO_FISSO", missing: 3 }]);
+
+    const outlook = buildOutlook(plan, r, 15, 31);
+    const gate = outlook.prizes[0].gates.find((g) => g.lineKey === "ACCESSO_FISSO")!;
+    expect(gate.current).toBe(13);
+    expect(gate.missing).toBe(3);
+  });
+
+  test("13 fibra + 6 FWA = 16 pezzi di gara: il cancello si apre davvero", () => {
+    const plan = gatePlan(16);
+    const r = computeTim(plan, [...fibra(13), ...fwaRic(6)], {});
+    const fisso = r.lines.find((l) => l.key === "ACCESSO_FISSO")!;
+    expect(fisso.qty).toBe(16);
+    expect(r.prizes[0].gateOpen).toBe(true);
+    expect(r.prizes[0].worstGate).toBeNull();
+    expect(r.prizes[0].prize).toBe(1000);
+    expect(prizeOpportunities(plan, r)).toHaveLength(0); // niente opportunità fantasma
+  });
+
+  test("i punteggi restano a PRATICA: 6 FWA ric valgono 24 punti anche se pesano 3", () => {
+    const plan = gatePlan(16);
+    const r = computeTim(plan, [...fibra(10), ...fwaRic(6)], {});
+    expect(r.lines.find((l) => l.key === "ACCESSO_FISSO")!.qty).toBe(13); // peso di gara
+    expect(r.prizes[0].points).toBe(24); // 6 pratiche × 4 pt, non 3 × 4
+  });
+
+  test("anche il bonus % legge il conteggio di gara: 2 TIMVision L valgono 6, non 2", () => {
+    const plan = gatePlan(16, 4);
+    const contenuti: Sale[] = Array.from({ length: 2 }, () => ({
+      lineKey: "CONTENUTI",
+      domiciled: false,
+      subtype: "TIMVISION_L",
+    }));
+    const r = computeTim(plan, [...fibra(13), ...fwaRic(6), ...contenuti], {});
+    expect(r.lines.find((l) => l.key === "CONTENUTI")!.qty).toBe(6);
+    expect(r.prizes[0].bonus).toBe(300); // col conteggio grezzo (2 < 4) sarebbe stato 0
+  });
+});
+
+/**
+ * Perché il confronto mese-su-mese deve caricare gli input mensili (FIX 3):
+ * i KPI del Customer Base sono tutti MANUAL, quindi passando `{}` il premio
+ * vale zero e il mese precedente perde fino a 1.500 €.
+ */
+describe("premi a KPI manuali — senza input mensili il premio sparisce", () => {
+  const cbPlan: Plan = {
+    brand: "TIM",
+    month: "2026-06",
+    engineVersion: "tim-2026-06",
+    params: {},
+    lines: [{ key: "MNP", label: "MNP", unit: "EUR_PER_PIECE", hasTiers: false, tiers: [{ minQty: 0, value: 0 }] }],
+    prizes: [
+      {
+        key: "CUSTOMER_BASE",
+        label: "Customer Base",
+        minPoints: 100,
+        maxPoints: 200,
+        minPrize: 1500,
+        maxPrize: 1500,
+        gates: [],
+        scoreKpis: [{ key: "CB_RETENTION", label: "Retention", points: 1, source: "MANUAL" }],
+        bonuses: [],
+        halvings: [],
+      },
+    ],
+  };
+  const sales: Sale[] = [{ lineKey: "MNP", domiciled: false }];
+
+  test("con gli input del mese il premio c'è", () => {
+    expect(computeMonth(cbPlan, sales, { CB_RETENTION: 120 }).total).toBe(1500);
+  });
+
+  test("con inputs vuoti il premio è zero: è il caso che rompeva il mese precedente", () => {
+    expect(computeMonth(cbPlan, sales, {}).total).toBe(0);
   });
 });
 

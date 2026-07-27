@@ -23,30 +23,67 @@ export interface OfferChoice {
   compensoEur: number | null;
 }
 
-export function RecentSales({ sales, offers = [] }: { sales: Row[]; offers?: OfferChoice[] }) {
+/** Una pista registrabile del mese, per brand: popola la tendina in modifica. */
+export interface LineChoice {
+  brand: string;
+  key: string;
+  label: string;
+}
+
+export function RecentSales({
+  sales,
+  offers = [],
+  lines = [],
+}: {
+  sales: Row[];
+  offers?: OfferChoice[];
+  lines?: LineChoice[];
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   if (!sales.length) return <p className="text-sm text-muted-foreground">Ancora nessuna vendita questo mese.</p>;
 
   const offerName = new Map(offers.map((o) => [`${o.brand}|${o.code}`, o.name]));
 
-  async function remove(id: string) {
-    setBusy(id);
-    await deleteSale(id);
+  /** Cancellazione DEFINITIVA (niente cestino): si chiede conferma prima, perché
+   *  il bottone sta a pochi millimetri da quello di modifica e un tocco sbagliato
+   *  cancellerebbe una vendita senza modo di recuperarla. */
+  async function remove(s: Row) {
+    const descr = `${s.date} · ${s.brand} · ${s.lineKey}`;
+    if (!window.confirm(`Cancellare definitivamente questa vendita?\n\n${descr}\n\nL'operazione non è reversibile.`)) {
+      return;
+    }
+    setBusy(s.id);
+    setError(null);
+    const res = await deleteSale(s.id);
     setBusy(null);
+    // l'errore va mostrato: prima il valore di ritorno veniva scartato e la
+    // riga restava lì senza che nulla dicesse che la cancellazione era fallita
+    if (res?.error) {
+      setError(res.error);
+      return;
+    }
     router.refresh();
   }
 
   return (
-    <ul className="divide-y text-sm">
+    <>
+      {error ? (
+        <p className="mb-2 rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-600 dark:bg-red-950/30">
+          {error}
+        </p>
+      ) : null}
+      <ul className="divide-y text-sm">
       {sales.map((s) =>
         editing === s.id ? (
           <li key={s.id} className="py-2">
             <EditRow
               row={s}
               offers={offers}
+              lines={lines}
               onDone={() => {
                 setEditing(null);
                 router.refresh();
@@ -70,25 +107,30 @@ export function RecentSales({ sales, offers = [] }: { sales: Row[]; offers?: Off
                 </span>
               ) : null}
             </span>
+            {/* target 40×40: al banco si tocca col dito e i due bottoni fanno
+                cose opposte (correggere / cancellare per sempre) */}
             <button
               onClick={() => setEditing(s.id)}
-              className="shrink-0 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded text-sm text-muted-foreground hover:bg-muted"
               aria-label="Modifica"
+              title="Modifica"
             >
               ✎
             </button>
             <button
-              onClick={() => remove(s.id)}
+              onClick={() => remove(s)}
               disabled={busy === s.id}
-              className="shrink-0 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-red-600"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded text-sm text-muted-foreground hover:bg-muted hover:text-red-600 disabled:opacity-50"
               aria-label="Elimina"
+              title="Elimina definitivamente"
             >
               ✕
             </button>
           </li>
         ),
       )}
-    </ul>
+      </ul>
+    </>
   );
 }
 
@@ -97,11 +139,13 @@ export function RecentSales({ sales, offers = [] }: { sales: Row[]; offers?: Off
 function EditRow({
   row,
   offers,
+  lines,
   onDone,
   onCancel,
 }: {
   row: Row;
   offers: OfferChoice[];
+  lines: LineChoice[];
   onDone: () => void;
   onCancel: () => void;
 }) {
@@ -115,6 +159,16 @@ function EditRow({
 
   // offerte compatibili con brand+pista (o senza pista assegnata a listino)
   const choices = offers.filter((o) => o.brand === row.brand && (o.lineKey === lineKey || o.lineKey == null));
+
+  // Piste selezionabili: solo quelle del piano di QUESTO brand. Prima era un
+  // campo di testo libero e un refuso ("ACESSO_FISSO") creava una vendita che
+  // valeva 0 € e non compariva in nessuna gara. La pista attuale resta sempre
+  // in elenco anche se il piano nel frattempo è cambiato, altrimenti aprire la
+  // modifica cambierebbe il dato di nascosto.
+  const lineChoices = lines.filter((l) => l.brand === row.brand);
+  const lineOptions = lineChoices.some((l) => l.key === row.lineKey)
+    ? lineChoices
+    : [...lineChoices, { brand: row.brand, key: row.lineKey, label: `${row.lineKey} (fuori piano)` }];
 
   async function save() {
     setSaving(true);
@@ -144,12 +198,18 @@ function EditRow({
           onChange={(e) => setDate(e.target.value)}
           className="rounded border bg-background px-2 py-1 text-xs"
         />
-        <input
+        <select
           value={lineKey}
           onChange={(e) => setLineKey(e.target.value)}
-          placeholder="pista"
-          className="w-28 rounded border bg-background px-2 py-1 text-xs"
-        />
+          aria-label="Pista"
+          className="w-40 rounded border bg-background px-2 py-1 text-xs"
+        >
+          {lineOptions.map((l) => (
+            <option key={l.key} value={l.key}>
+              {l.label}
+            </option>
+          ))}
+        </select>
         <input
           value={feeEur}
           onChange={(e) => setFeeEur(e.target.value)}

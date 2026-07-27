@@ -170,8 +170,9 @@ export default async function AvanzamentoPage({
             </table>
           </div>
           <p className="pt-3 text-xs text-muted-foreground">
-            Sul Fisso i numeri possono non essere confrontabili uno a uno: nella gara una FWA ricaricabile pesa 0,5,
-            mentre al banco resta un pezzo. Sotto la riga trovi il peso di gara delle stesse vendite.
+            Su alcune piste i numeri non sono confrontabili uno a uno: nella gara una FWA ricaricabile pesa 0,5 e un
+            bundle multi-OTT (TIMVision L, Dazn completo, MyClub) pesa più di un pezzo, mentre al banco resta una riga
+            sola. Il confronto con TIM usa il <strong>peso di gara</strong>, che trovi sotto l&apos;etichetta della pista.
           </p>
         </CardContent>
       </Card>
@@ -234,6 +235,12 @@ function RigaConfronto({ r }: { r: CompareRow }) {
         {r.registeredFwaRic != null && r.registeredFwaRic > 0 ? (
           <span className="block text-xs font-normal text-muted-foreground">
             di cui {r.registeredFwaRic} FWA ric · peso gara {itNum(r.registeredWeighted ?? 0, 2)}
+          </span>
+        ) : r.registeredWeighted != null && r.registered != null ? (
+          // Contenuti & co.: i bundle multi-OTT valgono più di un pezzo, quindi
+          // il numero confrontato con TIM non è quello delle righe registrate.
+          <span className="block text-xs font-normal text-muted-foreground">
+            {itNum(r.registered, 2)} al banco · peso gara {itNum(r.registeredWeighted, 2)}
           </span>
         ) : null}
         {r.breakdown ? (
