@@ -11,13 +11,20 @@
  */
 
 import { randomBytes } from "crypto";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isEmailable, type EmailableClient } from "@/lib/campaigns/consent";
 import type {
   CampaignStatus,
   CampaignEnrollmentStatus,
   CampaignSendStatus,
+  ClientRelationshipState,
 } from "@prisma/client";
+
+/** True se l'errore è una violazione di vincolo unico Prisma (P2002). */
+function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
 
 // ---------------------------------------------------------------------------
 // Tipi leggeri (sottoinsiemi dei modelli Prisma) usati dalle funzioni pure.
@@ -112,6 +119,15 @@ type ActiveEnrollmentRow = {
   campaign: { key: string; targetServiceSlug: string; priority: number };
 };
 
+/**
+ * Cliente per la riconciliazione: consenso + stato relazione. `relationshipState`
+ * è opzionale così i chiamanti batch che passano solo i campi di consenso restano
+ * compatibili; nel path DB viene sempre caricato (vedi select in reconcile).
+ */
+export type ReconcilableClient = EmailableClient & {
+  relationshipState?: ClientRelationshipState;
+};
+
 export type ReconcileOptions = {
   clientId: string;
   /** Default true: NON scrive nel DB, ritorna solo cosa farebbe. */
@@ -122,7 +138,7 @@ export type ReconcileOptions = {
    * vengono letti dal DB.
    */
   ctx?: {
-    client?: EmailableClient;
+    client?: ReconcilableClient;
     ownedSlugs?: Set<string>;
     activeEnrollments?: ActiveEnrollmentRow[];
     activeCampaigns?: EligibilityCampaign[];
@@ -135,7 +151,9 @@ export type ReconcileOptions = {
  * Ordine di valutazione:
  *  (a) ogni iscrizione ACTIVE il cui `targetServiceSlug` è ORA posseduto → CONVERTED
  *      (convertedAt=now, exitReason="servizio acquisito");
- *  (b) se il cliente NON è più contattabile → tutte le iscrizioni ACTIVE residue → SUPPRESSED;
+ *  (b) se il cliente NON è più contattabile OPPURE è EX_CLIENTE (churn) → tutte le
+ *      iscrizioni ACTIVE residue → SUPPRESSED e NESSUN arruolamento (le campagne
+ *      cross-sell valgono solo per clienti correnti);
  *  (c) se non resta alcuna iscrizione ACTIVE ed è idoneo a una campagna → arruola alla
  *      più prioritaria (in dryRun NON scrive: segnala solo cosa farebbe);
  *  (d) se ha un'iscrizione ACTIVE ma esiste una campagna a priorità MAGGIORE per cui è
@@ -154,7 +172,7 @@ export async function reconcileClientEnrollments(opts: ReconcileOptions): Promis
     opts.ctx?.client ??
     (await prisma.client.findUnique({
       where: { id: clientId },
-      select: { marketingConsentBasis: true, marketingOptOutAt: true },
+      select: { marketingConsentBasis: true, marketingOptOutAt: true, relationshipState: true },
     }));
   if (!client) {
     return { clientId, dryRun, emailable: false, ownedSlugs: [], actions: [{ type: "NOOP", reason: "cliente inesistente" }] };
@@ -165,11 +183,16 @@ export async function reconcileClientEnrollments(opts: ReconcileOptions): Promis
   const activeCampaigns = opts.ctx?.activeCampaigns ?? (await loadActiveCampaigns());
 
   const emailable = isEmailable(client);
+  // EX_CLIENTE = churn: non è più cliente attivo, quindi esce da tutte le campagne
+  // cross-sell (che sono pensate per la base clienti corrente).
+  const isExClient = client.relationshipState === "EX_CLIENTE";
   const actions: ReconcileAction[] = [];
 
   // Transizioni da applicare (se non dryRun).
   const toConvert: string[] = [];
   const toSuppress: string[] = [];
+  // Motivo di uscita per le soppressioni (dipende dalla causa: consenso o churn).
+  let suppressReason = "consenso mancante o disiscritto";
   let toEnroll: EligibilityCampaign | null = null;
 
   // (a) Conversioni: target ora posseduto.
@@ -188,15 +211,17 @@ export async function reconcileClientEnrollments(opts: ReconcileOptions): Promis
     }
   }
 
-  // (b) Soppressione se non più contattabile.
-  if (!emailable) {
+  // (b) Soppressione se non più contattabile OPPURE non più cliente (EX_CLIENTE).
+  if (!emailable || isExClient) {
+    // Churn ha precedenza informativa sul consenso nella motivazione d'uscita.
+    suppressReason = isExClient ? "non più cliente" : "consenso mancante o disiscritto";
     for (const en of stillActive) {
       toSuppress.push(en.id);
       actions.push({
         type: "SUPPRESS",
         enrollmentId: en.id,
         campaignKey: en.campaign.key,
-        reason: "consenso mancante o disiscritto",
+        reason: suppressReason,
       });
     }
   } else if (stillActive.length === 0) {
@@ -242,27 +267,38 @@ export async function reconcileClientEnrollments(opts: ReconcileOptions): Promis
       if (toSuppress.length) {
         await tx.campaignEnrollment.updateMany({
           where: { id: { in: toSuppress }, status: "ACTIVE" },
-          data: { status: "SUPPRESSED", exitedAt: now, exitReason: "consenso mancante o disiscritto", nextStepAt: null },
+          data: { status: "SUPPRESSED", exitedAt: now, exitReason: suppressReason, nextStepAt: null },
         });
       }
       if (toEnroll) {
-        // Guardia idempotenza: non duplicare un'iscrizione ACTIVE alla stessa campagna.
+        // Guardia idempotenza applicativa: non duplicare un'iscrizione ACTIVE alla
+        // stessa campagna. È l'ultima operazione della transazione, così un eventuale
+        // errore catturato più sotto non lascia query pendenti nella tx.
         const existing = await tx.campaignEnrollment.findFirst({
           where: { clientId, campaignId: toEnroll.id, status: "ACTIVE" },
           select: { id: true },
         });
         if (!existing) {
-          await tx.campaignEnrollment.create({
-            data: {
-              clientId,
-              campaignId: toEnroll.id,
-              status: "ACTIVE",
-              enrolledAt: now,
-              currentStepIndex: 0,
-              nextStepAt: now, // lo step 0 è valutato da computeDueSends (delayDays dall'iscrizione)
-              simulated: true,
-            },
-          });
+          try {
+            await tx.campaignEnrollment.create({
+              data: {
+                clientId,
+                campaignId: toEnroll.id,
+                status: "ACTIVE",
+                enrolledAt: now,
+                currentStepIndex: 0,
+                nextStepAt: now, // lo step 0 è valutato da computeDueSends (delayDays dall'iscrizione)
+                simulated: true,
+              },
+            });
+          } catch (e) {
+            // Difesa DB: l'indice unico parziale `CampaignEnrollment_active_unique`
+            // (migration 20260727120000) garantisce una sola iscrizione ACTIVE per
+            // (clientId, campaignId) anche in caso di race con la findFirst qui sopra.
+            // Se scatta il vincolo (P2002) l'iscrizione esiste già ⇒ no-op idempotente,
+            // non far fallire il batch. Ogni altro errore viene ri-sollevato.
+            if (!isUniqueConstraintError(e)) throw e;
+          }
         }
       }
     });
@@ -343,23 +379,54 @@ export function computeDueSends(params: {
 /** Esito dell'esecuzione di un invio dovuto. */
 export type ApplyDueSendResult = {
   enrollmentId: string;
-  action: "SIMULATED_SEND" | "COMPLETED" | "SKIPPED_NOT_DUE" | "SKIPPED_ALREADY_SENT";
+  action:
+    | "SIMULATED_SEND"
+    | "COMPLETED"
+    | "SKIPPED_NOT_DUE"
+    | "SKIPPED_ALREADY_SENT"
+    | "SKIPPED_NOT_EMAILABLE";
   stepIndex: number | null;
   sendStatus?: CampaignSendStatus;
 };
 
 /**
+ * Risolve la contattabilità del cliente AL MOMENTO DELL'INVIO. In batch il cron
+ * può passare i dati via `ctx` (nessuna query); altrimenti si legge il consenso
+ * del cliente dell'iscrizione dal DB. Fail-safe: se il cliente non è risolvibile
+ * ritorna false (non si invia).
+ */
+async function resolveEmailableForSend(
+  enrollmentId: string,
+  ctx?: { client?: EmailableClient; emailable?: boolean },
+): Promise<boolean> {
+  if (typeof ctx?.emailable === "boolean") return ctx.emailable;
+  if (ctx?.client) return isEmailable(ctx.client);
+  const row = await prisma.campaignEnrollment.findUnique({
+    where: { id: enrollmentId },
+    select: { client: { select: { marketingConsentBasis: true, marketingOptOutAt: true } } },
+  });
+  if (!row?.client) return false;
+  return isEmailable(row.client);
+}
+
+/**
  * Esegue (o simula, se dryRun) l'invio dovuto per un'iscrizione ACTIVE:
+ *  - RI-VERIFICA il consenso al momento dell'invio (difesa in profondità): se il
+ *    cliente non è (più) contattabile NON invia e sopprime l'iscrizione,
  *  - crea un `CampaignSend` con status SIMULATED (Fase 0, nessuna email reale),
  *  - avanza `currentStepIndex`/`nextStepAt`,
  *  - se non ci sono più step ⇒ iscrizione COMPLETED.
  * In dryRun NON scrive: ritorna solo cosa farebbe.
+ *
+ * `ctx` permette al cron di passare consenso già caricato (niente query nel batch).
  */
 export async function applyDueSend(params: {
   enrollment: SchedulableEnrollment;
   steps: SchedulableStep[];
   now?: Date;
   dryRun?: boolean;
+  /** Consenso pre-caricato per evitare query nel path batch (vedi resolveEmailableForSend). */
+  ctx?: { client?: EmailableClient; emailable?: boolean };
 }): Promise<ApplyDueSendResult> {
   const { enrollment } = params;
   const now = params.now ?? new Date();
@@ -378,6 +445,27 @@ export async function applyDueSend(params: {
 
   if (!plan.due || !plan.step) {
     return { enrollmentId: enrollment.id, action: "SKIPPED_NOT_DUE", stepIndex: plan.stepIndex };
+  }
+
+  // --- DIFESA IN PROFONDITÀ: consenso RI-VERIFICATO al momento dell'invio ---
+  // Non ci si fida del solo stato dell'iscrizione: anche se un opt-out non fosse
+  // stato propagato all'iscrizione, qui l'email non parte. Se il cliente non è più
+  // contattabile → NIENTE invio e iscrizione SUPPRESSED (in dryRun si segnala solo).
+  // La guardia vale anche in Fase 0 (SIMULATED) per pulizia dei dati.
+  const emailable = await resolveEmailableForSend(enrollment.id, params.ctx);
+  if (!emailable) {
+    if (!dryRun) {
+      await prisma.campaignEnrollment.updateMany({
+        where: { id: enrollment.id, status: "ACTIVE" },
+        data: {
+          status: "SUPPRESSED",
+          exitedAt: now,
+          exitReason: "consenso mancante al momento dell'invio",
+          nextStepAt: null,
+        },
+      });
+    }
+    return { enrollmentId: enrollment.id, action: "SKIPPED_NOT_EMAILABLE", stepIndex: plan.stepIndex };
   }
 
   if (dryRun) {

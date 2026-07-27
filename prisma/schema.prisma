@@ -2478,6 +2478,11 @@ model CrossSellCampaignStep {
 }
 
 /// Iscrizione di un cliente a una campagna (storicizzata per le analitiche).
+// NB: indice unico PARZIALE `CampaignEnrollment_active_unique` su (clientId, campaignId)
+// WHERE status='ACTIVE' applicato via migration 20260727120000_campaign_enrollment_active_unique
+// (espressione WHERE non rappresentabile in Prisma — non rimuovere con migrate dev).
+// Garantisce a livello DB una sola iscrizione ACTIVE per cliente+campagna (anti-doppione):
+// il create in reconcileClientEnrollments cattura il P2002 come no-op idempotente.
 model CampaignEnrollment {
   id               String                   @id @default(cuid())
   clientId         String
