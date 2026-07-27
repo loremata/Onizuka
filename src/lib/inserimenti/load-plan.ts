@@ -108,7 +108,9 @@ function lineStructure(brand: string, key: string): Partial<Line> {
       // PxQ additivo né qualitativa separata: il valore è già nello scaglione.
       return { pxqEur: 0 };
     case "TELEPASS_FAMILY":
-      // Gara luglio 2026: 25 € a pezzo "tutto compreso" oltre gli 8. Niente PxQ.
+      // Luglio 2026: 25 € a pezzo DAL PRIMO (confermato da Lorenzo il 27/07): il
+      // valore sta tutto nell'unico scaglione a quota 0, niente PxQ additivo.
+      // Gli 8 pezzi contano solo come cancello del Top Club.
       return { pxqEur: 0 };
     default:
       return {};

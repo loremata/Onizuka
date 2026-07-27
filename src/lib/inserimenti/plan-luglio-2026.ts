@@ -265,12 +265,10 @@ const TIM: SeedPlan = {
       status: "ATTIVA",
       statusNote: "In vendita: 4 pezzi a luglio (17 e 22/07)",
       rules:
-        "Gara a soglia, gettone TUTTO COMPRESO: da 8 pezzi in su 25€ a pezzo (le due soglie ≥8 e ≥15 valgono entrambe 25€). Sotto 8 non paga. TWIN 10€ e Assistenza Europa 5€ restano come extra separati. Cancello del Top Club (≥8).",
-      tiers: [
-        { minQty: 0, value: 0 },
-        { minQty: 8, value: 25 },
-        { minQty: 15, value: 25 },
-      ],
+        "25 € A PEZZO DAL PRIMO, sempre: non è una gara a soglia (confermato da Lorenzo il 27/07, dopo aver ristudiato la lettera). " +
+        "Gli 8 pezzi restano importanti ma per un'altra ragione: sono un CANCELLO del Top Club, che senza di essi si azzera. " +
+        "TWIN 10€ e Assistenza Europa 5€ restano extra separati.",
+      tiers: [{ minQty: 0, value: 25 }],
       sortOrder: 70,
     },
     {
