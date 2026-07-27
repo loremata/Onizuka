@@ -52,6 +52,9 @@ export async function setClientRelationshipState(clientId: string, formData: For
     const { stopActiveOutreachSequences } = await import("@/lib/outreach-sequence-stop");
     await stopActiveOutreachSequences({ clientId, reason: "lead_status" }).catch(() => undefined);
   }
+  // Stato commerciale cambiato ⇒ riconcilia subito le iscrizioni alle campagne (best-effort).
+  const { onClientCommercialStateChanged } = await import("@/lib/campaigns/client-commercial-events");
+  void onClientCommercialStateChanged(clientId, { reason: "relationship_state" }).catch(() => {});
   revalidatePath(`/admin/clients/${clientId}`);
   revalidatePath("/admin/clients");
 }
@@ -261,6 +264,10 @@ export async function updateClient(
   } catch (e) {
     return clientDbError(e, "Aggiornamento cliente non riuscito.");
   }
+
+  // Stato commerciale del cliente aggiornato ⇒ riconcilia le campagne (best-effort, post-commit).
+  const { onClientCommercialStateChanged } = await import("@/lib/campaigns/client-commercial-events");
+  void onClientCommercialStateChanged(clientId, { reason: "client_update" }).catch(() => {});
 
   revalidatePath("/admin/clients");
   revalidatePath("/admin/audit");

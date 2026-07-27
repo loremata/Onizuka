@@ -47,6 +47,10 @@ export async function toggleClientServiceSlot(clientId: string, slugsCsv: string
     await promoteClientToClienteIfNeeded(clientId);
   }
 
+  // Stato commerciale cambiato (toggle servizio digitale) ⇒ riconcilia le campagne (best-effort).
+  const { onClientCommercialStateChanged } = await import("@/lib/campaigns/client-commercial-events");
+  void onClientCommercialStateChanged(clientId, { reason: "digital_service_toggle" }).catch(() => {});
+
   revalidatePath(`/admin/clients/${clientId}`);
 }
 
@@ -94,6 +98,10 @@ export async function toggleClientRetailKind(
 
   // Contratto attivato ⇒ promuovi a CLIENTE se era prospect/ex.
   if (activated) await promoteClientToClienteIfNeeded(clientId);
+
+  // Stato commerciale cambiato (toggle retail) ⇒ riconcilia le campagne (best-effort).
+  const { onClientCommercialStateChanged } = await import("@/lib/campaigns/client-commercial-events");
+  void onClientCommercialStateChanged(clientId, { reason: "retail_toggle" }).catch(() => {});
 
   revalidatePath(`/admin/clients/${clientId}`);
 }

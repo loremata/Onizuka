@@ -96,6 +96,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
         exitReason: "disiscrizione",
       },
     });
+
+    // Opt-out registrato ⇒ riconcilia le iscrizioni (best-effort): sopprime subito le residue.
+    const { onClientCommercialStateChanged } = await import("@/lib/campaigns/client-commercial-events");
+    void onClientCommercialStateChanged(client.id, { reason: "opt_out" }).catch(() => {});
   } catch (e) {
     // Fail-safe: anche in caso di errore mostriamo un messaggio cortese, senza dettagli tecnici.
     console.error("[public.unsubscribe]", e);
