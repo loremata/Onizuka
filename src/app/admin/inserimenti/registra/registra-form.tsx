@@ -46,6 +46,7 @@ export function RegistraForm({
   const [domiciled, setDomiciled] = useState(false);
   const [provenance, setProvenance] = useState("");
   const [fwaRic, setFwaRic] = useState(false);
+  const [contenutoTipo, setContenutoTipo] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastLabel, setLastLabel] = useState<string | null>(null);
@@ -78,6 +79,8 @@ export function RegistraForm({
   const isFwaRic = isFisso && fwaRic;
   const needsFee = line?.unit === "MULTIPLIER_ON_FEE" && !isFwaRic;
   const isMnp = brand === "TIM" && line?.key === "MNP";
+  // Contenuti: i bundle multi-OTT valgono più pezzi (TIMVision L = 3 OTT = 3 pezzi)
+  const isContenuti = brand === "TIM" && line?.key === "CONTENUTI";
   // il bill size è una regola TIM: altrove non c'è soglia minima di canone
   const showBillWarning = brand === "TIM";
 
@@ -111,6 +114,7 @@ export function RegistraForm({
     fd.set("date", date);
     if (offerCode) fd.set("offerCode", offerCode);
     if (isFwaRic) fd.set("subtype", "FWA_RIC");
+    if (isContenuti && contenutoTipo) fd.set("subtype", contenutoTipo);
     if (needsFee) {
       fd.set("feeEur", feeEur);
       fd.set("feeSource", offerCode ? "LISTINO" : "MANUALE");
@@ -302,6 +306,26 @@ export function RegistraForm({
                 {p}
               </option>
             ))}
+          </select>
+        </label>
+      ) : null}
+
+      {isContenuti ? (
+        <label className="space-y-1 block">
+          <span className="text-xs font-medium text-muted-foreground">
+            Tipo contenuto{" "}
+            <span className="font-normal">— i bundle multi-OTT contano più pezzi sulla gara</span>
+          </span>
+          <select
+            value={contenutoTipo}
+            onChange={(e) => setContenutoTipo(e.target.value)}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          >
+            <option value="">Standard — 1 pezzo</option>
+            <option value="TIMVISION_L">TIMVision L (Netflix + Prime + Disney+) — 3 pezzi</option>
+            <option value="DAZN10">Dazn completo — 3 pezzi</option>
+            <option value="MYCLUB">MyClub — 2 pezzi</option>
+            <option value="PRIME">Solo Prime — 1 pezzo, niente gettone (solo PxQ 3 €)</option>
           </select>
         </label>
       ) : null}

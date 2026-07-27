@@ -198,13 +198,16 @@ const TIM: SeedPlan = {
     {
       key: "CONTENUTI",
       label: "Contenuti (TIMVision)",
+      // NB: un TIMVision L include 3 OTT (Netflix, Prime Video, Disney+) e conta
+      // 3 pezzi sulla gara — vedi saleWeight in engine.ts.
       category: "Contenuti",
       unit: "EUR_PER_PIECE",
       hasTiers: true,
       target: 22,
       pxqEur: 0,
       rules:
-        "Gettone a soglia. Serve ≥75% attivo/registrato, altrimenti premio al 50%. Prime NON prende il gettone (solo PxQ 3€). Dazn completo pesa ×3 per la soglia, MyClub ×2. ATTENZIONE: la qty pesata non è ancora nel motore.",
+        "Gettone a soglia (soglia 3 = 24 pezzi → 10€). Serve ≥75% attivo/registrato, altrimenti premio al 50%. Prime NON prende il gettone (solo PxQ 3€). " +
+        "QTY PESATA — ora nel motore (saleWeight): TIMVision L conta 3 pezzi perché include 3 OTT (Netflix, Prime Video, Disney+), Dazn completo ×3, MyClub ×2. Una sola vendita, più pezzi su soglia e gettone.",
       tiers: [
         { minQty: 0, value: 0 },
         { minQty: 15, value: 5 },
