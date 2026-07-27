@@ -85,6 +85,9 @@ export async function duplicatePlans(fromMonth: string, toMonth: string): Promis
                 points: k.points,
                 source: k.source,
                 sortOrder: k.sortOrder,
+                // deroghe di conteggio: senza queste il clone perderebbe MNP Val e il filtro FWA Ric
+                sourceLineKey: k.sourceLineKey,
+                matchSubtype: k.matchSubtype,
               })),
             },
             bonuses: {
