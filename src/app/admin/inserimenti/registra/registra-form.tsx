@@ -19,16 +19,23 @@ export interface OfferOption {
   lineKey: string | null;
 }
 
+export interface ClientOption {
+  id: string;
+  companyName: string;
+}
+
 /** Form di registrazione in blocco: la data resta impostata fra una vendita e
  *  l'altra (§A.16), brand→pista a cascata, canone solo per le piste TIM. */
 export function RegistraForm({
   options,
   today,
   offers = [],
+  clients = [],
 }: {
   options: BrandOption[];
   today: string;
   offers?: OfferOption[];
+  clients?: ClientOption[];
 }) {
   const router = useRouter();
   const [date, setDate] = useState(today);
@@ -44,6 +51,9 @@ export function RegistraForm({
   const [lastLabel, setLastLabel] = useState<string | null>(null);
   const [lastId, setLastId] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  // Aggancio CRM opzionale della vendita (facoltativo, non blocca il banco).
+  const [clientId, setClientId] = useState("");
+  const [clientQ, setClientQ] = useState("");
 
   const brandOpt = useMemo(() => options.find((o) => o.brand === brand), [options, brand]);
   const line = useMemo(() => brandOpt?.lines.find((l) => l.key === lineKey), [brandOpt, lineKey]);
@@ -54,6 +64,13 @@ export function RegistraForm({
     if (!t) return all;
     return all.filter((l) => (l.label + " " + l.key).toLowerCase().includes(t));
   }, [brandOpt, q]);
+  /** Clienti filtrati dalla ricerca: lista potenzialmente lunga, si cerca per nome. */
+  const visibleClients = useMemo(() => {
+    const t = clientQ.trim().toLowerCase();
+    if (!t) return clients.slice(0, 50);
+    return clients.filter((c) => c.companyName.toLowerCase().includes(t)).slice(0, 50);
+  }, [clients, clientQ]);
+  const selectedClient = useMemo(() => clients.find((c) => c.id === clientId), [clients, clientId]);
   // il canone serve ovunque il compenso lo moltiplichi: gare TIM, business
   // Fastweb (5 × canone), Iliad (1 × canone). Non dipende dal brand.
   const isFisso = brand === "TIM" && line?.key === "ACCESSO_FISSO";
@@ -100,6 +117,8 @@ export function RegistraForm({
       fd.set("domiciled", domiciled ? "true" : "false");
     }
     if (isMnp && provenance) fd.set("provenance", provenance);
+    // Cliente OPZIONALE: se selezionato, aggancia la vendita al CRM.
+    if (clientId) fd.set("clientId", clientId);
     const res = await recordSale(fd);
     setSaving(false);
     if ("error" in res) {
@@ -116,6 +135,10 @@ export function RegistraForm({
     setDomiciled(false);
     setProvenance("");
     setFwaRic(false);
+    // Azzero anche il cliente: evita di agganciare per sbaglio la vendita
+    // successiva allo stesso cliente. Va riselezionato quando serve.
+    setClientId("");
+    setClientQ("");
     router.refresh();
   }
 
@@ -281,6 +304,58 @@ export function RegistraForm({
             ))}
           </select>
         </label>
+      ) : null}
+
+      {clients.length ? (
+        <div className="space-y-1 rounded-md border border-dashed p-3">
+          <span className="text-xs font-medium text-muted-foreground">
+            Cliente (facoltativo){" "}
+            <span className="font-normal">— aggancia la vendita alla scheda CRM e attiva il servizio</span>
+          </span>
+          {selectedClient ? (
+            <p className="flex items-center gap-3 text-sm">
+              <span>👤 {selectedClient.companyName}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setClientId("");
+                  setClientQ("");
+                }}
+                className="underline hover:no-underline"
+              >
+                togli
+              </button>
+            </p>
+          ) : (
+            <>
+              <input
+                value={clientQ}
+                onChange={(e) => setClientQ(e.target.value)}
+                placeholder="Cerca cliente per nome…"
+                className="mb-2 w-full rounded-md border bg-background px-3 py-2 text-sm"
+              />
+              {clientQ.trim() ? (
+                <select
+                  value={clientId}
+                  onChange={(e) => setClientId(e.target.value)}
+                  size={Math.min(6, Math.max(2, visibleClients.length + 1))}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">— nessun cliente —</option>
+                  {visibleClients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.companyName}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  Lascia vuoto per registrare senza cliente. Non rallenta il banco.
+                </span>
+              )}
+            </>
+          )}
+        </div>
       ) : null}
 
       {billWarn ? <p className="text-sm text-amber-700 dark:text-amber-300">{billWarn}</p> : null}

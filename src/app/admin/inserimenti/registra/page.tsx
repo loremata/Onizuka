@@ -30,6 +30,14 @@ export default async function RegistraPage() {
     orderBy: [{ brand: "asc" }, { feeEur: "asc" }],
   });
 
+  // Clienti veri per l'aggancio CRM OPZIONALE della vendita (autocomplete nel
+  // form). Solo relationshipState=CLIENTE: i lead non sono clienti attivi.
+  const clients = await prisma.client.findMany({
+    where: { relationshipState: "CLIENTE" },
+    select: { id: true, companyName: true },
+    orderBy: { companyName: "asc" },
+  });
+
   return (
     <div className="space-y-8">
       <AdminPageHeader
@@ -56,6 +64,7 @@ export default async function RegistraPage() {
               <RegistraForm
                 options={options}
                 today={todayISO()}
+                clients={clients}
                 offers={offers.map((o) => ({
                   code: o.code,
                   name: o.name,

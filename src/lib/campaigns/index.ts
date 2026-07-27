@@ -7,4 +7,5 @@ export * from "@/lib/campaigns/ownership";
 export * from "@/lib/campaigns/consent";
 export * from "@/lib/campaigns/engine";
 export * from "@/lib/campaigns/analytics";
+export * from "@/lib/campaigns/client-commercial-events";
 export * from "@/lib/campaigns/seed";

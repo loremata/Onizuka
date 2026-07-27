@@ -340,6 +340,10 @@ export async function convertLeadToClient(
       return client;
     });
 
+    // Lead convertito in cliente ⇒ ferma l'outreach a freddo (best-effort, post-commit).
+    const { stopActiveOutreachSequences } = await import("@/lib/outreach-sequence-stop");
+    void stopActiveOutreachSequences({ clientId: newClient.id, leadId, reason: "converted" }).catch(() => {});
+
     revalidatePath("/admin/clients");
     revalidatePath("/admin/crm/leads");
     revalidatePath(`/admin/crm/leads/${leadId}/edit`);
@@ -431,6 +435,16 @@ export async function updateLeadStatus(
   } catch (e) {
     console.error(e);
     return { error: "Aggiornamento stato non riuscito." };
+  }
+
+  // Stadio CONVERTED ⇒ ferma l'outreach a freddo (best-effort, post-commit).
+  if (status === "CONVERTED") {
+    const { stopActiveOutreachSequences } = await import("@/lib/outreach-sequence-stop");
+    void stopActiveOutreachSequences({
+      clientId: existing.convertedClientId,
+      leadId,
+      reason: "converted",
+    }).catch(() => {});
   }
 
   revalidatePath("/admin/crm/leads");

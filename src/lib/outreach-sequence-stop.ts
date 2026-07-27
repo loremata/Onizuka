@@ -6,13 +6,15 @@ export type StopOutreachReason =
   | "whatsapp_reply"
   | "lead_status"
   | "telegram_manual"
-  | "manual";
+  | "manual"
+  | "converted";
 
 const REASON_LABEL: Record<StopOutreachReason, string> = {
   whatsapp_reply: "risposta WhatsApp del lead",
   lead_status: "cambio stato del lead/cliente",
   telegram_manual: "stop manuale da Telegram",
   manual: "stop manuale",
+  converted: "lead convertito in cliente",
 };
 
 /** Solo le cifre, ultime 9 (confronto robusto tra formati telefono diversi). */

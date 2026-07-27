@@ -5,6 +5,7 @@ import { requireFullAdmin } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { GOAL_KEY } from "@/lib/inserimenti/constants";
+import { applySaleToClient } from "@/lib/inserimenti/apply-sale-to-client";
 
 const BRANDS = ["TIM", "KENA", "FASTWEB", "ENEL", "ENI", "ILIAD"] as const;
 type Brand = (typeof BRANDS)[number];
@@ -44,6 +45,10 @@ export async function recordSale(formData: FormData): Promise<{ error: string } 
   const PROVS = ["ILIAD", "COOP", "POSTE", "FASTWEB", "KENA", "ALTRO"];
   const provenance = PROVS.includes(provenanceRaw) ? (provenanceRaw as Prisma.StoreSaleCreateInput["provenance"]) : null;
 
+  // Aggancio CRM OPZIONALE: se il banco ha selezionato un cliente, lo salviamo
+  // e (più sotto) attiviamo il servizio sulla sua scheda. Mai obbligatorio.
+  const clientId = (String(formData.get("clientId") ?? "").trim() || null) as string | null;
+
   // Canone OBBLIGATORIO dove il compenso lo moltiplica (gare TIM, business
   // Fastweb, Iliad): senza canone la vendita varrebbe 0 in silenzio — decisione
   // Lorenzo 23/07. Unica eccezione: FWA ricaricabile, che un canone non ce l'ha
@@ -72,9 +77,28 @@ export async function recordSale(formData: FormData): Promise<{ error: string } 
       provenance,
       subtype,
       notes,
+      clientId,
     },
     select: { id: true },
   });
+
+  // Ponte vendita→CRM (best-effort): se c'è un cliente agganciato, attiva il
+  // servizio corrispondente sulla sua scheda e fa scattare la propagazione.
+  // NON deve mai rompere la registrazione della vendita: il banco è veloce, la
+  // propagazione è un bonus. Fire-and-forget con catch che ingoia l'errore.
+  if (clientId) {
+    void applySaleToClient({
+      clientId,
+      sale: {
+        brand,
+        lineKey,
+        subtype,
+        offerCode,
+        feeEur,
+        ownerUserId: session.user.id,
+      },
+    }).catch(() => {});
+  }
 
   revalidatePath("/admin/inserimenti");
   revalidatePath("/admin/inserimenti/registra");

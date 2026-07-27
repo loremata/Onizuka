@@ -50,6 +50,10 @@ export async function syncClientCommercialServices(
     });
   }
 
+  // Set servizi commerciali cambiato ⇒ riconcilia le campagne (best-effort, post-commit).
+  const { onClientCommercialStateChanged } = await import("@/lib/campaigns/client-commercial-events");
+  void onClientCommercialStateChanged(clientId, { reason: "commercial_services" }).catch(() => {});
+
   revalidatePath(`/admin/clients/${clientId}`);
   return null;
 }

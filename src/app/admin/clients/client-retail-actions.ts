@@ -72,6 +72,10 @@ export async function createClientRetailContract(clientId: string, formData: For
   // Nuovo contratto attivo ⇒ è un cliente: promuovi se era prospect/ex.
   await promoteClientToClienteIfNeeded(clientId);
 
+  // Stato commerciale cambiato (nuovo contratto retail) ⇒ riconcilia le campagne (best-effort).
+  const { onClientCommercialStateChanged } = await import("@/lib/campaigns/client-commercial-events");
+  void onClientCommercialStateChanged(clientId, { reason: "retail_contract_created" }).catch(() => {});
+
   revalidatePath(`/admin/clients/${clientId}`);
   revalidatePath("/admin/finance");
   revalidatePath("/admin/insights/forecast");
@@ -132,6 +136,11 @@ export async function updateRetailContractStatus(contractId: string, status: Ret
   });
 
   await syncFinanceEntryForRetailContract(updated);
+
+  // Stato contratto cambiato (attivo/scaduto) ⇒ riconcilia le campagne (best-effort).
+  const { onClientCommercialStateChanged } = await import("@/lib/campaigns/client-commercial-events");
+  void onClientCommercialStateChanged(row.clientId, { reason: "retail_contract_status" }).catch(() => {});
+
   revalidatePath(`/admin/clients/${row.clientId}`);
   revalidatePath("/admin/finance");
   revalidatePath("/admin/insights/forecast");

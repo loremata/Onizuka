@@ -26,7 +26,7 @@ const EMPTY: OpportunityWonResult = {
  */
 export async function propagateOpportunityWon(opportunityId: string): Promise<OpportunityWonResult> {
   try {
-    return await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const opp = await tx.opportunity.findUnique({
         where: { id: opportunityId },
         select: {
@@ -111,6 +111,19 @@ export async function propagateOpportunityWon(opportunityId: string): Promise<Op
 
       return { clientId, promotedClient, activatedServiceSlug, convertedLead };
     });
+
+    // Effetti collaterali POST-commit (best-effort: non devono invalidare la vincita).
+    if (result.clientId) {
+      // Cliente promosso/servizio attivato ⇒ riconcilia subito le iscrizioni alle campagne.
+      const { onClientCommercialStateChanged } = await import("@/lib/campaigns/client-commercial-events");
+      void onClientCommercialStateChanged(result.clientId, { reason: "opportunity_won" }).catch(() => {});
+
+      // Convertito a CLIENTE ⇒ ferma l'outreach a freddo (basta un lead che ha vinto).
+      const { stopActiveOutreachSequences } = await import("@/lib/outreach-sequence-stop");
+      void stopActiveOutreachSequences({ clientId: result.clientId, reason: "converted" }).catch(() => {});
+    }
+
+    return result;
   } catch (e) {
     console.error("propagateOpportunityWon failed", e);
     return EMPTY;
