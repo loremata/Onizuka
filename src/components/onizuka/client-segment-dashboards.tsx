@@ -13,12 +13,15 @@ function SegmentCard({
   href,
   ctaLabel,
   metrics,
+  footnote,
 }: {
   title: string;
   description: string;
   href: string;
   ctaLabel: string;
   metrics: Metric[];
+  /** Riga di spiegazione sotto i numeri, dove l'etichetta da sola può ingannare. */
+  footnote?: string;
 }) {
   return (
     <Card>
@@ -35,6 +38,7 @@ function SegmentCard({
             </div>
           ))}
         </div>
+        {footnote ? <p className="mt-2 text-xs text-muted-foreground">{footnote}</p> : null}
         <Link href={href} className="mt-3 inline-block text-sm font-medium text-primary hover:underline">
           {ctaLabel} →
         </Link>
@@ -55,9 +59,12 @@ export function ClientSegmentDashboardsCards({ retail, digital }: ClientSegmentD
         metrics={[
           { label: "Clienti", value: retail.clients },
           { label: "Contratti attivi", value: retail.contracts },
-          { label: "MRR gestito", value: `${eur(retail.mrr)}/mese` },
+          // NON è ricavo: è la somma dei canoni che i clienti pagano al gestore.
+          // Chiamarlo "MRR" faceva sembrare un fatturato ricorrente che non esiste.
+          { label: "Spesa gestita dei clienti", value: `${eur(retail.mrr)}/mese` },
           { label: "🔔 Cambi proponibili", value: retail.switchDue, alert: retail.switchDue > 0 },
         ]}
+        footnote="La spesa gestita è quanto i clienti pagano ogni mese ai gestori sui contratti che segui: è la base su cui lavorare, non un tuo ricavo."
       />
       <SegmentCard
         title="💻 Clienti digitali"

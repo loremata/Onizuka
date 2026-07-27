@@ -131,7 +131,9 @@ export function RegistraForm({
     }
     // registrazione in blocco: tieni data e brand, azzera il resto
     setLastLabel(
-      `${brand} · ${line?.label ?? lineKey}${isFwaRic ? " · FWA ric" : ""}${needsFee && feeEur ? ` · ${feeEur} €` : ""}`,
+      `${brand} · ${line?.label ?? lineKey}${isFwaRic ? " · FWA ric" : ""}` +
+        `${isContenuti && contenutoTipo ? ` · ${contenutoTipo}` : ""}` +
+        `${needsFee && feeEur ? ` · ${feeEur} €` : ""}`,
     );
     setLastId(res.id);
     setFeeEur("");
@@ -139,6 +141,10 @@ export function RegistraForm({
     setDomiciled(false);
     setProvenance("");
     setFwaRic(false);
+    // Azzero il tipo contenuto: se restasse "TIMVision L" le registrazioni
+    // successive conterebbero 3 pezzi ciascuna, e il subtype non è correggibile
+    // dalla UI (updateSale non lo tocca) — si potrebbe solo cancellare la vendita.
+    setContenutoTipo("");
     // Azzero anche il cliente: evita di agganciare per sbaglio la vendita
     // successiva allo stesso cliente. Va riselezionato quando serve.
     setClientId("");

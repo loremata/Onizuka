@@ -180,6 +180,9 @@ export async function getPipelineForAllClients(limit = 15): Promise<CustomerValu
       OR: [{ status: "ACTIVE_CLIENT" }, { relationshipState: "CLIENTE" }],
     },
     select: CLIENT_SELECT,
+    // Senza orderBy il database può restituire 300 righe diverse a ogni query:
+    // la "Top 15" cambiava fra due refresh senza che fosse cambiato nulla.
+    orderBy: { updatedAt: "desc" },
     take: 300,
   });
   if (clients.length === 0) return [];

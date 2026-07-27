@@ -212,7 +212,9 @@ export default async function GaraTimPage({ searchParams }: { searchParams: { me
                           {open ? "🟢" : "🔴"} {g.label}
                         </span>
                         <span className="tabular-nums text-muted-foreground">
-                          {g.have}/{g.need}
+                          {/* pezzi di gara (pesati): possono essere decimali —
+                              6,5 sul Fisso con una FWA ricaricabile */}
+                          {g.have.toLocaleString("it-IT", { maximumFractionDigits: 2 })}/{g.need}
                         </span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-muted">

@@ -23,7 +23,11 @@ export function RecapMatrixTable({ matrix }: { matrix: RecapMatrix }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle className="text-base">Tabella recap</CardTitle>
-            <CardDescription>Brand × categoria, con totali.</CardDescription>
+            <CardDescription>
+              {metric === "compenso"
+                ? "Brand × categoria: quanto vale ogni vendita. Premi ed extra non stanno qui."
+                : "Brand × categoria, con totali."}
+            </CardDescription>
           </div>
           <div className="inline-flex overflow-hidden rounded-md border text-sm">
             <button
@@ -70,7 +74,14 @@ export function RecapMatrixTable({ matrix }: { matrix: RecapMatrix }) {
             </tbody>
             <tfoot>
               <tr className="border-t-2">
-                <th className="py-2 pr-4 text-left font-semibold">Totale</th>
+                {/* In "Compensi" questo totale NON è il compenso del mese: qui ci
+                    sono solo le attribuzioni per vendita. I premi a punteggio e
+                    gli extra/addon non sono attribuibili a una singola vendita e
+                    restano fuori — dirlo evita che due numeri della stessa
+                    schermata sembrino contraddirsi. */}
+                <th className="py-2 pr-4 text-left font-semibold">
+                  {metric === "compenso" ? "Totale righe" : "Totale"}
+                </th>
                 {categories.map((c) => (
                   <td key={c} className="px-3 py-2 text-right font-semibold">
                     {fmt(colTot[c])}
@@ -81,6 +92,13 @@ export function RecapMatrixTable({ matrix }: { matrix: RecapMatrix }) {
             </tfoot>
           </table>
         </div>
+        {metric === "compenso" ? (
+          <p className="pt-3 text-xs text-muted-foreground">
+            <strong>Totale righe — esclusi premi ed extra.</strong> Il KPI «Compensi del mese» è più alto perché somma
+            anche i premi a punteggio (Top Club, Customer Base) e gli extra/addon del mese, che non appartengono a una
+            vendita in particolare.
+          </p>
+        ) : null}
       </CardContent>
     </Card>
   );

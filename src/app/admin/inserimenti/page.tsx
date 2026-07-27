@@ -233,10 +233,19 @@ export default async function InserimentiPage({
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>{isCurrent ? "Proiezione fine mese" : "Totale mese"}</CardDescription>
-            <CardTitle className="text-3xl">{eur(proiezione)}</CardTitle>
+            {/* Non è una previsione: è una regola del tre sui giorni fatti. Non
+                sa nulla delle rivalutazioni retroattive a soglia, che possono
+                far salire il mese di colpo quando scatta uno scaglione — per
+                questo si chiama "stima" e porta la tilde. */}
+            <CardDescription>{isCurrent ? "Stima al ritmo attuale" : "Totale mese"}</CardDescription>
+            <CardTitle className="text-3xl">
+              {isCurrent ? "~" : ""}
+              {eur(proiezione)}
+            </CardTitle>
             <p className="pt-1 text-xs text-muted-foreground">
-              {isCurrent && data.daysLeft > 0 ? `al ritmo attuale · ${data.daysLeft} gg rimasti` : "mese chiuso"}
+              {isCurrent && data.daysLeft > 0
+                ? `stima lineare sui ${data.daysInMonth} giorni · ${data.daysLeft} gg rimasti · non include gli scatti di soglia`
+                : "mese chiuso"}
             </p>
           </CardHeader>
         </Card>
