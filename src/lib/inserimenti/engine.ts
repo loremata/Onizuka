@@ -59,6 +59,13 @@ export interface ScoreKpi {
   label: string;
   points: number;
   source: "DERIVED" | "MANUAL";
+  /** Pista da contare, quando è diversa da `key`. Serve dove la STESSA pista
+   *  pesa su DUE righe di punteggio (Top Club: una MNP vale 2 pt "No ICP" +
+   *  1,5 pt "Val") e la chiave della riga non può ripetersi. */
+  sourceLineKey?: string | null;
+  /** Conta solo le vendite con questo subtype (es. "FWA_RIC"): il Top Club
+   *  premia gli accessi FWA ricaricabile, non tutti gli accessi fisso. */
+  matchSubtype?: string | null;
 }
 
 export interface Bonus {
@@ -382,6 +389,21 @@ function qtyOf(sales: Sale[], lineKey: string): number {
   return salesFor(sales, lineKey).length;
 }
 
+/**
+ * Pezzi che alimentano UNA riga di punteggio.
+ *
+ * Due deroghe rispetto al semplice qtyOf(sales, kpi.key):
+ *  - `sourceLineKey` : conta un'altra pista (una pista può pesare su più righe);
+ *  - `matchSubtype`  : conta solo le vendite di quel subtype (es. FWA_RIC, perché
+ *                      il Top Club premia gli accessi FWA ricaricabile, non tutti).
+ * Senza i due campi il risultato è identico a qtyOf(sales, kpi.key): le righe
+ * che non li usano non cambiano comportamento.
+ */
+function qtyOfKpi(sales: Sale[], kpi: ScoreKpi): number {
+  const mine = salesFor(sales, kpi.sourceLineKey ?? kpi.key);
+  return kpi.matchSubtype ? mine.filter((s) => s.subtype === kpi.matchSubtype).length : mine.length;
+}
+
 /** Premio a punteggio con cancelli in AND (§E.5–E.6). */
 function computePrize(
   prize: Prize,
@@ -391,7 +413,7 @@ function computePrize(
   // punteggio: KPI DERIVED contati dalle vendite, MANUAL dagli input mensili
   let points = 0;
   for (const kpi of prize.scoreKpis) {
-    const n = kpi.source === "DERIVED" ? qtyOf(sales, kpi.key) : (inputs[kpi.key] ?? 0);
+    const n = kpi.source === "DERIVED" ? qtyOfKpi(sales, kpi) : (inputs[kpi.key] ?? 0);
     points += n * kpi.points;
   }
 
@@ -677,10 +699,14 @@ export function prizeOpportunities(plan: Plan, result: MonthResult): PrizeOpport
     if (!missingGates.length) continue;
 
     const pointsNow = pr?.points ?? 0;
-    // i pezzi mancanti portano punti: quanto salirebbe il punteggio
+    // i pezzi mancanti portano punti: quanto salirebbe il punteggio. Una pista
+    // può alimentare PIÙ righe (MNP: 2 pt "No ICP" + 1,5 pt "Val"), quindi i
+    // punti per pezzo sono la SOMMA delle righe che contano quella pista.
     const extra = missingGates.reduce((a, g) => {
-      const kpi = prize.scoreKpis.find((k) => k.key === g.lineKey && k.source === "DERIVED");
-      return a + (kpi ? g.missing * kpi.points : 0);
+      const perPiece = prize.scoreKpis
+        .filter((k) => k.source === "DERIVED" && (k.sourceLineKey ?? k.key) === g.lineKey)
+        .reduce((s, k) => s + k.points, 0);
+      return a + g.missing * perPiece;
     }, 0);
     const pointsIfClosed = round2(pointsNow + extra);
     const prizeIfClosed = prizeAtPoints(prize, pointsIfClosed);

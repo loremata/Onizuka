@@ -331,6 +331,86 @@ describe("Top Club — cancelli in AND", () => {
   });
 });
 
+// ================================================ Top Club (punteggio, righe della lettera)
+
+/**
+ * Due deroghe di conteggio recepite dal consuntivo TIM del 25/07/2026:
+ *  - la riga "Acc. netto FWA Ric" premia SOLO gli accessi con subtype FWA_RIC
+ *    (prima contava ogni ACCESSO_FISSO, quindi anche le fibre piene → sovrastima);
+ *  - ogni MNP pesa su DUE righe, "No ICP" 2 pt + "Val" 1,5 pt = 3,5 pt a pezzo
+ *    (la riga Val mancava del tutto → sottostima).
+ */
+describe("Top Club — punteggio: filtro subtype e doppia riga MNP", () => {
+  const scorePlan = (): Plan => ({
+    brand: "TIM",
+    month: "2026-07",
+    engineVersion: "tim-2026-07",
+    lines: [MNP, AL_PP, FISSO],
+    params: PARAMS,
+    prizes: [
+      {
+        key: "TOP_CLUB",
+        label: "Top Club",
+        minPoints: 180,
+        maxPoints: 300,
+        minPrize: 1000,
+        maxPrize: 3000,
+        gates: [],
+        // stesse righe del piano luglio 2026
+        scoreKpis: [
+          { key: "ACCESSO_FISSO", label: "Acc. netto FWA Ric", points: 4, source: "DERIVED", matchSubtype: "FWA_RIC" },
+          { key: "TIMFIN", label: "TIM Fin", points: 4, source: "DERIVED" },
+          { key: "TELEPASS_FAMILY", label: "Telepass", points: 4, source: "DERIVED" },
+          { key: "MNP", label: "MNP (No ICP)", points: 2, source: "DERIVED" },
+          { key: "MNP_VAL", label: "MNP Val", points: 1.5, source: "DERIVED", sourceLineKey: "MNP" },
+          { key: "AL_PP", label: "AL PP net", points: 0.5, source: "DERIVED" },
+        ],
+        bonuses: [],
+        halvings: [],
+      },
+    ],
+  });
+
+  const pointsOf = (sales: Sale[]) => computeTim(scorePlan(), sales, {}).prizes[0].points;
+
+  test("una MNP vale 3,5 pt: 2 (No ICP) + 1,5 (Val)", () => {
+    expect(pointsOf([mnpSale(10)])).toBe(3.5);
+    expect(pointsOf(Array.from({ length: 11 }, () => mnpSale(10)))).toBe(38.5);
+  });
+
+  test("un accesso senza subtype (FTTCab/FTTH) NON porta i 4 pt della riga FWA Ric", () => {
+    expect(pointsOf([{ lineKey: "ACCESSO_FISSO", feeEur: 30, domiciled: true }])).toBe(0);
+    expect(pointsOf([{ lineKey: "ACCESSO_FISSO", feeEur: 30, domiciled: true, subtype: "FTTCAB" }])).toBe(0);
+  });
+
+  test("un accesso FWA ricaricabile porta i 4 pt", () => {
+    expect(pointsOf([{ lineKey: "ACCESSO_FISSO", feeEur: 25, domiciled: true, subtype: "FWA_RIC" }])).toBe(4);
+  });
+
+  test("consuntivo al 25/07: la formula dà 77,5 pt", () => {
+    const sales: Sale[] = [
+      ...Array.from({ length: 3 }, () => ({ lineKey: "ACCESSO_FISSO", feeEur: 25, domiciled: true, subtype: "FWA_RIC" })),
+      ...Array.from({ length: 4 }, () => ({ lineKey: "ACCESSO_FISSO", feeEur: 30, domiciled: true })),
+      ...Array.from({ length: 11 }, () => mnpSale(10)),
+      ...Array.from({ length: 6 }, () => ({ lineKey: "AL_PP", feeEur: 10, domiciled: false })),
+      ...Array.from({ length: 2 }, () => ({ lineKey: "TIMFIN", domiciled: false })),
+      ...Array.from({ length: 4 }, () => ({ lineKey: "TELEPASS_FAMILY", domiciled: false })),
+    ];
+    // 3×4 (FWA Ric) + 2×4 (TIM Fin) + 4×4 (Telepass) + 11×2 (MNP) + 11×1,5 (MNP Val) + 6×0,5 (AL PP)
+    expect(pointsOf(sales)).toBe(77.5);
+  });
+
+  test("retro-compatibilità: senza i due campi la riga conta tutta la pista", () => {
+    const plan = scorePlan();
+    plan.prizes[0].scoreKpis = [{ key: "ACCESSO_FISSO", label: "Accessi", points: 4, source: "DERIVED" }];
+    const sales: Sale[] = [
+      { lineKey: "ACCESSO_FISSO", feeEur: 25, domiciled: true, subtype: "FWA_RIC" },
+      { lineKey: "ACCESSO_FISSO", feeEur: 30, domiciled: true },
+    ];
+    expect(computeTim(plan, sales, {}).prizes[0].points).toBe(8);
+  });
+});
+
 // ============================================================ FOCUS ORA
 
 describe("focusNow", () => {
@@ -511,6 +591,27 @@ describe("prizeOpportunities — quando i cancelli non bastano", () => {
   test("cancelli tutti aperti: nessuna opportunità da segnalare", () => {
     const r = computeMonth(plan, sales(40, 20));
     expect(prizeOpportunities(plan, r)).toHaveLength(0);
+  });
+
+  test("una pista che pesa su due righe porta la SOMMA dei punti per pezzo", () => {
+    // stesso piano + riga "MNP Val" (1,5) sulla stessa pista MNP → 3,5 pt a MNP
+    const conVal: Plan = {
+      ...plan,
+      prizes: [
+        {
+          ...plan.prizes[0],
+          scoreKpis: [
+            ...plan.prizes[0].scoreKpis,
+            { key: "MNP_VAL", label: "MNP Val", points: 1.5, source: "DERIVED", sourceLineKey: "MNP" },
+          ],
+        },
+      ],
+    };
+    const s = sales(33, 30); // manca 1 MNP; punti 33×3,5 + 30×4 = 235,5
+    const r = computeMonth(conVal, s);
+    const [o] = prizeOpportunities(conVal, r);
+    expect(o.pointsNow).toBe(235.5);
+    expect(o.pointsIfClosed).toBe(239); // +1 MNP = +3,5
   });
 });
 

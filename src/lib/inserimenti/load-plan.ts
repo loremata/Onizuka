@@ -60,7 +60,15 @@ export async function loadPlan(
     gates: pr.gates.map((g) => ({ lineKey: g.lineKey, minQty: g.minQty })),
     scoreKpis: pr.scoreKpis
       .sort((a, b) => a.sortOrder - b.sortOrder)
-      .map((k) => ({ key: k.key, label: k.label, points: Number(k.points), source: k.source })),
+      .map((k) => ({
+        key: k.key,
+        label: k.label,
+        points: Number(k.points),
+        source: k.source,
+        // deroghe di conteggio (pista diversa dalla key / filtro subtype)
+        sourceLineKey: k.sourceLineKey,
+        matchSubtype: k.matchSubtype,
+      })),
     bonuses: pr.bonuses.map((b) => ({
       conditionLineKey: b.conditionLineKey,
       conditionMinQty: b.conditionMinQty,

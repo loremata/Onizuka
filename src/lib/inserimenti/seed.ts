@@ -61,6 +61,8 @@ async function seedPlan(ownerUserId: string, plan: SeedPlan) {
               points: new Prisma.Decimal(k.points),
               source: k.source,
               sortOrder: k.sortOrder,
+              sourceLineKey: k.sourceLineKey,
+              matchSubtype: k.matchSubtype,
             })),
           },
           bonuses: {

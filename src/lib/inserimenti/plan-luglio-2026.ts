@@ -63,6 +63,10 @@ export interface SeedKpi {
   points: number;
   source: "DERIVED" | "MANUAL";
   sortOrder: number;
+  /** Pista da contare, se diversa da `key` (una pista può pesare su due righe). */
+  sourceLineKey?: string;
+  /** Conta solo le vendite con questo subtype (es. "FWA_RIC"). */
+  matchSubtype?: string;
 }
 export interface SeedBonus {
   conditionLineKey: string;
@@ -296,17 +300,21 @@ const TIM: SeedPlan = {
       maxPrize: 3000,
       rules:
         "Lettera luglio: soglia 1 = 180 pt → 1.000€, soglia 2 = 300 pt → 3.000€ (interpolato). CANCELLI IN AND (azzerano il premio se mancano): Accessi ≥16, MNP ≥34, Telepass ≥8. +30% se Energia ≥4. " +
-        "Punteggi lettera (per il calcolo live uso quelli deducibili dalle vendite; gli altri servono a mano dal consuntivo): Acc.netto FWA Ric 4 · SMB Fix 4 · TIM FIN 4 · Telepass 4 · Trasf. da prop. 3 · MNVO ICP 3 · MNP No ICP 2 · MNP KENA 2 · MNP Val 1,5 · AL PP net 0,5.",
+        "Punteggi lettera (per il calcolo live uso quelli deducibili dalle vendite; gli altri servono a mano dal consuntivo): Acc.netto FWA Ric 4 · SMB Fix 4 · TIM FIN 4 · Telepass 4 · Trasf. da prop. 3 · MNVO ICP 3 · MNP No ICP 2 · MNP KENA 2 · MNP Val 1,5 · AL PP net 0,5. " +
+        "Due precisazioni recepite dal consuntivo TIM: (1) la riga Accessi premia SOLO le FWA ricaricabile (vendite ACCESSO_FISSO con subtype FWA_RIC) — gli accessi in fibra piena non portano quei 4 pt; (2) ogni MNP pesa DUE volte, 2 pt sulla riga 'No ICP' + 1,5 pt sulla riga 'Val', quindi 3,5 pt a pezzo.",
       gates: [
         { lineKey: "ACCESSO_FISSO", minQty: 16 },
         { lineKey: "MNP", minQty: 34 },
         { lineKey: "TELEPASS_FAMILY", minQty: 8 },
       ],
       scoreKpis: [
-        { key: "ACCESSO_FISSO", label: "Accessi (FWA ric / SMB Fix)", points: 4, source: "DERIVED", sortOrder: 10 },
+        // conta solo le FWA ricaricabile: il consuntivo TIM valorizza "Acc.netto FWA Ric"
+        { key: "ACCESSO_FISSO", label: "Acc. netto FWA Ric", points: 4, source: "DERIVED", matchSubtype: "FWA_RIC", sortOrder: 10 },
         { key: "TIMFIN", label: "TIM Fin", points: 4, source: "DERIVED", sortOrder: 20 },
         { key: "TELEPASS_FAMILY", label: "Telepass", points: 4, source: "DERIVED", sortOrder: 30 },
         { key: "MNP", label: "MNP (No ICP)", points: 2, source: "DERIVED", sortOrder: 40 },
+        // seconda riga sulla STESSA pista MNP (l'unique prizeId+key impone una key propria)
+        { key: "MNP_VAL", label: "MNP Val", points: 1.5, source: "DERIVED", sourceLineKey: "MNP", sortOrder: 45 },
         { key: "AL_PP", label: "AL PP net", points: 0.5, source: "DERIVED", sortOrder: 50 },
       ],
       bonuses: [{ conditionLineKey: "ENERGIA", conditionMinQty: 4, pct: 0.3, label: "+30% Energia" }],
