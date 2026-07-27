@@ -225,9 +225,23 @@ const salesFor = (sales: Sale[], lineKey: string) => sales.filter((s) => s.lineK
 
 /** Peso di una vendita sulla gara: FWA ricaricabile vale 0,5 sul Fisso (soglia
  *  e canone), tutto il resto 1. UNICA definizione — la usano motore e UI. */
-export function fwaWeight(lineKey: string, subtype?: string | null): number {
-  return lineKey === "ACCESSO_FISSO" && subtype === "FWA_RIC" ? 0.5 : 1;
+export function saleWeight(lineKey: string, subtype?: string | null): number {
+  // FWA ricaricabile: mezzo punto sul Fisso (soglia e canone), come da lettera.
+  if (lineKey === "ACCESSO_FISSO" && subtype === "FWA_RIC") return 0.5;
+  // Contenuti: i bundle multi-OTT contano più pezzi, su soglia E gettone.
+  // TIMVision L include 3 OTT (Netflix, Prime Video, Disney+) → 3 pezzi
+  // (confermato da Lorenzo il 27/07); Dazn completo ×3 e MyClub ×2 erano già
+  // nella lettera ma non erano mai stati portati nel motore.
+  if (lineKey === "CONTENUTI") {
+    if (subtype === "TIMVISION_L" || subtype === "DAZN10") return 3;
+    if (subtype === "MYCLUB") return 2;
+    return 1;
+  }
+  return 1;
 }
+
+/** @deprecated Nome storico: usa `saleWeight`, che copre anche TIMVision L. */
+export const fwaWeight = saleWeight;
 
 /**
  * Numero di soglia come nella lettera di gara. Due numerazioni convivono:
@@ -296,7 +310,7 @@ function computeTimLine(
 ): LineResult {
   const mine = salesFor(sales, line.key);
   // FWA ricaricabile: pesa 0,5 sulla gara Fisso (soglia e canone), come da lettera.
-  const fwWeight = (s: Sale) => fwaWeight(line.key, s.subtype);
+  const fwWeight = (s: Sale) => saleWeight(line.key, s.subtype);
   const qty = round2(mine.reduce((a, s) => a + fwWeight(s), 0));
 
   const idx = tierIndex(qty, line.tiers);
@@ -607,7 +621,7 @@ export function attributeSales(plan: Plan, sales: Sale[], inputs: MonthlyInputs 
   for (const line of plan.lines) {
     const mine = sales.map((s, i) => ({ s, i })).filter(({ s }) => s.lineKey === line.key);
     if (!mine.length) continue;
-    const fwWeight = (s: Sale) => fwaWeight(line.key, s.subtype);
+    const fwWeight = (s: Sale) => saleWeight(line.key, s.subtype);
     const qty = round2(mine.reduce((a, { s }) => a + fwWeight(s), 0));
 
     if (line.unit === "EUR_PER_PIECE") {
