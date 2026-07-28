@@ -65,12 +65,29 @@ export async function propagateOpportunityWon(opportunityId: string): Promise<Op
         // 1) WON ⇒ cliente ATTIVO: forza CLIENTE/ACTIVE_CLIENT (riattiva DORMANT/EX).
         const client = await tx.client.findUnique({
           where: { id: clientId },
-          select: { status: true, relationshipState: true },
+          select: {
+            status: true,
+            relationshipState: true,
+            marketingConsentBasis: true,
+            marketingOptOutAt: true,
+          },
         });
         if (client && (client.relationshipState !== "CLIENTE" || client.status !== "ACTIVE_CLIENT")) {
+          // Chi diventa cliente ha acquistato ⇒ la base marketing sale a
+          // SOFT_OPT_IN (art. 130 c.4), salvo disiscrizione o base già EXPLICIT.
+          // Anche il hook post-commit lo fa (copre gli altri percorsi), ma qui
+          // è in transazione: promozione e base viaggiano insieme.
+          const upgradeBasis =
+            !client.marketingOptOutAt &&
+            (client.marketingConsentBasis === "NONE" ||
+              client.marketingConsentBasis === "LEGITIMATE_INTEREST");
           await tx.client.update({
             where: { id: clientId },
-            data: { relationshipState: "CLIENTE", status: "ACTIVE_CLIENT" },
+            data: {
+              relationshipState: "CLIENTE",
+              status: "ACTIVE_CLIENT",
+              ...(upgradeBasis ? { marketingConsentBasis: "SOFT_OPT_IN" as const } : {}),
+            },
           });
           promotedClient = true;
         }

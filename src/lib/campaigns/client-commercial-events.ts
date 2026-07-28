@@ -1,4 +1,24 @@
+import { prisma } from "@/lib/prisma";
 import { reconcileClientEnrollments } from "@/lib/campaigns/engine";
+
+/**
+ * Linea sulle basi giuridiche decisa il 28/07: legittimo interesse per
+ * l'outreach a freddo, soft opt-in per chi è già cliente (art. 130 c.4).
+ * Quindi appena un soggetto diventa CLIENTE la sua base sale a SOFT_OPT_IN.
+ * Idempotente e con tutte le guardie nel WHERE: non tocca chi si è disiscritto
+ * né chi ha già una base uguale o più forte (EXPLICIT).
+ */
+async function upgradeConsentOnPromotion(clientId: string): Promise<void> {
+  await prisma.client.updateMany({
+    where: {
+      id: clientId,
+      relationshipState: "CLIENTE",
+      marketingOptOutAt: null,
+      marketingConsentBasis: { in: ["NONE", "LEGITIMATE_INTEREST"] },
+    },
+    data: { marketingConsentBasis: "SOFT_OPT_IN" },
+  });
+}
 
 /**
  * HOOK DI PROPAGAZIONE CENTRALE.
@@ -23,6 +43,9 @@ export async function onClientCommercialStateChanged(
   opts?: { reason?: string }
 ): Promise<void> {
   try {
+    // Prima il consenso, poi la riconciliazione: così l'arruolamento vede già
+    // la base aggiornata (le campagne richiedono SOFT_OPT_IN o EXPLICIT).
+    await upgradeConsentOnPromotion(clientId);
     await reconcileClientEnrollments({ clientId, dryRun: false });
   } catch (e) {
     // Non rilanciare: un errore di riconciliazione non deve rompere l'azione utente.
