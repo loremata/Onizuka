@@ -23,7 +23,7 @@ export async function EconomicOverviewCard({ ownerUserId }: { ownerUserId: strin
         <CardTitle className="text-base">Punto della situazione · {o.month}</CardTitle>
         <CardDescription>
           Reale = incassato − spese pagate + maturato negozio. Stimato = chiusura mese al
-          ritmo attuale. Importi netto IVA e netto spese.
+          ritmo attuale. Imponibili e compensi, quindi senza IVA, al netto delle spese.
           {o.negozio?.provisional ? " ~ piano negozio provvisorio." : ""}
           {!o.negozio ? " Cruscotto negozio non disponibile: totali solo agenzia." : ""}
         </CardDescription>

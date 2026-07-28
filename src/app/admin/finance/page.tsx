@@ -102,7 +102,8 @@ export default async function AdminFinancePage({ searchParams }: Props) {
       <div>
         <h1 className="onizuka-page-title">Onizuka Finance</h1>
         <p className="text-muted-foreground">
-          Pipeline CRM + registro entrate/uscite, importi al netto di IVA. Fatture, imposte e
+          Pipeline CRM + registro entrate/uscite. Gli importi sono <strong>imponibili</strong>,
+          cioè senza IVA (un contratto da 3.000 € va in fattura a 3.660 €). Fatture, imposte e
           note di credito sono del commercialista: qui si tiene traccia e si guarda avanti.
           Target mensile: € {FINANCE_MONTHLY_TARGET_EUR.toLocaleString("it-IT")}{" "}
           (lungo periodo € {FINANCE_LONG_TERM_TARGET_EUR.toLocaleString("it-IT")}).
