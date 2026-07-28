@@ -3,12 +3,14 @@ import { requireAdminArea } from "@/lib/admin-session";
 import { SocialHubTabs } from "@/components/onizuka/social-hub-tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { FeatureNotConfigured } from "@/components/onizuka/feature-not-configured";
 
 export default async function SocialManagerPage() {
   await requireAdminArea();
 
   return (
     <div className="space-y-6">
+      <FeatureNotConfigured feature="social-publishing" />
       <SocialHubTabs />
       <div>
         <h1 className="onizuka-page-title">Social Manager Pro</h1>

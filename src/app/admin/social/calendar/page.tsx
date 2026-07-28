@@ -5,6 +5,7 @@ import { SocialHubTabs } from "@/components/onizuka/social-hub-tabs";
 import { loadEditorialCalendar } from "@/lib/social-editorial-calendar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FeatureNotConfigured } from "@/components/onizuka/feature-not-configured";
 
 export default async function SocialCalendarPage() {
   await requireAdminArea();
@@ -30,6 +31,7 @@ export default async function SocialCalendarPage() {
 
   return (
     <div className="space-y-6">
+      <FeatureNotConfigured feature="social-publishing" />
       <SocialHubTabs />
       <div>
         <Button asChild variant="ghost" size="sm">
