@@ -11,6 +11,7 @@ import { createAuditOutreachSequence } from "@/lib/outreach-sequence";
 import { ensureClientDriveStructure } from "@/lib/client-drive-structure";
 import { fetchGbpSnapshot } from "@/lib/digital-audit-gbp-enrich";
 import { probeWebsiteWithSubpages } from "@/lib/website-probe";
+import { applyFoundContacts } from "@/lib/contact-enrichment";
 import { buildAuditOutreachKit } from "@/lib/audit-outreach-kit";
 import { ensureDigitalAuditPublicReportToken } from "@/lib/public-report-token";
 import { fetchPageSpeed } from "@/lib/audit/pagespeed";
@@ -91,21 +92,18 @@ export async function runDigitalAuditForClient(params: {
   const hasWebsiteUrl = Boolean(client.website?.trim());
   const probe = await probeWebsiteWithSubpages(client.website);
 
-  // Recupero email dal sito (mailto/pagina contatti): i lead scrapati non hanno email
-  // dal registro/Places, quindi le bozze non sarebbero inviabili. Se il contatto è vuoto
-  // o segnaposto @onizuka.local e il sito espone un'email valida, la salvo sul cliente.
-  const currentEmail = client.contactEmail?.trim() ?? "";
-  const emailIsPlaceholder = !currentEmail || /@onizuka\.local$/i.test(currentEmail);
-  if (probe?.email && emailIsPlaceholder) {
-    await prisma.client
-      .update({ where: { id: client.id }, data: { contactEmail: probe.email } })
-      .catch(() => undefined);
-    client.contactEmail = probe.email;
-    if (leadId) {
-      await prisma.lead
-        .updateMany({ where: { id: leadId, OR: [{ email: null }, { email: "" }] }, data: { email: probe.email } })
-        .catch(() => undefined);
-    }
+  // Recupero contatti dal sito (mailto/tel/pagina contatti): i lead scrapati non hanno
+  // email dal registro/Places, quindi le bozze non sarebbero inviabili. Punto unico di
+  // scrittura in contact-enrichment: guardie anti-sovrascrittura + rivalutazione della
+  // base giuridica (prima l'email veniva trovata ma il soggetto restava NONE).
+  if (probe?.email || probe?.phone) {
+    const applied = await applyFoundContacts({
+      clientId: client.id,
+      leadId,
+      found: { email: probe.email ?? null, phone: probe.phone ?? null },
+    }).catch(() => null);
+    if (applied?.emailApplied && probe.email) client.contactEmail = probe.email;
+    if (applied?.phoneApplied && probe.phone) client.phone = probe.phone;
   }
   // PageSpeed solo se il sito risponde (niente chiamate lente/inutili su siti giù o assenti).
   const psi = hasWebsiteUrl && probe?.ok && client.website ? await fetchPageSpeed(client.website) : null;

@@ -1038,6 +1038,9 @@ model Lead {
   city                    String?
   /// Google Places place_id (segnale forte, non sostituto P.IVA).
   googlePlaceId           String?
+  /// Ultimo tentativo di recupero contatti dal sito (batch cron): evita di
+  /// risondare lo stesso sito prima di 30 giorni.
+  contactEnrichedAt       DateTime?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 
