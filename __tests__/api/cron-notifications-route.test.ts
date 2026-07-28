@@ -13,6 +13,7 @@ jest.mock("@/lib/automation-rules-run", () => ({
 
 jest.mock("@/lib/flow-due-notifications", () => ({
   runFlowDueReminders: jest.fn(() => Promise.resolve({ dueToday: 1, overdue: 0, skipped: 0 })),
+  purgeOldNotifications: jest.fn(() => Promise.resolve(0)),
 }));
 
 jest.mock("@/lib/notification-digest", () => ({
