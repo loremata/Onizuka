@@ -8,6 +8,7 @@
     "db:up": "node scripts/db-up.mjs",
     "dev:all": "npm run db:up && npm run dev",
     "build": "next build",
+    "vercel-build": "node scripts/deploy-migrate.mjs && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
