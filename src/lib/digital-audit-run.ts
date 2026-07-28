@@ -100,6 +100,7 @@ export async function runDigitalAuditForClient(params: {
     const applied = await applyFoundContacts({
       clientId: client.id,
       leadId,
+      ownerUserId: params.ownerUserId,
       found: { email: probe.email ?? null, phone: probe.phone ?? null },
     }).catch(() => null);
     if (applied?.emailApplied && probe.email) client.contactEmail = probe.email;

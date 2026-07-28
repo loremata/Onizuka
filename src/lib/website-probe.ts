@@ -161,6 +161,8 @@ export function pickBusinessPhone(telHrefs: string[], textPhones: string[] = [])
     if (national.length < 8 || national.length > 11) return undefined;
     if (!/^[03]/.test(national)) return undefined;
     if (/^(\d)\1+$/.test(national)) return undefined;
+    // I mobili italiani sono 3xx + 6-7 cifre: un "3…" di 11 cifre non esiste.
+    if (national.startsWith("3") && national.length > 10) return undefined;
     // Dal testo, 11 cifre con lo 0 davanti = P.IVA con altissima probabilità.
     if (fromText && national.length === 11 && national.startsWith("0")) return undefined;
     return display;
@@ -269,7 +271,9 @@ export function extractRichSignals(
   );
   const textPhones = Array.from(
     // Numeri italiani nel testo: +39/0039 opzionale, poi fisso (0…) o mobile (3…).
-    rawHtml.matchAll(/(?:\+39|0039)?[\s.]?(?:0\d{1,3}|3\d{2})[\s.\/-]?\d{5,8}(?!\d)/g),
+    // Il lookbehind (?<!\d) impedisce di partire a metà di una sequenza più lunga:
+    // senza, "P.IVA 13571220154" produceva il finto mobile "3571220154".
+    rawHtml.matchAll(/(?<![\d+])(?:\+39|0039)?[\s.]?(?:0\d{1,3}|3\d{2})[\s.\/-]?\d{5,8}(?!\d)/g),
     (mm) => mm[0]
   );
   const phone = pickBusinessPhone(telHrefs.slice(0, 15), textPhones.slice(0, 15));

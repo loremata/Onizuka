@@ -26,12 +26,17 @@ export async function GET(request: NextRequest) {
   if (!authorizeCron(request)) {
     return jsonApiError(401, "UNAUTHORIZED", "Non autorizzato.");
   }
+  const startedAt = Date.now();
   const limit = Math.min(10, Math.max(1, Number(request.nextUrl.searchParams.get("limit") ?? "4")));
   const result = await processScrapingAuditBatch(limit);
 
   // Recupero contatti: 3 lead per run × 8 run/giorno = ~24 siti sondati al
-  // giorno. Best-effort: un errore qui non deve far fallire il run della coda.
-  const enrichment = await enrichPendingLeadContacts(3).catch(() => null);
+  // giorno. Solo se il batch audit ha lasciato margine (ogni probe può costare
+  // ~30s e maxDuration è 300s: partire a ridosso del limite significherebbe
+  // farsi troncare a metà). Best-effort: un errore non fa fallire il run.
+  const elapsedS = (Date.now() - startedAt) / 1000;
+  const enrichment =
+    elapsedS < 180 ? await enrichPendingLeadContacts(3).catch(() => null) : "skipped_no_budget";
 
   return NextResponse.json({ ok: true, ...result, enrichment });
 }

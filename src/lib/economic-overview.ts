@@ -7,10 +7,11 @@ import { loadDashboard, currentMonth } from "@/lib/inserimenti/dashboard";
 /**
  * PUNTO DELLA SITUAZIONE ECONOMICA — agenzia + negozio in un colpo d'occhio.
  *
- * "Reale" = quello che è già entrato o maturato: incassi del mese (agenzia) e
- * compensi maturati al banco (negozio). "Stimato" = dove si chiude il mese se
- * il ritmo regge: reale + entrate attese + proiezione lineare del negozio.
- * Tutti gli importi al netto di IVA (l'imposta è materia del commercialista).
+ * "Reale" = il netto già consolidato: incassi del mese meno spese pagate
+ * (agenzia) più compensi maturati al banco (negozio). "Stimato" = dove si
+ * chiude il mese se il ritmo regge: reale + entrate attese − spese attese +
+ * proiezione lineare del negozio. Stessa convenzione su entrambi i numeri,
+ * tutti gli importi al netto di IVA (l'imposta è materia del commercialista).
  *
  * I consigli sono regole, non magia: scaduti da sollecitare, gap sul target,
  * la mossa di gara col miglior rapporto (focus del motore compensi), premi a
@@ -33,16 +34,21 @@ export type EconomicOverview = {
     pipelinePesataLabel: string;
     overdueCount: number;
   };
+  /** null = cruscotto negozio non disponibile (i totali sotto sono solo agenzia). */
   negozio: {
     maturatoEur: number;
     proiezioneEur: number | null;
     mesePrecedenteEur: number;
     /** Il piano di qualche brand è provvisorio: cifre da confermare. */
     provisional: boolean;
-  };
-  /** Reale = incassato agenzia + maturato negozio. */
+  } | null;
+  /**
+   * Reale = incassato agenzia − spese già pagate + maturato negozio.
+   * Stimato = reale + atteso agenzia − spese attese + (proiezione − maturato) negozio.
+   * Stessa convenzione (netto spese) su entrambi: sono lo stesso numero in due
+   * momenti del mese, devono essere confrontabili.
+   */
   realeEur: number;
-  /** Stimato fine mese = reale + atteso agenzia + (proiezione − maturato) negozio. */
   stimatoEur: number;
   consigli: EconomicAdvice[];
 };
@@ -75,9 +81,12 @@ export async function loadEconomicOverview(ownerUserId: string): Promise<Economi
       : null;
   const provisional = Boolean(negozioDash?.blocks.some((b) => b.planStatus === "PROVISIONAL"));
 
-  const realeEur = round2(l.incomeReceived + maturato);
+  // Entrambi NETTO spese (oltre che netto IVA): reale usa le spese già pagate,
+  // stimato aggiunge attese in entrata e in uscita. Prima il reale era lordo e
+  // lo stimato netto: due grandezze diverse affiancate sulla stessa card.
+  const realeEur = round2(l.incomeReceived - l.expensePaid + maturato);
   const stimatoEur = round2(
-    l.incomeReceived + l.incomeExpected - l.expenseExpected - l.expensePaid + (proiezione ?? maturato)
+    realeEur + l.incomeExpected - l.expenseExpected + ((proiezione ?? maturato) - maturato)
   );
 
   // ── Consigli ──────────────────────────────────────────────────────────────
@@ -148,12 +157,14 @@ export async function loadEconomicOverview(ownerUserId: string): Promise<Economi
       pipelinePesataLabel: pipeline?.weightedPipelineLabel ?? "0",
       overdueCount: ledger.stats.overdueCount,
     },
-    negozio: {
-      maturatoEur: round2(maturato),
-      proiezioneEur: proiezione,
-      mesePrecedenteEur: round2(negozioDash?.prevTotal ?? 0),
-      provisional,
-    },
+    negozio: negozioDash
+      ? {
+          maturatoEur: round2(maturato),
+          proiezioneEur: proiezione,
+          mesePrecedenteEur: round2(negozioDash.prevTotal ?? 0),
+          provisional,
+        }
+      : null,
     realeEur,
     stimatoEur,
     consigli: consigli.slice(0, 5),
