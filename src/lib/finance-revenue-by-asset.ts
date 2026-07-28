@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { FINANCE_STATUS_ALL } from "@/lib/finance-status-groups";
 
 export type AssetRevenueRow = {
   assetId: string;
@@ -27,7 +28,7 @@ export async function loadFinanceRevenueByAsset(
       ownerUserId,
       type: "INCOME",
       assetId: { not: null },
-      status: { in: ["EXPECTED", "RECEIVED", "OVERDUE", "PLANNED"] },
+      status: { in: FINANCE_STATUS_ALL },
       OR: [
         { dueDate: { gte: start, lte: end } },
         { paidAt: { gte: start, lte: end } },

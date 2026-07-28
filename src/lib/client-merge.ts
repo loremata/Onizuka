@@ -67,6 +67,75 @@ export async function mergeClients(
       await tx.clientOnboardingItem.updateMany({ where: { clientId: sourceId }, data: move });
       await tx.socialInboxComment.updateMany({ where: { clientId: sourceId }, data: move });
 
+      // Relazioni senza vincoli di unicità: spostamento diretto.
+      // StoreSale è SetNull (le vendite restavano orfane = compensi non più
+      // riconducibili a nessuno); le altre erano Cascade = cancellate in silenzio.
+      await tx.storeSale.updateMany({ where: { clientId: sourceId }, data: move });
+      await tx.competitor.updateMany({ where: { clientId: sourceId }, data: move });
+
+      // Relazioni con vincoli di unicità: prima si eliminano le righe del source
+      // che collidono con quelle già presenti sul target (vince il target), poi si
+      // sposta il resto. Senza questo passaggio la transazione fallirebbe in blocco.
+      await tx.$executeRaw`
+        DELETE FROM "SocialAccount" s
+        WHERE s."clientId" = ${sourceId}
+          AND EXISTS (
+            SELECT 1 FROM "SocialAccount" t
+            WHERE t."clientId" = ${targetId}
+              AND t."platform" = s."platform"
+              AND t."externalAccountId" = s."externalAccountId"
+          )`;
+      await tx.socialAccount.updateMany({ where: { clientId: sourceId }, data: move });
+
+      await tx.$executeRaw`
+        DELETE FROM "AnalyticsConnection" s
+        WHERE s."clientId" = ${sourceId}
+          AND EXISTS (
+            SELECT 1 FROM "AnalyticsConnection" t
+            WHERE t."clientId" = ${targetId}
+              AND t."source" = s."source"
+              AND t."externalId" = s."externalId"
+          )`;
+      await tx.analyticsConnection.updateMany({ where: { clientId: sourceId }, data: move });
+
+      await tx.$executeRaw`
+        DELETE FROM "AnalyticsMetric" s
+        WHERE s."clientId" = ${sourceId}
+          AND EXISTS (
+            SELECT 1 FROM "AnalyticsMetric" t
+            WHERE t."clientId" = ${targetId}
+              AND t."source" = s."source"
+              AND t."metricKey" = s."metricKey"
+              AND t."dimension" = s."dimension"
+              AND t."date" = s."date"
+          )`;
+      await tx.analyticsMetric.updateMany({ where: { clientId: sourceId }, data: move });
+
+      // Report insight: uno solo per cliente (clientId @unique).
+      const targetInsight = await tx.socialInsightReport.findUnique({
+        where: { clientId: targetId },
+        select: { id: true },
+      });
+      if (targetInsight) {
+        await tx.socialInsightReport.deleteMany({ where: { clientId: sourceId } });
+      } else {
+        await tx.socialInsightReport.updateMany({ where: { clientId: sourceId }, data: move });
+      }
+
+      // Iscrizioni campagne: indice univoco parziale sulle sole ACTIVE.
+      const targetActiveCampaignIds = (
+        await tx.campaignEnrollment.findMany({
+          where: { clientId: targetId, status: "ACTIVE" },
+          select: { campaignId: true },
+        })
+      ).map((e) => e.campaignId);
+      if (targetActiveCampaignIds.length) {
+        await tx.campaignEnrollment.deleteMany({
+          where: { clientId: sourceId, status: "ACTIVE", campaignId: { in: targetActiveCampaignIds } },
+        });
+      }
+      await tx.campaignEnrollment.updateMany({ where: { clientId: sourceId }, data: move });
+
       // Attributi: dedup su @@unique([clientId, key]) — tieni quelli del target.
       const targetAttrKeys = (
         await tx.clientAttribute.findMany({ where: { clientId: targetId }, select: { key: true } })

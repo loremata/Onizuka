@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/prisma";
 
 export type OpportunityWonResult = {
+  /**
+   * `false` = la transazione è fallita e NIENTE è stato scritto, stato WON compreso.
+   * Prima l'errore veniva inghiottito e il chiamante festeggiava lo stesso: audit log
+   * "vinta", toast verde, e l'opportunità ancora OPEN al primo refresh.
+   */
+  ok: boolean;
   clientId: string | null;
   promotedClient: boolean;
   activatedServiceSlug: string | null;
@@ -8,11 +14,14 @@ export type OpportunityWonResult = {
 };
 
 const EMPTY: OpportunityWonResult = {
+  ok: true,
   clientId: null,
   promotedClient: false,
   activatedServiceSlug: null,
   convertedLead: false,
 };
+
+const FAILED: OpportunityWonResult = { ...EMPTY, ok: false };
 
 /**
  * Propaga gli effetti di un'opportunità VINTA. ATOMICO: imposta lo stato WON e tutti
@@ -43,7 +52,7 @@ export async function propagateOpportunityWon(opportunityId: string): Promise<Op
       const clientId = opp.clientId ?? opp.lead?.clientId ?? null;
       // Idempotente: già vinta ⇒ niente ri-propagazione (es. accettazione di un 2° preventivo).
       if (opp.status === "WON") {
-        return { clientId, promotedClient: false, activatedServiceSlug: null, convertedLead: false };
+        return { ok: true, clientId, promotedClient: false, activatedServiceSlug: null, convertedLead: false };
       }
 
       await tx.opportunity.update({ where: { id: opportunityId }, data: { status: "WON" } });
@@ -98,18 +107,33 @@ export async function propagateOpportunityWon(opportunityId: string): Promise<Op
 
       // 3) Segna il lead collegato come convertito (stage WON), mantenendo il link satellite.
       if (opp.leadId) {
+        // `Lead.convertedClientId` è @unique: se un ALTRO lead punta già a questo
+        // cliente (succede quando due lead condividono P.IVA/CF e riusano lo stesso
+        // Client), scriverlo qui solleverebbe P2002 e farebbe rollback dell'intera
+        // vincita. In quel caso teniamo solo il link satellite `clientId`.
+        const alreadyConverted = clientId
+          ? await tx.lead.findFirst({
+              where: { convertedClientId: clientId, id: { not: opp.leadId } },
+              select: { id: true },
+            })
+          : null;
+
         await tx.lead.update({
           where: { id: opp.leadId },
           data: {
             status: "CONVERTED",
             commercialProspectStage: "WON",
-            ...(clientId ? { convertedClientId: clientId, clientId } : {}),
+            ...(clientId
+              ? alreadyConverted
+                ? { clientId }
+                : { convertedClientId: clientId, clientId }
+              : {}),
           },
         });
         convertedLead = true;
       }
 
-      return { clientId, promotedClient, activatedServiceSlug, convertedLead };
+      return { ok: true, clientId, promotedClient, activatedServiceSlug, convertedLead };
     });
 
     // Effetti collaterali POST-commit (best-effort: non devono invalidare la vincita).
@@ -126,6 +150,6 @@ export async function propagateOpportunityWon(opportunityId: string): Promise<Op
     return result;
   } catch (e) {
     console.error("propagateOpportunityWon failed", e);
-    return EMPTY;
+    return FAILED;
   }
 }
