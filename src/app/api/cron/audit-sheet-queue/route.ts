@@ -4,6 +4,7 @@ import { jsonApiError } from "@/lib/api-json-errors";
 import { processAuditSheetQueueBatch } from "@/lib/audit-sheet-queue-processor";
 import { prisma } from "@/lib/prisma";
 import { syncAuditSheetQueue } from "@/lib/audit-sheet-ingest";
+import { withCronRun } from "@/lib/cron-run";
 
 // Il batch esegue fino a 10 audit sequenziali (probe sito + Google Places): può
 // durare diversi minuti. Alziamo il limite di esecuzione per evitare timeout a
@@ -19,7 +20,7 @@ function authorizeCron(request: NextRequest): boolean {
   return timingSafeStrEqual(request.headers.get("x-cron-secret"), secret);
 }
 
-export async function GET(request: NextRequest) {
+async function cronHandler(request: NextRequest) {
   if (!authorizeCron(request)) {
     return jsonApiError(401, "UNAUTHORIZED", "Non autorizzato.");
   }
@@ -48,3 +49,6 @@ export async function GET(request: NextRequest) {
   const result = await processAuditSheetQueueBatch(limit);
   return NextResponse.json({ ok: true, synced, ...result });
 }
+
+// Ogni esecuzione lascia una riga in CronRun: e' cosi' che si vede se gira ancora.
+export const GET = withCronRun("audit-sheet-queue", cronHandler);

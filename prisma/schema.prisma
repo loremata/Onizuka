@@ -2551,3 +2551,25 @@ model IncentiveOfficialProgress {
   @@index([ownerUserId, month])
   @@index([brand, month, asOfDate])
 }
+
+/// Battito dei lavori notturni: una riga per ogni esecuzione di un cron.
+/// Serve a rispondere alla domanda "gira ancora?" — prima non c'era modo di
+/// distinguere "coda vuota" da "cron morto da una settimana".
+/// `finishedAt`/`ok` a null su una riga vecchia = il run e' stato TRONCATO
+/// (timeout della funzione): e' proprio il caso che non lasciava traccia.
+model CronRun {
+  id          String    @id @default(cuid())
+  /// Nome logico del cron (es. "notifications", "scraping-audit").
+  name        String
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  ok          Boolean?
+  durationMs  Int?
+  httpStatus  Int?
+  /// Payload di risposta troncato: i conteggi utili per capire cosa ha fatto.
+  resultJson  String?   @db.Text
+  errorDetail String?   @db.Text
+
+  @@index([name, startedAt])
+  @@index([startedAt])
+}

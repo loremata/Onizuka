@@ -3,6 +3,7 @@ import { timingSafeStrEqual } from "@/lib/timing-safe-str";
 import { jsonApiError } from "@/lib/api-json-errors";
 import { prisma } from "@/lib/prisma";
 import { ownedSlugsFromRows } from "@/lib/campaigns/ownership";
+import { withCronRun } from "@/lib/cron-run";
 import {
   reconcileClientEnrollments,
   applyDueSend,
@@ -35,7 +36,7 @@ function authorizeCron(request: NextRequest): boolean {
   return timingSafeStrEqual(request.headers.get("x-cron-secret"), secret);
 }
 
-export async function GET(request: NextRequest) {
+async function cronHandler(request: NextRequest) {
   if (!authorizeCron(request)) {
     return jsonApiError(401, "UNAUTHORIZED", "Non autorizzato.");
   }
@@ -176,3 +177,6 @@ export async function GET(request: NextRequest) {
     completedEnrollments,
   });
 }
+
+// Ogni esecuzione lascia una riga in CronRun: e' cosi' che si vede se gira ancora.
+export const GET = withCronRun("campaign-tick", cronHandler);

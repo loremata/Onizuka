@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { RecapTimezoneForm } from "./recap-timezone-form";
 import { NotifyDigestForm } from "./notify-digest-form";
 import { MarketingPolicyForm } from "./marketing-policy-form";
+import { CronHealthPanel } from "@/components/onizuka/cron-health-panel";
 import { DeployStatusPanel } from "@/components/onizuka/deploy-status-panel";
 import { ProductionReadinessPanel } from "@/components/onizuka/production-readiness-panel";
 import { GoLiveLinks } from "./go-live-links";
@@ -109,6 +110,8 @@ export default async function AdminSettingsPage() {
           <NotifyDigestForm defaultEnabled={userPrefs?.notifyDigestEmail !== false} />
         </CardContent>
       </Card>
+
+      {admin ? <CronHealthPanel /> : null}
 
       {admin ? (
         <Card className="max-w-2xl">

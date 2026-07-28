@@ -3,6 +3,7 @@ import { timingSafeStrEqual } from "@/lib/timing-safe-str";
 import { jsonApiError } from "@/lib/api-json-errors";
 import { prisma } from "@/lib/prisma";
 import { collectMetaAdsForConnection, collectGoogleAdsForConnection } from "@/lib/ads-collector";
+import { withCronRun } from "@/lib/cron-run";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ function authorizeCron(request: NextRequest): boolean {
   return timingSafeStrEqual(request.headers.get("x-cron-secret"), secret);
 }
 
-export async function GET(request: NextRequest) {
+async function cronHandler(request: NextRequest) {
   if (!authorizeCron(request)) {
     return jsonApiError(401, "UNAUTHORIZED", "Non autorizzato.");
   }
@@ -51,3 +52,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ ok: true, scanned: conns.length, synced, written, failed, errors });
 }
+
+// Ogni esecuzione lascia una riga in CronRun: e' cosi' che si vede se gira ancora.
+export const GET = withCronRun("analytics-ads", cronHandler);
