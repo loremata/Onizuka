@@ -17,9 +17,27 @@ export type EmailableClient = {
   marketingOptOutAt: Date | null;
 };
 
-/** True se il cliente può ricevere email marketing (base valida + nessun opt-out). */
+/**
+ * True se il soggetto può ricevere posta commerciale in generale: qualunque base
+ * valida e nessun opt-out. È il gate dell'**outreach a freddo**, dove la base
+ * tipica è `LEGITIMATE_INTEREST` (contatto aziendale pubblico).
+ */
 export function isEmailable(client: EmailableClient): boolean {
   return client.marketingConsentBasis !== "NONE" && client.marketingOptOutAt == null;
+}
+
+/**
+ * Gate più stretto per le **campagne cross-sell**: si scrive a chi è già cliente
+ * (`SOFT_OPT_IN`, art. 130 c.4) o ha dato un consenso esplicito. Il legittimo
+ * interesse su un contatto aziendale pubblico giustifica un primo contatto B2B,
+ * non l'inserimento in una sequenza di marketing ricorrente.
+ */
+export function isCampaignEmailable(client: EmailableClient): boolean {
+  return (
+    (client.marketingConsentBasis === "SOFT_OPT_IN" ||
+      client.marketingConsentBasis === "EXPLICIT") &&
+    client.marketingOptOutAt == null
+  );
 }
 
 /** Genera un token opt-out opaco (url-safe) per il link di disiscrizione. */

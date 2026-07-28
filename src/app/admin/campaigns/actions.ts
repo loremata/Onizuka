@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdminArea } from "@/lib/admin-session";
+import { requireFullAdmin } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -20,7 +20,9 @@ function parseStatus(raw: FormDataEntryValue | null): CampaignStatusValue | null
 
 /** Cambia lo stato di una campagna cross-sell. Usato dai bottoni "Attiva" / "Metti in pausa". */
 export async function setCampaignStatus(campaignId: string, formData: FormData) {
-  await requireAdminArea();
+  // Attivare una campagna avvia l'arruolamento automatico dei clienti: è una
+  // decisione da titolare del trattamento, non da collaboratore.
+  await requireFullAdmin();
   const status = parseStatus(formData.get("status"));
   if (!status) return;
 

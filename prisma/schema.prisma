@@ -546,8 +546,10 @@ model Client {
   dedupeEmbeddingVector Unsupported("vector(1536)")?
   /// Ore SLA ticket portale per questo cliente (override globale TICKET_SLA_HOURS).
   ticketSlaHours        Int?
-  /// Base legale per email marketing cross-sell (GDPR). SOFT_OPT_IN = clienti esistenti su prodotti simili.
-  marketingConsentBasis MarketingConsentBasis        @default(SOFT_OPT_IN)
+  /// Base legale per email marketing (GDPR). Il default e' NONE: il soft opt-in vale
+  /// solo per chi ha gia' acquistato, su prodotti analoghi, e va assegnato di proposito.
+  /// Con SOFT_OPT_IN come default se lo ritrovavano anche i lead presi da fonti pubbliche.
+  marketingConsentBasis MarketingConsentBasis        @default(NONE)
   /// Quando il cliente si è disiscritto dal marketing (null = iscritto). Ferma tutte le campagne.
   marketingOptOutAt     DateTime?
   /// Token URL-safe per il link "disiscriviti" nelle email di campagna.
@@ -2407,9 +2409,10 @@ model StoreMonthlyInput {
 
 /// Base legale per l'email marketing (GDPR).
 enum MarketingConsentBasis {
-  NONE        // nessuna base → non contattabile
-  SOFT_OPT_IN // cliente esistente su prodotti/servizi simili (legittimo interesse)
-  EXPLICIT    // consenso esplicito raccolto (form/negozio)
+  NONE                // nessuna base → non contattabile
+  LEGITIMATE_INTEREST // contatto aziendale generico (info@, azienda) da fonti pubbliche: solo outreach B2B, con origine dichiarata e opt-out
+  SOFT_OPT_IN         // cliente esistente, su prodotti/servizi analoghi (art. 130 c.4)
+  EXPLICIT            // consenso esplicito raccolto (form/negozio)
 }
 
 enum CampaignChannel {

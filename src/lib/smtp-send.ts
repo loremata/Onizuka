@@ -12,6 +12,12 @@ export type SendEmailParams = {
   text: string;
   html?: string;
   attachments?: EmailAttachment[];
+  /**
+   * Intestazioni aggiuntive. Servono per `List-Unsubscribe` e
+   * `List-Unsubscribe-Post` (RFC 8058): senza di quelle Gmail e Yahoo
+   * declassano la posta massiva, e la disiscrizione con un click non funziona.
+   */
+  headers?: Record<string, string>;
 };
 
 export function isSmtpConfigured(): boolean {
@@ -47,6 +53,7 @@ export async function sendEmailViaSmtp(params: SendEmailParams): Promise<{ ok: t
       subject: params.subject,
       text: params.text,
       html: params.html ?? params.text.replace(/\n/g, "<br>"),
+      headers: params.headers,
       attachments: params.attachments?.map((a) => ({
         filename: a.filename,
         content: a.content,
