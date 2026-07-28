@@ -3,6 +3,7 @@ import { timingSafeStrEqual } from "@/lib/timing-safe-str";
 import { jsonApiError } from "@/lib/api-json-errors";
 import { prisma } from "@/lib/prisma";
 import { generateAndStoreInsights } from "@/lib/social-insights-store";
+import { withCronRun } from "@/lib/cron-run";
 
 // Il panel fa più chiamate LLM per cliente: alziamo il limite di esecuzione.
 export const maxDuration = 300;
@@ -18,7 +19,7 @@ function authorizeCron(request: NextRequest): boolean {
   return timingSafeStrEqual(request.headers.get("x-cron-secret"), secret);
 }
 
-export async function GET(request: NextRequest) {
+async function cronHandler(request: NextRequest) {
   if (!authorizeCron(request)) {
     return jsonApiError(401, "UNAUTHORIZED", "Non autorizzato.");
   }
@@ -55,3 +56,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ ok: true, scanned: clients.length, refreshed, aiGenerated, failed, errors });
 }
+
+// Ogni esecuzione lascia una riga in CronRun: e' cosi' che si vede se gira ancora.
+export const GET = withCronRun("social-insights", cronHandler);

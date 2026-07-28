@@ -3,6 +3,7 @@ import { timingSafeStrEqual } from "@/lib/timing-safe-str";
 import { jsonApiError } from "@/lib/api-json-errors";
 import { prisma } from "@/lib/prisma";
 import { publishPostItemNative } from "@/lib/social-publish-native";
+import { withCronRun } from "@/lib/cron-run";
 
 // Pubblicazione può fare N chiamate Graph/LinkedIn in sequenza: alziamo il limite.
 export const maxDuration = 120;
@@ -19,7 +20,7 @@ function authorizeCron(request: NextRequest): boolean {
   return timingSafeStrEqual(request.headers.get("x-cron-secret"), secret);
 }
 
-export async function GET(request: NextRequest) {
+async function cronHandler(request: NextRequest) {
   if (!authorizeCron(request)) {
     return jsonApiError(401, "UNAUTHORIZED", "Non autorizzato.");
   }
@@ -73,3 +74,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ ok: true, scanned: due.length, published, failed, errors });
 }
+
+// Ogni esecuzione lascia una riga in CronRun: e' cosi' che si vede se gira ancora.
+export const GET = withCronRun("social-publish", cronHandler);

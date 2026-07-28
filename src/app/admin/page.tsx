@@ -8,6 +8,7 @@ import { loadAdminKpiTrends } from "@/lib/admin-kpi-trends";
 import { loadActionInbox } from "@/lib/action-inbox";
 import { ActionInboxCard } from "@/components/onizuka/action-inbox-card";
 import { EconomicOverviewCard } from "@/components/onizuka/economic-overview-card";
+import { CronHealthBanner } from "@/components/onizuka/cron-health-banner";
 import { resolveRecapDayBounds } from "@/lib/day-bounds";
 import { askIntentLabel } from "@/lib/ask-onizuka";
 import { orchestrateAsk } from "@/lib/ask-orchestration";
@@ -121,6 +122,9 @@ export default async function AdminDashboardPage({ searchParams }: Props) {
           </CardContent>
         </Card>
       ) : null}
+
+      {/* 0 · Se un lavoro notturno e' fermo lo devi sapere prima di ogni altra cosa */}
+      <CronHealthBanner />
 
       {/* 1 · Cosa fare oggi — l'unica lista azionabile */}
       <ActionInboxCard items={inbox} />

@@ -22,6 +22,7 @@ import { runMeetingFollowthroughReminders } from "@/lib/meeting-followthrough-cr
 import { runRetailSwitchTaskGeneration } from "@/lib/retail-switch-task-cron";
 import { runRiskSignalTasks } from "@/lib/risk-signal-cron";
 import { prisma } from "@/lib/prisma";
+import { withCronRun, purgeOldCronRuns } from "@/lib/cron-run";
 
 // Il cron giornaliero esegue molte operazioni (alcune con fetch/SMTP/webhook):
 // alziamo il limite per non essere troncati a metà catena.
@@ -36,7 +37,7 @@ function authorizeCron(request: NextRequest): boolean {
   return timingSafeStrEqual(request.headers.get("x-cron-secret"), secret);
 }
 
-export async function GET(request: NextRequest) {
+async function cronHandler(request: NextRequest) {
   if (!authorizeCron(request)) {
     return jsonApiError(401, "UNAUTHORIZED", "Non autorizzato.");
   }
@@ -170,9 +171,17 @@ export async function GET(request: NextRequest) {
     automationQueue = await step("automationQueue", () => processAutomationFlowQueue(25), automationQueue);
   }
 
+  // Retention del battito: 30 giorni bastano per capire cosa e' successo e
+  // impediscono a CronRun di diventare la tabella piu' pesante del database.
+  // FUORI da step(): e' manutenzione, un suo fallimento non deve marcare come
+  // fallito un giro che ha fatto tutto il resto — sarebbe un allarme per nulla,
+  // e gli allarmi per nulla sono il modo piu' rapido per farli ignorare.
+  const cronRunsPurged = await purgeOldCronRuns(30).catch(() => null);
+
   return NextResponse.json({
     ok: errors.length === 0,
     errors,
+    cronRunsPurged,
     financeOverdueSynced,
     financeAutomation,
     flow,
@@ -193,3 +202,6 @@ export async function GET(request: NextRequest) {
     dayEnd: dayEnd.toISOString(),
   });
 }
+
+// Ogni esecuzione lascia una riga in CronRun: e' cosi' che si vede se gira ancora.
+export const GET = withCronRun("notifications", cronHandler);

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeStrEqual } from "@/lib/timing-safe-str";
 import { jsonApiError } from "@/lib/api-json-errors";
 import { runWebhookDeliveryRetries } from "@/lib/webhook-retry-cron";
+import { withCronRun } from "@/lib/cron-run";
+import { runCronWatchdog } from "@/lib/cron-watchdog";
 
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
@@ -14,11 +16,20 @@ function authorizeCron(request: NextRequest): boolean {
   return timingSafeStrEqual(request.headers.get("x-cron-secret"), secret);
 }
 
-export async function GET(request: NextRequest) {
+async function cronHandler(request: NextRequest) {
   if (!authorizeCron(request)) {
     return jsonApiError(401, "UNAUTHORIZED", "Non autorizzato.");
   }
 
   const result = await runWebhookDeliveryRetries();
-  return NextResponse.json({ ok: true, ...result });
+
+  // La sveglia sui lavori notturni vive QUI, nel cron più frequente e più
+  // semplice: se stesse in quello giornaliero, un guasto di quel job
+  // spegnerebbe anche la sveglia. Best-effort, non fa fallire il retry.
+  const watchdog = await runCronWatchdog().catch(() => null);
+
+  return NextResponse.json({ ok: true, ...result, watchdog });
 }
+
+// Ogni esecuzione lascia una riga in CronRun: e' cosi' che si vede se gira ancora.
+export const GET = withCronRun("webhook-retry", cronHandler);
