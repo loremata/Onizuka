@@ -9,10 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { TimeEntryForm } from "./time-entry-form";
 import { TimeEntryDeleteButton } from "./time-entry-delete-button";
 import { TimeEntryApproveButton } from "./time-entry-approve-button";
-import { TimeErpPushButton } from "@/components/onizuka/time-erp-push-button";
-import { TimeErpPullStatus } from "@/components/onizuka/time-erp-pull-status";
-import { TimeCertifiedPushButtons } from "@/components/onizuka/time-certified-push-buttons";
-import { ErpPartnerBadges } from "@/components/onizuka/erp-partner-badges";
 
 export default async function AdminTimePage() {
   const session = await requireAdminArea();
@@ -23,7 +19,7 @@ export default async function AdminTimePage() {
   });
   const canFirstApprove = me ? canFirstApproveTimeEntries(me.role, me.canApproveTimeEntries) : false;
 
-  const [entries, clients, pendingApprovals, staffFirstQueue, lastErpPush] = await Promise.all([
+  const [entries, clients, pendingApprovals, staffFirstQueue] = await Promise.all([
     prisma.timeEntry.findMany({
       where: { ownerUserId: session.user.id },
       orderBy: { workedAt: "desc" },
@@ -59,10 +55,6 @@ export default async function AdminTimePage() {
           },
         })
       : Promise.resolve([]),
-    prisma.timeErpPushLog.findFirst({
-      where: { ownerUserId: session.user.id },
-      orderBy: { createdAt: "desc" },
-    }),
   ]);
 
   const totalMinutes = entries.reduce((a, e) => a + e.minutes, 0);
@@ -76,43 +68,11 @@ export default async function AdminTimePage() {
           Registro minuti, tariffa opzionale, commessa, fatturabile. Esporta CSV fino a 10.000 voci. Approvazione a{" "}
           <strong>due firme</strong> (1/2: admin o staff abilitato; 2/2: solo ADMIN distinto).
         </p>
-        <div className="mt-3">
-          <ErpPartnerBadges />
-        </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           <Button asChild variant="outline">
             <a href="/api/admin/time/export">Esporta CSV</a>
           </Button>
-          <Button asChild variant="outline">
-            <a href="/api/admin/time/export-erp">Export ERP generico</a>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <a href="/api/admin/time/export-erp?vendor=zucchetti">Zucchetti</a>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <a href="/api/admin/time/export-erp?vendor=teamsystem">TeamSystem</a>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <a href="/api/admin/time/export-erp?vendor=sap">SAP</a>
-          </Button>
-          <TimeErpPushButton />
-          <TimeErpPushButton vendor="zucchetti" />
-          <TimeErpPushButton vendor="teamsystem" />
-          <TimeCertifiedPushButtons />
-          <Button asChild variant="outline" size="sm">
-            <a href="/api/integrations/erp-oauth/connect?provider=zucchetti">OAuth Zucchetti</a>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <a href="/api/integrations/erp-oauth/connect?provider=sap">OAuth SAP</a>
-          </Button>
         </div>
-        {lastErpPush ? (
-          <p className="mt-2 text-xs text-muted-foreground">
-            Ultimo push ERP: {fmt.format(lastErpPush.createdAt)} · {lastErpPush.vendor} · {lastErpPush.entryCount}{" "}
-            voci · {lastErpPush.ok ? "OK" : `errore`}
-          </p>
-        ) : null}
-        <TimeErpPullStatus />
       </div>
 
       {!admin && canFirstApprove && staffFirstQueue.length > 0 ? (

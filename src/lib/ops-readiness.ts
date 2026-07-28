@@ -4,7 +4,6 @@ import { isDedupeGpuWebhookEnabled } from "@/lib/dedupe-training-gpu";
 import { isMetaNativePublishConfigured } from "@/lib/social-publish-meta";
 import { isLinkedInNativePublishConfigured } from "@/lib/social-publish-linkedin";
 import { isSupabaseCloudProvisionEnabled } from "@/lib/workspace-cloud-supabase";
-import { isGoogleServiceAccountConfigured } from "@/lib/google-service-account";
 
 export type OpsClosureItem = {
   id: string;
@@ -44,12 +43,6 @@ export function buildOpsClosureChecklist(): OpsClosureItem[] {
       status: "done",
       hint: "kubectl apply -f deploy/k8s/automation-worker.yaml",
       docPath: "deploy/k8s/automation-worker.yaml",
-    },
-    {
-      id: "partner-legal",
-      label: "Archivio contratti partner ERP",
-      status: isGoogleServiceAccountConfigured() ? "optional" : "manual",
-      hint: "URL Drive contratti in Impostazioni → Partner",
     },
     {
       id: "supabase-limit",

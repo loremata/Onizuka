@@ -19,8 +19,7 @@ export async function FinanceReconciliationPanel({ ownerUserId }: { ownerUserId:
       <CardHeader>
         <CardTitle className="text-base">Riconciliazione</CardTitle>
         <CardDescription>
-          Coerenza registro finance, Stripe e date di incasso.
-          {report.stripeEnabled ? " Stripe attivo." : " Stripe non configurato."}
+          Coerenza del registro: stati, date di incasso, scaduti.
         </CardDescription>
       </CardHeader>
       <CardContent>

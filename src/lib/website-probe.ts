@@ -63,6 +63,7 @@ export type WebsiteProbeResult = {
   hasWhatsAppLink?: boolean;
   hasMailto?: boolean;
   email?: string; // email aziendale estratta dal sito (per rendere inviabile l'outreach)
+  phone?: string; // telefono estratto dal sito (tel: prima, poi testo) — alimenta Lead/Client.phone
   hasPrivacyLink?: boolean;
   hasCookieBanner?: boolean;
   hasFavicon?: boolean;
@@ -144,6 +145,37 @@ function sameOwner(emailDomain: string, siteReg: string): boolean {
  * sito (segnale forte che è davvero dell'azienda), poi i provider gratuiti; scarta le
  * email su un dominio custom DIVERSO dal sito (tipicamente la web-agency che l'ha fatto).
  */
+/**
+ * Sceglie il telefono più plausibile. I link tel: vincono sempre (qualcuno li
+ * ha messi apposta per farsi chiamare); i numeri pescati nel testo passano un
+ * filtro in più: 11 cifre che iniziano per 0 sono quasi sempre una P.IVA, non
+ * un fisso, e vengono scartate. Formato italiano: 8-11 cifre nazionali, inizio
+ * 0 (fisso) o 3 (mobile), niente sequenze banali.
+ */
+export function pickBusinessPhone(telHrefs: string[], textPhones: string[] = []): string | undefined {
+  const validate = (raw: string, fromText: boolean): string | undefined => {
+    const display = raw.trim().replace(/\s+/g, " ");
+    let digits = display.replace(/[^\d+]/g, "");
+    if (digits.startsWith("0039")) digits = `+39${digits.slice(4)}`;
+    const national = digits.replace(/^\+39/, "");
+    if (national.length < 8 || national.length > 11) return undefined;
+    if (!/^[03]/.test(national)) return undefined;
+    if (/^(\d)\1+$/.test(national)) return undefined;
+    // Dal testo, 11 cifre con lo 0 davanti = P.IVA con altissima probabilità.
+    if (fromText && national.length === 11 && national.startsWith("0")) return undefined;
+    return display;
+  };
+  for (const raw of telHrefs) {
+    const ok = validate(raw, false);
+    if (ok) return ok;
+  }
+  for (const raw of textPhones) {
+    const ok = validate(raw, true);
+    if (ok) return ok;
+  }
+  return undefined;
+}
+
 function pickBusinessEmail(candidates: string[], siteHost?: string): string | undefined {
   const clean = candidates
     .map((e) => e.trim().toLowerCase())
@@ -178,7 +210,7 @@ export function extractRichSignals(
   | "hasStructuredData" | "structuredDataTypes" | "hasOpenGraph" | "hasCanonical"
   | "langAttr" | "imgCount" | "imgWithAlt" | "hasTelLink" | "hasWhatsAppLink"
   | "hasMailto" | "hasPrivacyLink" | "hasCookieBanner" | "hasFavicon"
-  | "analyticsTools" | "wordCount" | "email"
+  | "analyticsTools" | "wordCount" | "email" | "phone"
 > {
   const title = rawHtml.match(/<title[^>]*>([^<]{1,300})/i)?.[1]?.trim();
   const metaDesc = rawHtml
@@ -228,6 +260,20 @@ export function extractRichSignals(
   );
   const email = pickBusinessEmail([...mailtoEmails, ...textEmails].slice(0, 60), siteHost) ?? "";
 
+  // Telefono: prima i link click-to-call (i più affidabili: sono messi apposta),
+  // poi i pattern nel testo. Prima veniva registrato solo il boolean hasTelLink
+  // e il numero andava perso: Lead.phone restava vuoto per sempre.
+  const telHrefs = Array.from(
+    rawHtml.matchAll(/href=["']tel:([+0-9][0-9 ().\/-]{5,20})["']/gi),
+    (mm) => mm[1]
+  );
+  const textPhones = Array.from(
+    // Numeri italiani nel testo: +39/0039 opzionale, poi fisso (0…) o mobile (3…).
+    rawHtml.matchAll(/(?:\+39|0039)?[\s.]?(?:0\d{1,3}|3\d{2})[\s.\/-]?\d{5,8}(?!\d)/g),
+    (mm) => mm[0]
+  );
+  const phone = pickBusinessPhone(telHrefs.slice(0, 15), textPhones.slice(0, 15));
+
   return {
     titleLength: title ? title.length : 0,
     metaDescriptionLength: metaDesc ? metaDesc.length : 0,
@@ -244,6 +290,7 @@ export function extractRichSignals(
     hasWhatsAppLink: /wa\.me\/|api\.whatsapp\.com|whatsapp:\/\//i.test(lower),
     hasMailto: /href=["']mailto:/i.test(rawHtml),
     email: email || undefined,
+    phone: phone || undefined,
     hasPrivacyLink: /privacy|cookie policy|informativa/i.test(lower),
     hasCookieBanner: /iubenda|cookiebot|onetrust|cookieyes|cookie-?consent|gdpr/i.test(lower),
     hasFavicon: /<link[^>]+rel=["'][^"']*icon[^"']*["']/i.test(rawHtml),
@@ -540,6 +587,7 @@ function mergeProbeSignals(target: WebsiteProbeResult, sub: WebsiteProbeResult):
   target.hasGoogleMapsLink = target.hasGoogleMapsLink || sub.hasGoogleMapsLink;
   // Contatti: spesso sono nella pagina "Contatti", non in home.
   target.email = target.email || sub.email;
+  target.phone = target.phone || sub.phone;
   target.hasTelLink = target.hasTelLink || sub.hasTelLink;
   target.hasWhatsAppLink = target.hasWhatsAppLink || sub.hasWhatsAppLink;
   target.hasMailto = target.hasMailto || sub.hasMailto;

@@ -1,55 +1,55 @@
 import { loadFinanceReconciliation } from "@/lib/finance-reconciliation";
 
 jest.mock("@/lib/prisma", () => ({
-  prisma: {
-    financeEntry: {
-      count: jest.fn(),
-    },
-  },
+  prisma: { financeEntry: { count: jest.fn() } },
 }));
-
 jest.mock("@/lib/finance-overdue", () => ({
-  syncFinanceOverdueStatuses: jest.fn().mockResolvedValue(undefined),
+  syncFinanceOverdueStatuses: jest.fn().mockResolvedValue(0),
 }));
 
-jest.mock("@/lib/stripe-client", () => ({
-  isStripeConfigured: jest.fn(() => true),
-}));
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { prisma } = require("@/lib/prisma") as {
+  prisma: { financeEntry: { count: jest.Mock } };
+};
 
-jest.mock("@/lib/with-db", () => ({
-  runWithDb: async (fn: () => Promise<unknown>) => ({ ok: true, data: await fn() }),
-}));
+describe("loadFinanceReconciliation", () => {
+  beforeEach(() => prisma.financeEntry.count.mockReset());
 
-const { prisma } = jest.requireMock<{ prisma: { financeEntry: { count: jest.Mock } } }>(
-  "@/lib/prisma"
-);
+  it("registro coerente → healthy", async () => {
+    // received_no_paid_at, paid_status_mismatch, overdue_income, received_month
+    prisma.financeEntry.count
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(3);
 
-describe("finance-reconciliation", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    prisma.financeEntry.count.mockResolvedValue(0);
+    const res = await loadFinanceReconciliation("u1");
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.report.healthy).toBe(true);
+    expect(res.report.rows.map((r) => r.id)).toEqual([
+      "received_no_paid_at",
+      "paid_status_mismatch",
+      "overdue_income",
+      "received_month",
+    ]);
+    // Nessuna regola Stripe: i pagamenti sono fuori da Onizuka.
+    expect(res.report.rows.some((r) => r.id.includes("stripe"))).toBe(false);
   });
 
-  it("returns healthy report when all counts are zero", async () => {
-    const result = await loadFinanceReconciliation("owner-1");
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.report.healthy).toBe(true);
-    expect(result.report.stripeEnabled).toBe(true);
-    expect(result.report.rows.some((r) => r.id === "stripe_open")).toBe(true);
-  });
+  it("incassate senza paidAt → issue e non healthy", async () => {
+    prisma.financeEntry.count
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0);
 
-  it("flags issues when received entries lack paidAt", async () => {
-    prisma.financeEntry.count.mockImplementation(async (args: { where?: { paidAt?: unknown } }) => {
-      if (args.where?.paidAt === null) return 2;
-      return 0;
-    });
-    const result = await loadFinanceReconciliation("owner-1");
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.report.healthy).toBe(false);
-    const row = result.report.rows.find((r) => r.id === "received_no_paid_at");
-    expect(row?.count).toBe(2);
+    const res = await loadFinanceReconciliation("u1");
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.report.healthy).toBe(false);
+    const row = res.report.rows.find((r) => r.id === "received_no_paid_at");
     expect(row?.severity).toBe("issue");
+    expect(row?.count).toBe(2);
   });
 });

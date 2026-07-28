@@ -12,7 +12,6 @@ import { GoLiveSeedWarning } from "@/components/onizuka/go-live-seed-warning";
 import { GoLiveSmokePanel } from "@/components/onizuka/go-live-smoke-panel";
 import { GoLiveDiagnosticsPanel } from "@/components/onizuka/go-live-diagnostics-panel";
 import { GoLiveDeploySteps } from "@/components/onizuka/go-live-deploy-steps";
-import { ErpPartnerBadges } from "@/components/onizuka/erp-partner-badges";
 import { OpsClosurePanel } from "@/components/onizuka/ops-closure-panel";
 import { GoLiveMissingStepsPanel } from "@/components/onizuka/go-live-missing-steps-panel";
 
@@ -48,16 +47,6 @@ export default async function AdminGoLivePage() {
         </CardHeader>
         <CardContent>
           <GoLiveDiagnosticsPanel />
-        </CardContent>
-      </Card>
-
-      <Card className="max-w-3xl">
-        <CardHeader>
-          <CardTitle>Partner ERP (Zucchetti / SAP)</CardTitle>
-          <CardDescription>Badge sandbox OAuth + health API per go-live certificazioni.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ErpPartnerBadges />
         </CardContent>
       </Card>
 

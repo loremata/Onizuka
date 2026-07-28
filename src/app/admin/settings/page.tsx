@@ -5,8 +5,6 @@ import { authOptions } from "@/lib/auth";
 import { requireAdminArea } from "@/lib/admin-session";
 import { isFullAdmin } from "@/lib/auth-roles";
 import { WorkspaceDatabasePanel } from "@/components/onizuka/workspace-database-panel";
-import { AgencyPartnerCertPanel } from "@/components/onizuka/agency-partner-cert-panel";
-import { getAgencyPartnerSettings } from "@/lib/agency-partner-settings";
 import { isValidIanaTimeZone } from "@/lib/day-bounds";
 import { recapTimezoneSelectOptions } from "@/lib/recap-timezones";
 import { prisma } from "@/lib/prisma";
@@ -51,7 +49,6 @@ export default async function AdminSettingsPage() {
   });
 
   const admin = isFullAdmin(session.user.role);
-  const partnerSettings = await getAgencyPartnerSettings();
   const workspaces = admin
     ? await prisma.workspace.findMany({
         orderBy: { name: "asc" },
@@ -144,21 +141,6 @@ export default async function AdminSettingsPage() {
             databaseCloudProvider: w.databaseCloudProvider,
             databaseCloudRef: w.databaseCloudRef,
           }))}
-        />
-      ) : null}
-
-      {admin ? (
-        <AgencyPartnerCertPanel
-          initial={{
-            zucchettiOfficial: partnerSettings.zucchettiOfficial,
-            sapOfficial: partnerSettings.sapOfficial,
-            zucchettiPartnerRef: partnerSettings.zucchettiPartnerRef,
-            sapPartnerRef: partnerSettings.sapPartnerRef,
-            zucchettiContractDriveUrl: partnerSettings.zucchettiContractDriveUrl,
-            sapContractDriveUrl: partnerSettings.sapContractDriveUrl,
-            legalArchiveNotes: partnerSettings.legalArchiveNotes,
-            contractSignedAt: partnerSettings.contractSignedAt?.toISOString() ?? null,
-          }}
         />
       ) : null}
 

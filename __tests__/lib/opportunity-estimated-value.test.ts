@@ -1,11 +1,11 @@
-import { parseEstimatedValue } from "@/app/admin/crm/opportunities/actions";
+import { parseEurAmount } from "@/lib/parse-eur";
 
 /**
  * Regressione: `raw.replace(",", ".")` sostituiva solo la PRIMA virgola, quindi
  * "1.500,00" diventava "1.500.00" → NaN → valore azzerato in silenzio.
  */
-describe("parseEstimatedValue", () => {
-  const eur = (raw: string | null) => parseEstimatedValue(raw)?.toString() ?? null;
+describe("parseEurAmount", () => {
+  const eur = (raw: string | null) => parseEurAmount(raw)?.toString() ?? null;
 
   it("legge il formato italiano con migliaia e decimali", () => {
     expect(eur("1.500,00")).toBe("1500");

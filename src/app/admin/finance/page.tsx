@@ -19,9 +19,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { FinanceEntryForm } from "./finance-entry-form";
 import { FinanceEntryRowActions } from "./finance-entry-row-actions";
+import { EconomicOverviewCard } from "@/components/onizuka/economic-overview-card";
 import { FinanceReconciliationPanel } from "./finance-reconciliation-panel";
 import { ClientLink } from "@/components/onizuka/client-link";
-import { isSdiBridgeConfigured } from "@/lib/finance-sdi";
 
 const statusLabel: Record<string, string> = {
   PLANNED: "Pianificato",
@@ -96,14 +96,15 @@ export default async function AdminFinancePage({ searchParams }: Props) {
   const s = result.stats;
   const l = ledger.ok ? ledger.stats : null;
   const dateFmt = dateTimeFormatIt({ dateStyle: "short" });
-  const sdiBridgeConfigured = isSdiBridgeConfigured();
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="onizuka-page-title">Onizuka Finance</h1>
         <p className="text-muted-foreground">
-          Pipeline CRM + registro entrate/uscite. Target mensile: € {FINANCE_MONTHLY_TARGET_EUR.toLocaleString("it-IT")}{" "}
+          Pipeline CRM + registro entrate/uscite, importi al netto di IVA. Fatture, imposte e
+          note di credito sono del commercialista: qui si tiene traccia e si guarda avanti.
+          Target mensile: € {FINANCE_MONTHLY_TARGET_EUR.toLocaleString("it-IT")}{" "}
           (lungo periodo € {FINANCE_LONG_TERM_TARGET_EUR.toLocaleString("it-IT")}).
         </p>
         {filterClient ? (
@@ -124,16 +125,12 @@ export default async function AdminFinancePage({ searchParams }: Props) {
             <Link href="/api/admin/finance/export">Esporta CSV</Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href="/api/admin/finance/export-accounting">Export gestionale</Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/api/admin/finance/export-accounting?double=1">Doppia registrazione</Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
             <Link href="/api/admin/finance/summary-pdf">Report PDF mese</Link>
           </Button>
         </div>
       </div>
+
+      <EconomicOverviewCard ownerUserId={session.user.id} />
 
       {l ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -247,7 +244,6 @@ export default async function AdminFinancePage({ searchParams }: Props) {
                     entryId={row.id}
                     type={row.type}
                     status="OVERDUE"
-                    sdiBridgeConfigured={sdiBridgeConfigured}
                   />
                 </li>
               ))}
@@ -350,10 +346,8 @@ export default async function AdminFinancePage({ searchParams }: Props) {
                     entryId={e.id}
                     type={e.type}
                     status={e.status}
-                    sdiExportedAt={e.sdiExportedAt}
                     recurringMonthly={e.recurringMonthly}
                     renewalDate={e.renewalDate?.toISOString() ?? null}
-                    sdiBridgeConfigured={sdiBridgeConfigured}
                   />
                 </li>
               ))}

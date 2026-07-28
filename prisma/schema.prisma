@@ -75,6 +75,8 @@ enum OAuthProvider {
   GMAIL
   GOOGLE_GBP
   GOOGLE_ANALYTICS
+  // Valori storici del push ore->ERP (rimosso 28/07/2026): Postgres non
+  // permette di eliminare valori da un enum, restano inerti.
   ZUCCHETTI_ERP
   SAP_ERP
 }
@@ -363,7 +365,6 @@ model User {
   regiaDailySheets            RegiaDailySheet[]
   intelligenceRecommendations IntelligenceRecommendation[]
   retailContracts             ClientRetailContract[]
-  timeErpPushLogs             TimeErpPushLog[]
   workspace                   Workspace?                   @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   whatsAppAssigned            WhatsAppInboundMessage[]     @relation("WhatsAppAssignee")
   clientOnboardingItems       ClientOnboardingItem[]
@@ -422,20 +423,6 @@ model DedupeTrainingJob {
   completedAt    DateTime?
 
   @@index([status, createdAt])
-}
-
-/// Certificazioni partner ERP (UI + override env).
-model AgencyPartnerSettings {
-  id                        String    @id @default("default")
-  zucchettiOfficial         Boolean   @default(false)
-  sapOfficial               Boolean   @default(false)
-  zucchettiPartnerRef       String?
-  sapPartnerRef             String?
-  zucchettiContractDriveUrl String?
-  sapContractDriveUrl       String?
-  legalArchiveNotes         String?   @db.Text
-  contractSignedAt          DateTime?
-  updatedAt                 DateTime  @updatedAt
 }
 
 /// Pesi / config modello dedupe custom (training pipeline).
@@ -545,8 +532,6 @@ model Client {
   city                  String?
   country               String                       @default("IT")
   driveFolderUrl        String?
-  /// Conto PDC gestionale per export finance (es. 4105001)
-  accountingCode        String?
   /// Embedding OpenAI per dedupe ML persistente (float[]).
   dedupeEmbedding       Float[]                      @default([])
   /// ANN pgvector (sync da dedupeEmbedding quando ONIZUKA_PGVECTOR attivo).
@@ -1053,6 +1038,9 @@ model Lead {
   city                    String?
   /// Google Places place_id (segnale forte, non sostituto P.IVA).
   googlePlaceId           String?
+  /// Ultimo tentativo di recupero contatti dal sito (batch cron): evita di
+  /// risondare lo stesso sito prima di 30 giorni.
+  contactEnrichedAt       DateTime?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
 
@@ -1769,8 +1757,6 @@ model FinanceEntry {
   invoiceNumber           String?
   dueDate                 DateTime?
   paidAt                  DateTime?
-  sdiExportedAt           DateTime?
-  stripeCheckoutSessionId String?
   notes                   String?            @db.Text
   createdAt               DateTime           @default(now())
   updatedAt               DateTime           @updatedAt
@@ -1893,21 +1879,6 @@ model ClientMilestone {
 
   @@index([clientId])
   @@index([ownerUserId])
-}
-
-/// Log push ore verso ERP esterno.
-model TimeErpPushLog {
-  id          String   @id @default(cuid())
-  ownerUserId String
-  vendor      String
-  entryCount  Int
-  ok          Boolean
-  errorDetail String?  @db.Text
-  createdAt   DateTime @default(now())
-
-  owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
-
-  @@index([ownerUserId, createdAt])
 }
 
 /// Commento social registrato manualmente o da integrazione futura.

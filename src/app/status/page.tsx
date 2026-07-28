@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getDeployCapabilities } from "@/lib/deploy-capabilities";
-import { isStripeConfigured } from "@/lib/stripe-client";
 import { isTelegramConfigured } from "@/lib/telegram-bot";
 import { isLlmConfigured } from "@/lib/llm-client";
 
@@ -57,7 +56,6 @@ export default async function PublicStatusPage() {
         <li>Storage: {caps.storage}</li>
         <li>Cron protetto: {caps.cron ? "sì" : "no"}</li>
         <li>SMTP: {caps.smtp ? "configurato" : "non configurato"}</li>
-        <li>Stripe: {isStripeConfigured() ? "configurato" : "non configurato"}</li>
         <li>Telegram: {isTelegramConfigured() ? "configurato" : "non configurato"}</li>
         <li>Assistente LLM: {isLlmConfigured() ? "configurato" : "non configurato"}</li>
       </ul>

@@ -90,18 +90,6 @@ export function ClientForm({ client }: ClientFormProps) {
           <p className="text-xs text-muted-foreground">Ore per prima risposta sui ticket portale di questo cliente.</p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="accountingCode">Conto PDC gestionale (opzionale)</Label>
-          <Input
-            id="accountingCode"
-            name="accountingCode"
-            defaultValue={client?.accountingCode ?? ""}
-            placeholder="es. 4105001"
-            pattern="[0-9A-Za-z]{3,12}"
-            title="3–12 caratteri alfanumerici"
-          />
-          <p className="text-xs text-muted-foreground">Usato nell&apos;export contabile Finance per questo cliente.</p>
-        </div>
-        <div className="space-y-2">
           <Label htmlFor="kind">Tipo cliente</Label>
           <Select
             id="kind"

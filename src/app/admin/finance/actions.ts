@@ -8,9 +8,7 @@ import { authOptions } from "@/lib/auth";
 import { requireFullAdmin } from "@/lib/admin-session";
 import { runFinanceIncomeCreatedAutomationRules } from "@/lib/automation-rules-run";
 import { prisma } from "@/lib/prisma";
-import { nextFinanceInvoiceNumber } from "@/lib/finance-invoice-number";
-import { buildAndSendFinanceEntrySdi } from "@/lib/finance-sdi-send";
-import { isSdiBridgeConfigured } from "@/lib/finance-sdi";
+import { parseEurAmount } from "@/lib/parse-eur";
 
 export type FinanceActionResult = { error: string } | null;
 
@@ -27,8 +25,11 @@ export async function createFinanceEntry(
 
   const label = (formData.get("label") as string)?.trim();
   const typeRaw = formData.get("type") as string;
-  const amountRaw = (formData.get("amountEur") as string)?.trim().replace(",", ".");
+  const amountRaw = (formData.get("amountEur") as string) ?? null;
   const clientId = (formData.get("clientId") as string)?.trim() || null;
+  // Riferimento facoltativo alla fattura emessa dal commercialista (la
+  // numerazione NON è più generata da Onizuka: qui si tiene solo traccia).
+  const invoiceNumber = (formData.get("invoiceNumber") as string)?.trim().slice(0, 40) || null;
   const assetIdRaw = (formData.get("assetId") as string)?.trim() || null;
   const dueRaw = (formData.get("dueDate") as string)?.trim();
   const renewalRaw = (formData.get("renewalDate") as string)?.trim();
@@ -36,8 +37,11 @@ export async function createFinanceEntry(
   if (!label) return { error: "Etichetta obbligatoria." };
   if (!TYPES.includes(typeRaw as FinanceEntryType)) return { error: "Tipo non valido." };
 
-  const amount = Number(amountRaw);
-  if (Number.isNaN(amount) || amount <= 0) return { error: "Importo non valido." };
+  // Importi sempre AL NETTO di IVA: l'imposta è materia del commercialista,
+  // Onizuka tiene traccia dell'imponibile per il punto della situazione.
+  const amountDecimal = parseEurAmount(amountRaw);
+  if (!amountDecimal || amountDecimal.lte(0)) return { error: "Importo non valido." };
+  const amount = amountDecimal;
 
   const dueDate = dueRaw ? new Date(dueRaw) : undefined;
   if (dueDate && Number.isNaN(dueDate.getTime())) return { error: "Data non valida." };
@@ -53,26 +57,32 @@ export async function createFinanceEntry(
     assetId = null;
   }
 
-  const invoiceNumber =
-    typeRaw === "INCOME" ? await nextFinanceInvoiceNumber(session.user.id) : null;
-
   const recurringMonthly = typeRaw === "INCOME" && formData.get("recurringMonthly") === "on";
 
-  const created = await prisma.financeEntry.create({
-    data: {
-      ownerUserId: session.user.id,
-      label,
-      type: typeRaw as FinanceEntryType,
-      amountEur: amount,
-      clientId,
-      assetId,
-      invoiceNumber,
-      dueDate,
-      renewalDate: recurringMonthly ? renewalDate : null,
-      recurringMonthly,
-      status: typeRaw === "INCOME" ? "EXPECTED" : "PLANNED",
-    },
-  });
+  let created;
+  try {
+    created = await prisma.financeEntry.create({
+      data: {
+        ownerUserId: session.user.id,
+        label,
+        type: typeRaw as FinanceEntryType,
+        amountEur: amount,
+        clientId,
+        assetId,
+        invoiceNumber,
+        dueDate,
+        renewalDate: recurringMonthly ? renewalDate : null,
+        recurringMonthly,
+        status: typeRaw === "INCOME" ? "EXPECTED" : "PLANNED",
+      },
+    });
+  } catch (e) {
+    // @@unique([ownerUserId, invoiceNumber]): stesso riferimento fattura due volte.
+    if (e && typeof e === "object" && "code" in e && (e as { code?: string }).code === "P2002") {
+      return { error: `Riferimento fattura "${invoiceNumber}" già usato da un'altra voce.` };
+    }
+    throw e;
+  }
 
   if (created.type === "INCOME") {
     void runFinanceIncomeCreatedAutomationRules(session.user.id, {
@@ -171,28 +181,5 @@ export async function deleteFinanceEntry(entryId: string): Promise<FinanceAction
   return null;
 }
 
-export async function markFinanceSdiExported(entryId: string): Promise<FinanceActionResult> {
-  const session = await ensureAdmin();
-  const entry = await prisma.financeEntry.findFirst({
-    where: { id: entryId, ownerUserId: session.user.id, type: "INCOME" },
-    include: { client: { select: { companyName: true, vatNumber: true } } },
-  });
-  if (!entry) return { error: "Voce non trovata o non è un incasso." };
-  if (entry.sdiExportedAt) return { error: "Già segnata come inviata a SDI." };
-
-  if (isSdiBridgeConfigured()) {
-    const sent = await buildAndSendFinanceEntrySdi({
-      entry,
-      clientName: entry.client?.companyName ?? null,
-      clientVat: entry.client?.vatNumber ?? null,
-    });
-    if (!sent.ok) return { error: sent.error };
-  }
-
-  await prisma.financeEntry.update({
-    where: { id: entryId },
-    data: { sdiExportedAt: new Date() },
-  });
-  revalidatePath("/admin/finance");
-  return null;
-}
+// La filiera FatturaPA/SDI è stata rimossa: fatturazione elettronica, IVA e
+// note di credito sono gestite dal commercialista. Onizuka tiene traccia.
