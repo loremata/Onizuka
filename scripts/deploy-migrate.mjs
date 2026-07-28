@@ -12,6 +12,15 @@
 //    fallisce. Un sito non deployato e' meglio di un sito rotto online.
 //  - dopo le migration, garantisce la RLS su ogni tabella nuova (le migration
 //    girano come `prisma`, che e' owner: l'ALTER TABLE e' consentito).
+//
+// ⚠️ REGOLA ESPANDI/CONTRAI per le migration DISTRUTTIVE (DROP COLUMN/TABLE,
+// rinomini): le migration girano a INIZIO build, mentre il deployment vecchio
+// serve ancora il traffico con il Prisma Client vecchio — che seleziona tutte
+// le colonne del suo schema. Droppare una colonna qui rompe il deploy live per
+// i minuti del build. Procedura corretta in due deploy:
+//   1° deploy: il codice smette di usare la colonna (schema.prisma senza il
+//      campo, NESSUNA migration di drop);
+//   2° deploy: la migration di DROP, ormai innocua per il codice live.
 import { spawnSync } from "node:child_process";
 
 const env = process.env.VERCEL_ENV ?? "";

@@ -24,6 +24,11 @@ describe("estrazione contatti dal sito", () => {
       expect(pickBusinessPhone(["01234567890"])).toBe("01234567890");
     });
 
+    it("un mobile non supera le 10 cifre, da nessuna fonte", () => {
+      expect(pickBusinessPhone(["35712201549"])).toBeUndefined();
+      expect(pickBusinessPhone([], ["35712201549"])).toBeUndefined();
+    });
+
     it("salta i candidati invalidi e prende il primo buono", () => {
       expect(pickBusinessPhone(["12345", "0586 654321"])).toBe("0586 654321");
     });
@@ -54,6 +59,14 @@ describe("estrazione contatti dal sito", () => {
       const html = `<html><body><p>Solo testo, P.IVA 01234567890 non è un telefono</p></body></html>`;
       const s = extractRichSignals(html, html.toLowerCase());
       // La P.IVA (11 cifre, inizia per 0) trovata nel TESTO viene scartata.
+      expect(s.phone).toBeUndefined();
+    });
+
+    it("non estrae sottostringhe da sequenze più lunghe (P.IVA che non inizia per 0)", () => {
+      // Senza confine sinistro il motore ripartiva dal 2° carattere:
+      // "13571220154" produceva il finto mobile "3571220154".
+      const html = `<html><body><p>P.IVA 13571220154 — codice ordine 88330612345</p></body></html>`;
+      const s = extractRichSignals(html, html.toLowerCase());
       expect(s.phone).toBeUndefined();
     });
 

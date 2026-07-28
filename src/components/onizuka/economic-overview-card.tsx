@@ -22,9 +22,10 @@ export async function EconomicOverviewCard({ ownerUserId }: { ownerUserId: strin
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Punto della situazione · {o.month}</CardTitle>
         <CardDescription>
-          Reale = incassato agenzia + maturato negozio. Stimato = chiusura mese al ritmo
-          attuale. Importi netto IVA.
-          {o.negozio.provisional ? " ~ piano negozio provvisorio." : ""}
+          Reale = incassato − spese pagate + maturato negozio. Stimato = chiusura mese al
+          ritmo attuale. Importi netto IVA e netto spese.
+          {o.negozio?.provisional ? " ~ piano negozio provvisorio." : ""}
+          {!o.negozio ? " Cruscotto negozio non disponibile: totali solo agenzia." : ""}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -44,15 +45,19 @@ export async function EconomicOverviewCard({ ownerUserId }: { ownerUserId: strin
               </Link>{" "}
               maturato
             </p>
-            <p className="text-lg font-medium tabular-nums">
-              € {eurLabel(o.negozio.maturatoEur)}
-              {o.negozio.proiezioneEur != null ? (
-                <span className="text-sm text-muted-foreground">
-                  {" "}
-                  → € {eurLabel(o.negozio.proiezioneEur)}
-                </span>
-              ) : null}
-            </p>
+            {o.negozio ? (
+              <p className="text-lg font-medium tabular-nums">
+                € {eurLabel(o.negozio.maturatoEur)}
+                {o.negozio.proiezioneEur != null ? (
+                  <span className="text-sm text-muted-foreground">
+                    {" "}
+                    → € {eurLabel(o.negozio.proiezioneEur)}
+                  </span>
+                ) : null}
+              </p>
+            ) : (
+              <p className="text-lg font-medium text-muted-foreground">n/d</p>
+            )}
           </div>
           <div>
             <p className="text-xs text-muted-foreground">
@@ -69,8 +74,8 @@ export async function EconomicOverviewCard({ ownerUserId }: { ownerUserId: strin
         </div>
 
         <p className="text-xs text-muted-foreground">
-          MRR € {eurLabel(o.agenzia.mrrEur)} · pipeline pesata € {o.agenzia.pipelinePesataLabel} ·
-          negozio mese scorso € {eurLabel(o.negozio.mesePrecedenteEur)}
+          MRR € {eurLabel(o.agenzia.mrrEur)} · pipeline pesata € {o.agenzia.pipelinePesataLabel}
+          {o.negozio ? ` · negozio mese scorso € ${eurLabel(o.negozio.mesePrecedenteEur)}` : ""}
           {o.agenzia.overdueCount > 0 ? (
             <span className="text-red-600 dark:text-red-400"> · {o.agenzia.overdueCount} scadute</span>
           ) : null}

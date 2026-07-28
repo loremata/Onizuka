@@ -68,6 +68,7 @@ export async function propagateOpportunityWon(opportunityId: string): Promise<Op
           select: {
             status: true,
             relationshipState: true,
+            contactEmail: true,
             marketingConsentBasis: true,
             marketingOptOutAt: true,
           },
@@ -75,9 +76,15 @@ export async function propagateOpportunityWon(opportunityId: string): Promise<Op
         if (client && (client.relationshipState !== "CLIENTE" || client.status !== "ACTIVE_CLIENT")) {
           // Chi diventa cliente ha acquistato ⇒ la base marketing sale a
           // SOFT_OPT_IN (art. 130 c.4), salvo disiscrizione o base già EXPLICIT.
+          // Solo con un'email reale: sul segnaposto interno il soft opt-in non
+          // ha senso (verrà assegnato dal recupero contatti quando la trova).
           // Anche il hook post-commit lo fa (copre gli altri percorsi), ma qui
           // è in transazione: promozione e base viaggiano insieme.
+          const emailReale =
+            Boolean(client.contactEmail?.trim()) &&
+            !/@onizuka\.local$/i.test(client.contactEmail);
           const upgradeBasis =
+            emailReale &&
             !client.marketingOptOutAt &&
             (client.marketingConsentBasis === "NONE" ||
               client.marketingConsentBasis === "LEGITIMATE_INTEREST");

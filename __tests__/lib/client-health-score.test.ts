@@ -20,7 +20,6 @@ const base = {
   city: null,
   country: "IT",
   driveFolderUrl: null,
-  accountingCode: null,
   dedupeEmbedding: [] as number[],
   ticketSlaHours: null,
   marketingConsentBasis: "SOFT_OPT_IN" as const,

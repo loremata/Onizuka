@@ -54,6 +54,13 @@ async function ownerPolicy(ownerUserId: string | null): Promise<MarketingPolicy>
 export async function applyFoundContacts(params: {
   clientId: string;
   leadId?: string | null;
+  /**
+   * Titolare della politica di classificazione. Va SEMPRE passato quando il
+   * chiamante lo conosce: senza lead collegato era l'unico modo di risalire
+   * alla politica, e il fallback al default ignorava le impostazioni
+   * (marketingAutoBasis = NONE, domini esclusi) configurate in /admin/settings.
+   */
+  ownerUserId?: string | null;
   found: FoundContacts;
 }): Promise<ApplyResult> {
   const { clientId, leadId, found } = params;
@@ -65,6 +72,7 @@ export async function applyFoundContacts(params: {
     select: {
       contactEmail: true,
       phone: true,
+      relationshipState: true,
       marketingConsentBasis: true,
       marketingOptOutAt: true,
     },
@@ -90,19 +98,33 @@ export async function applyFoundContacts(params: {
   }
 
   // Email vera appena arrivata su un soggetto senza base: valuta secondo la
-  // politica del titolare (di default: legittimo interesse su recapito pubblico).
+  // politica del titolare. Se il soggetto è già CLIENTE la base corretta è il
+  // soft opt-in (ha acquistato): la promozione non l'aveva potuta assegnare
+  // perché all'epoca l'email era ancora segnaposto.
   if (
     result.emailApplied &&
     client.marketingConsentBasis === "NONE" &&
     !client.marketingOptOutAt
   ) {
-    const lead = leadId
-      ? await prisma.lead.findUnique({ where: { id: leadId }, select: { ownerUserId: true } })
-      : null;
-    const basis = resolveAutoConsentBasis(data.contactEmail, await ownerPolicy(lead?.ownerUserId ?? null));
-    if (basis !== "NONE") {
-      data.marketingConsentBasis = basis;
+    if (client.relationshipState === "CLIENTE") {
+      data.marketingConsentBasis = "SOFT_OPT_IN";
       result.consentRebased = true;
+    } else {
+      const owner =
+        params.ownerUserId ??
+        (leadId
+          ? (
+              await prisma.lead.findUnique({
+                where: { id: leadId },
+                select: { ownerUserId: true },
+              })
+            )?.ownerUserId ?? null
+          : null);
+      const basis = resolveAutoConsentBasis(data.contactEmail, await ownerPolicy(owner));
+      if (basis !== "NONE") {
+        data.marketingConsentBasis = basis;
+        result.consentRebased = true;
+      }
     }
   }
 
@@ -158,7 +180,7 @@ export async function enrichPendingLeadContacts(limit = 3): Promise<EnrichBatchR
     },
     orderBy: { updatedAt: "desc" },
     take: Math.max(1, Math.min(limit, 10)),
-    select: { id: true, website: true, clientId: true },
+    select: { id: true, website: true, clientId: true, ownerUserId: true },
   });
 
   const result: EnrichBatchResult = { scanned: 0, emailsFound: 0, phonesFound: 0 };
@@ -177,6 +199,7 @@ export async function enrichPendingLeadContacts(limit = 3): Promise<EnrichBatchR
     const applied = await applyFoundContacts({
       clientId: lead.clientId!,
       leadId: lead.id,
+      ownerUserId: lead.ownerUserId,
       found: { email: probe.email ?? null, phone: probe.phone ?? null },
     });
     if (applied.emailApplied) result.emailsFound += 1;

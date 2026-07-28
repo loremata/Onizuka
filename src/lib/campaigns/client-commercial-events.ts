@@ -5,8 +5,11 @@ import { reconcileClientEnrollments } from "@/lib/campaigns/engine";
  * Linea sulle basi giuridiche decisa il 28/07: legittimo interesse per
  * l'outreach a freddo, soft opt-in per chi è già cliente (art. 130 c.4).
  * Quindi appena un soggetto diventa CLIENTE la sua base sale a SOFT_OPT_IN.
- * Idempotente e con tutte le guardie nel WHERE: non tocca chi si è disiscritto
- * né chi ha già una base uguale o più forte (EXPLICIT).
+ * Idempotente e con tutte le guardie nel WHERE: non tocca chi si è disiscritto,
+ * chi ha già una base uguale o più forte (EXPLICIT), né chi ha ancora l'email
+ * segnaposto — il soft opt-in presuppone un recapito raccolto nel contesto
+ * della vendita, non un segnaposto interno. Quando il recupero contatti
+ * troverà l'email vera, applyFoundContacts assegnerà SOFT_OPT_IN al CLIENTE.
  */
 async function upgradeConsentOnPromotion(clientId: string): Promise<void> {
   await prisma.client.updateMany({
@@ -15,6 +18,7 @@ async function upgradeConsentOnPromotion(clientId: string): Promise<void> {
       relationshipState: "CLIENTE",
       marketingOptOutAt: null,
       marketingConsentBasis: { in: ["NONE", "LEGITIMATE_INTEREST"] },
+      NOT: [{ contactEmail: { endsWith: "@onizuka.local" } }, { contactEmail: "" }],
     },
     data: { marketingConsentBasis: "SOFT_OPT_IN" },
   });
