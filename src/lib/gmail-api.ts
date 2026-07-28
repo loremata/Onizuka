@@ -6,9 +6,15 @@ function encodeRawEmail(params: {
   text: string;
   html?: string;
   from?: string;
+  /** Intestazioni extra (List-Unsubscribe & co.). I valori con a capo sono scartati. */
+  headers?: Record<string, string>;
 }): string {
   const from = params.from ?? "me";
   const subjectB64 = `=?UTF-8?B?${Buffer.from(params.subject, "utf8").toString("base64")}?=`;
+  // Difesa contro l'iniezione di intestazioni: niente CR/LF nei valori.
+  const extraHeaders = Object.entries(params.headers ?? {})
+    .filter(([k, v]) => !/[\r\n]/.test(k) && !/[\r\n]/.test(v))
+    .map(([k, v]) => `${k}: ${v}`);
 
   if (params.html) {
     const boundary = `onizuka_${Date.now()}`;
@@ -28,6 +34,7 @@ function encodeRawEmail(params: {
       `To: ${params.to}`,
       `Subject: ${subjectB64}`,
       "MIME-Version: 1.0",
+      ...extraHeaders,
       `Content-Type: multipart/alternative; boundary="${boundary}"`,
       "",
       body,
@@ -44,6 +51,7 @@ function encodeRawEmail(params: {
     `To: ${params.to}`,
     `Subject: ${subjectB64}`,
     "MIME-Version: 1.0",
+    ...extraHeaders,
     "Content-Type: text/plain; charset=UTF-8",
     "",
     params.text,
@@ -57,7 +65,13 @@ function encodeRawEmail(params: {
 
 export async function sendGmailViaApi(
   userId: string,
-  params: { to: string; subject: string; text: string; html?: string }
+  params: {
+    to: string;
+    subject: string;
+    text: string;
+    html?: string;
+    headers?: Record<string, string>;
+  }
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const access = await getGmailAccessToken(userId);
   if (!access) return { ok: false, error: "Gmail non collegato." };

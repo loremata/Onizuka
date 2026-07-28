@@ -3,9 +3,20 @@ import { sendGmailViaApi } from "@/lib/gmail-api";
 import { isGmailConnected } from "@/lib/gmail-oauth";
 import { isSmtpConfigured, sendEmailViaSmtp } from "@/lib/smtp-send";
 import { markOutreachDraftSent } from "@/lib/outreach-sent";
-import { wrapOutreachHtmlBody } from "@/lib/outreach-tracking";
+import { appendOutreachTextFooter, wrapOutreachHtmlBody } from "@/lib/outreach-tracking";
 import { pickOutreachBody, pickOutreachSubject } from "@/lib/outreach-ab";
 import { resolveReachAbVariantForSend } from "@/lib/reach-ab-default";
+import { ensureClientOptOutToken, isEmailable } from "@/lib/campaigns/consent";
+import { buildUnsubscribeUrl } from "@/lib/unsubscribe-link";
+
+/**
+ * Riga sull'origine dei dati, richiesta dall'art. 14 GDPR quando il contatto non
+ * è stato raccolto presso l'interessato (il caso di tutti i lead da scraping).
+ * Personalizzabile con la env `REACH_DATA_SOURCE_NOTE`.
+ */
+const DATA_SOURCE_NOTE =
+  process.env.REACH_DATA_SOURCE_NOTE?.trim() ||
+  "Ti scriviamo da Online Station. Abbiamo reperito questo contatto tra le informazioni aziendali pubbliche; se preferisci non essere ricontattato usa il link qui sotto.";
 
 export type OutreachSendResult = {
   sent: boolean;
@@ -27,8 +38,28 @@ export async function sendOutreachDraftNow(
   const draft = await prisma.outreachDraft.findUnique({
     where: { id: draftId },
     include: {
-      client: { select: { contactEmail: true } },
-      lead: { select: { email: true } },
+      client: {
+        select: {
+          id: true,
+          contactEmail: true,
+          marketingConsentBasis: true,
+          marketingOptOutAt: true,
+        },
+      },
+      lead: {
+        select: {
+          email: true,
+          // Il Client satellite del lead è il soggetto su cui vive il consenso:
+          // il Lead non ha un proprio token di disiscrizione.
+          dossierClient: {
+            select: {
+              id: true,
+              marketingConsentBasis: true,
+              marketingOptOutAt: true,
+            },
+          },
+        },
+      },
     },
   });
   if (!draft) return { sent: false, note: "Bozza non trovata." };
@@ -59,13 +90,51 @@ export async function sendOutreachDraftNow(
     return { sent: false, to, note: "Email segnaposto/non valida — usa WhatsApp o chiamata." };
   }
 
+  // ── Consenso (GDPR) ──────────────────────────────────────────────────────
+  // Il soggetto del consenso è il Client destinatario o, per un lead, il suo
+  // Client satellite. Prima questo controllo non esisteva: chi si disiscriveva
+  // dalle campagne continuava a ricevere l'outreach, e viceversa.
+  const consentSubject = draft.client ?? draft.lead?.dossierClient ?? null;
+  if (!consentSubject) {
+    return { sent: false, to, note: "Nessun soggetto di consenso collegato: invio bloccato." };
+  }
+  if (!isEmailable(consentSubject)) {
+    const why = consentSubject.marketingOptOutAt ? "si è disiscritto" : "non ha una base di contatto valida";
+    return { sent: false, to, note: `Invio bloccato: il destinatario ${why}.` };
+  }
+
+  // Disiscrizione reale: il token viene creato adesso se manca, così il link nel
+  // footer punta sempre a qualcosa che esiste davvero.
+  const optOutToken = await ensureClientOptOutToken(consentSubject.id);
+  const unsubscribeUrl = buildUnsubscribeUrl(optOutToken);
+
+  // Pixel e riscrittura link solo con consenso esplicito: su un contatto a freddo
+  // sono profilazione senza base giuridica.
+  const tracking = consentSubject.marketingConsentBasis === "EXPLICIT";
+  // Art. 14 GDPR: se i dati non li ha dati l'interessato, va detto da dove arrivano.
+  const sourceNote = tracking ? null : DATA_SOURCE_NOTE;
+
   const abVariant = await resolveReachAbVariantForSend(draft.ownerUserId, undefined);
   const subject = pickOutreachSubject(draft, abVariant);
-  const emailBody = pickOutreachBody(draft, abVariant);
-  const html = wrapOutreachHtmlBody(emailBody, draft.id);
+  const rawBody = pickOutreachBody(draft, abVariant);
+  const bodyOptions = { unsubscribeUrl, tracking, sourceNote };
+  const emailBody = appendOutreachTextFooter(rawBody, bodyOptions);
+  const html = wrapOutreachHtmlBody(rawBody, draft.id, bodyOptions);
+  // RFC 8058: disiscrizione con un click dal client di posta, senza aprire il browser.
+  // Gmail e Yahoo la richiedono per la posta massiva.
+  const headers = {
+    "List-Unsubscribe": `<${unsubscribeUrl}>`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
 
   if (await isGmailConnected(draft.ownerUserId)) {
-    const viaApi = await sendGmailViaApi(draft.ownerUserId, { to, subject, text: emailBody, html });
+    const viaApi = await sendGmailViaApi(draft.ownerUserId, {
+      to,
+      subject,
+      text: emailBody,
+      html,
+      headers,
+    });
     if (viaApi.ok) {
       await markOutreachDraftSent(draftId, draft.ownerUserId, { abVariantSent: abVariant });
       return { sent: true, to, channel: "gmail", note: `Inviata via Gmail a ${to} (variante ${abVariant}).` };
@@ -74,7 +143,7 @@ export async function sendOutreachDraftNow(
   }
 
   if (isSmtpConfigured()) {
-    const res = await sendEmailViaSmtp({ to, subject, text: emailBody, html });
+    const res = await sendEmailViaSmtp({ to, subject, text: emailBody, html, headers });
     if (res.ok) {
       await markOutreachDraftSent(draftId, draft.ownerUserId, { abVariantSent: abVariant });
       return { sent: true, to, channel: "smtp", note: `Inviata via SMTP a ${to} (variante ${abVariant}).` };

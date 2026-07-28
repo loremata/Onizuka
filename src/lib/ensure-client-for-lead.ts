@@ -136,7 +136,21 @@ export async function syncLeadIdentityToClient(leadId: string): Promise<void> {
   const clientId = lead.clientId ?? lead.convertedClientId;
   if (!clientId) return;
 
-  const client = await prisma.client.findUnique({ where: { id: clientId }, select: { id: true } });
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: {
+      id: true,
+      relationshipState: true,
+      companyName: true,
+      contactEmail: true,
+      phone: true,
+      vatNumber: true,
+      fiscalCode: true,
+      website: true,
+      city: true,
+      clientMacroCategory: true,
+    },
+  });
   if (!client) return;
 
   // Non azzeriamo mai i campi obbligatori del Client (companyName/contactEmail) né sovrascriviamo
@@ -144,18 +158,37 @@ export async function syncLeadIdentityToClient(leadId: string): Promise<void> {
   const companyName = lead.businessName?.trim() || undefined;
   const contactEmail = lead.email?.trim() || undefined;
 
+  /**
+   * Il Lead è fonte di verità SOLO finché il Client è il suo satellite (creato da
+   * `ensureClientForLead`, ancora in stato LEAD e con l'email segnaposto). Appena
+   * il Client è un cliente vero, il Lead può soltanto ARRICCHIRE i campi ancora
+   * vuoti: prima vinceva sempre il Lead, così correggere ragione sociale ed email
+   * sulla scheda cliente e poi salvare il vecchio lead — anche solo per una nota —
+   * riportava indietro i dati buoni, senza avviso.
+   */
+  const isSatellite =
+    client.relationshipState === "LEAD" && client.contactEmail.endsWith("@onizuka.local");
+
+  const fill = <T,>(current: T | null | undefined, incoming: T | null | undefined) => {
+    if (incoming == null || incoming === ("" as unknown as T)) return undefined;
+    if (isSatellite) return incoming;
+    return current == null || current === ("" as unknown as T) ? incoming : undefined;
+  };
+
   try {
     await prisma.client.update({
       where: { id: clientId },
       data: {
-        ...(companyName ? { companyName } : {}),
-        ...(contactEmail ? { contactEmail } : {}),
-        phone: lead.phone ?? undefined,
-        vatNumber: lead.vatNumber ?? undefined,
-        fiscalCode: lead.fiscalCode ?? undefined,
-        website: lead.website ?? undefined,
-        city: lead.city ?? undefined,
-        clientMacroCategory: lead.clientMacroCategory ?? undefined,
+        ...(companyName && (isSatellite || !client.companyName.trim()) ? { companyName } : {}),
+        ...(contactEmail && (isSatellite || client.contactEmail.endsWith("@onizuka.local"))
+          ? { contactEmail }
+          : {}),
+        phone: fill(client.phone, lead.phone),
+        vatNumber: fill(client.vatNumber, lead.vatNumber),
+        fiscalCode: fill(client.fiscalCode, lead.fiscalCode),
+        website: fill(client.website, lead.website),
+        city: fill(client.city, lead.city),
+        clientMacroCategory: fill(client.clientMacroCategory, lead.clientMacroCategory),
       },
     });
   } catch (e) {

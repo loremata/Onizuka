@@ -2,12 +2,15 @@ import { prisma } from "@/lib/prisma";
 import { leadLifecycleForStage } from "@/lib/lead-lifecycle";
 
 export type OpportunityLostResult = {
+  /** `false` = transazione fallita, stato LOST compreso: il chiamante non deve dire "fatto". */
+  ok: boolean;
   clientId: string | null;
   leadNurturing: boolean;
   taskCreated: boolean;
 };
 
-const EMPTY: OpportunityLostResult = { clientId: null, leadNurturing: false, taskCreated: false };
+const EMPTY: OpportunityLostResult = { ok: true, clientId: null, leadNurturing: false, taskCreated: false };
+const FAILED: OpportunityLostResult = { ...EMPTY, ok: false };
 const SOURCE = "opportunity_lost";
 
 /**
@@ -43,7 +46,7 @@ export async function propagateOpportunityLost(
       const clientId = opp.clientId ?? opp.lead?.clientId ?? null;
       // Idempotente: già persa ⇒ niente ri-propagazione.
       if (opp.status === "LOST") {
-        return { clientId, leadNurturing: false, taskCreated: false };
+        return { ok: true, clientId, leadNurturing: false, taskCreated: false };
       }
 
       await tx.opportunity.update({ where: { id: opportunityId }, data: { status: "LOST" } });
@@ -92,10 +95,10 @@ export async function propagateOpportunityLost(
         taskCreated = true;
       }
 
-      return { clientId, leadNurturing, taskCreated };
+      return { ok: true, clientId, leadNurturing, taskCreated };
     });
   } catch (e) {
     console.error("propagateOpportunityLost failed", e);
-    return EMPTY;
+    return FAILED;
   }
 }

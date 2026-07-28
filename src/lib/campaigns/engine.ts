@@ -13,7 +13,7 @@
 import { randomBytes } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { isEmailable, type EmailableClient } from "@/lib/campaigns/consent";
+import { isCampaignEmailable, type EmailableClient } from "@/lib/campaigns/consent";
 import type {
   CampaignStatus,
   CampaignEnrollmentStatus,
@@ -182,7 +182,7 @@ export async function reconcileClientEnrollments(opts: ReconcileOptions): Promis
   const activeEnrollments = opts.ctx?.activeEnrollments ?? (await loadActiveEnrollments(clientId));
   const activeCampaigns = opts.ctx?.activeCampaigns ?? (await loadActiveCampaigns());
 
-  const emailable = isEmailable(client);
+  const emailable = isCampaignEmailable(client);
   // EX_CLIENTE = churn: non è più cliente attivo, quindi esce da tutte le campagne
   // cross-sell (che sono pensate per la base clienti corrente).
   const isExClient = client.relationshipState === "EX_CLIENTE";
@@ -400,13 +400,13 @@ async function resolveEmailableForSend(
   ctx?: { client?: EmailableClient; emailable?: boolean },
 ): Promise<boolean> {
   if (typeof ctx?.emailable === "boolean") return ctx.emailable;
-  if (ctx?.client) return isEmailable(ctx.client);
+  if (ctx?.client) return isCampaignEmailable(ctx.client);
   const row = await prisma.campaignEnrollment.findUnique({
     where: { id: enrollmentId },
     select: { client: { select: { marketingConsentBasis: true, marketingOptOutAt: true } } },
   });
   if (!row?.client) return false;
-  return isEmailable(row.client);
+  return isCampaignEmailable(row.client);
 }
 
 /**

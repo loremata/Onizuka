@@ -9,7 +9,14 @@ const PIXEL_GIF = Buffer.from(
 );
 
 function trackingSecret(): string {
-  return process.env.NEXTAUTH_SECRET ?? process.env.CRON_SECRET ?? "onizuka-dev-tracking";
+  const secret = process.env.NEXTAUTH_SECRET ?? process.env.CRON_SECRET;
+  if (secret) return secret;
+  // In produzione un segreto prevedibile renderebbe forgiabili i token di tracking,
+  // e /api/reach/track/click diventerebbe un open redirect: meglio fallire.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("NEXTAUTH_SECRET o CRON_SECRET sono obbligatori per il tracking outreach.");
+  }
+  return "onizuka-dev-tracking";
 }
 
 export function signOutreachDraftId(draftId: string): string {
@@ -47,14 +54,70 @@ export function rewriteOutreachLinksForTracking(htmlWithBreaks: string, draftId:
   });
 }
 
-export function wrapOutreachHtmlBody(textBody: string, draftId: string): string {
-  const escaped = textBody
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  const bodyHtml = rewriteOutreachLinksForTracking(escaped.replace(/\n/g, "<br>"), draftId);
-  const pixel = buildOutreachOpenPixelUrl(draftId);
-  return `<div style="font-family:sans-serif;font-size:14px;line-height:1.5">${bodyHtml}<img src="${pixel}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0" /></div>`;
+export type OutreachBodyOptions = {
+  /**
+   * URL assoluto di disiscrizione. Obbligatorio su ogni email commerciale:
+   * senza, il destinatario non ha modo di opporsi (art. 21 GDPR).
+   */
+  unsubscribeUrl?: string | null;
+  /**
+   * Pixel di apertura e riscrittura dei link. Profilazione a tutti gli effetti:
+   * si attiva SOLO con consenso esplicito, mai su un contatto a freddo.
+   */
+  tracking?: boolean;
+  /** Da dove arriva il contatto (art. 14 GDPR: dati non raccolti presso l'interessato). */
+  sourceNote?: string | null;
+};
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Righe di chiusura comuni a versione testo e HTML. */
+function footerLines(opts: OutreachBodyOptions): string[] {
+  const lines: string[] = [];
+  if (opts.sourceNote?.trim()) lines.push(opts.sourceNote.trim());
+  if (opts.unsubscribeUrl) {
+    lines.push(`Non vuoi più ricevere queste email? Disiscriviti: ${opts.unsubscribeUrl}`);
+  }
+  return lines;
+}
+
+/** Footer in chiaro per la parte text/plain del messaggio. */
+export function appendOutreachTextFooter(textBody: string, opts: OutreachBodyOptions = {}): string {
+  const lines = footerLines(opts);
+  if (!lines.length) return textBody;
+  return `${textBody}\n\n—\n${lines.join("\n")}`;
+}
+
+export function wrapOutreachHtmlBody(
+  textBody: string,
+  draftId: string,
+  opts: OutreachBodyOptions = {}
+): string {
+  const escaped = escapeHtml(textBody);
+  const withBreaks = escaped.replace(/\n/g, "<br>");
+  // Senza consenso esplicito il corpo resta pulito: nessun link riscritto verso il
+  // nostro redirect e nessun pixel. Erano entrambi presenti su ogni mail a freddo.
+  const bodyHtml = opts.tracking
+    ? rewriteOutreachLinksForTracking(withBreaks, draftId)
+    : withBreaks;
+  const pixel = opts.tracking
+    ? `<img src="${buildOutreachOpenPixelUrl(draftId)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0" />`
+    : "";
+
+  const lines = footerLines(opts);
+  const footer = lines.length
+    ? `<hr style="border:0;border-top:1px solid #ddd;margin:20px 0 10px"><div style="font-size:12px;line-height:1.5;color:#666">${
+        opts.sourceNote?.trim() ? `${escapeHtml(opts.sourceNote.trim())}<br>` : ""
+      }${
+        opts.unsubscribeUrl
+          ? `Non vuoi più ricevere queste email? <a href="${opts.unsubscribeUrl}" style="color:#666">Disiscriviti</a>.`
+          : ""
+      }</div>`
+    : "";
+
+  return `<div style="font-family:sans-serif;font-size:14px;line-height:1.5">${bodyHtml}${footer}${pixel}</div>`;
 }
 
 /** Notifica "segnale di intento" (apertura/click), una sola volta per bozza. */

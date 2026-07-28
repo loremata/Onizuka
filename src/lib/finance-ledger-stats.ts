@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { syncFinanceOverdueStatuses } from "@/lib/finance-overdue";
+import { FINANCE_STATUS_OPEN, FINANCE_STATUS_SETTLED } from "@/lib/finance-status-groups";
 import { runWithDb } from "@/lib/with-db";
 
 /** Target mensile netto dalla master spec (€). */
@@ -58,16 +59,16 @@ export async function loadFinanceLedgerStats(
     });
 
     const incomeExpected = sumAmount(
-      entries.filter((e) => e.type === "INCOME" && ["PLANNED", "EXPECTED", "OVERDUE"].includes(e.status))
+      entries.filter((e) => e.type === "INCOME" && FINANCE_STATUS_OPEN.includes(e.status))
     );
     const incomeReceived = sumAmount(
-      entries.filter((e) => e.type === "INCOME" && e.status === "RECEIVED")
+      entries.filter((e) => e.type === "INCOME" && FINANCE_STATUS_SETTLED.includes(e.status))
     );
     const expenseExpected = sumAmount(
-      entries.filter((e) => e.type === "EXPENSE" && ["PLANNED", "EXPECTED", "OVERDUE"].includes(e.status))
+      entries.filter((e) => e.type === "EXPENSE" && FINANCE_STATUS_OPEN.includes(e.status))
     );
     const expensePaid = sumAmount(
-      entries.filter((e) => e.type === "EXPENSE" && e.status === "PAID")
+      entries.filter((e) => e.type === "EXPENSE" && FINANCE_STATUS_SETTLED.includes(e.status))
     );
 
     const netForecast = incomeExpected + incomeReceived - expenseExpected - expensePaid;

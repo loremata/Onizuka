@@ -52,14 +52,18 @@ async function commitOpportunityStatusChange(
     // WON/LOST: lo stato viene impostato ATOMICAMENTE dentro propagate (stato + effetti
     // nella stessa transazione). Gli altri stati (OPEN…) si aggiornano direttamente.
     if (status === "WON") {
-      await propagateOpportunityWon(opportunityId);
+      const res = await propagateOpportunityWon(opportunityId);
+      // Se la transazione è fallita nulla è stato scritto: non scrivere l'audit log
+      // né notificare una vittoria che non è avvenuta.
+      if (!res.ok) return { error: "Non è stato possibile registrare la vincita. Riprova." };
       void notifyAdminUsers({
         kind: "opportunity_won",
         title: `Opportunità vinta: ${existing.title}`,
         href: `/admin/crm/opportunities/${opportunityId}/edit`,
       }).catch(() => {});
     } else if (status === "LOST") {
-      await propagateOpportunityLost(opportunityId);
+      const res = await propagateOpportunityLost(opportunityId);
+      if (!res.ok) return { error: "Non è stato possibile registrare la perdita. Riprova." };
     } else {
       await prisma.opportunity.update({ where: { id: opportunityId }, data: { status } });
     }
@@ -87,10 +91,40 @@ async function commitOpportunityStatusChange(
   return { ok: true } as const;
 }
 
-function parseEstimatedValue(raw: string | null): Prisma.Decimal | null {
-  if (!raw?.trim()) return null;
-  const n = Number(raw.replace(",", "."));
-  if (Number.isNaN(n) || n < 0) return null;
+/**
+ * Accetta sia il formato italiano ("1.500,00", "1.500", "1500,50") sia quello
+ * inglese ("1500.50"). Prima si limitava a `replace(",", ".")`, che sostituisce
+ * solo la PRIMA virgola: "1.500,00" diventava "1.500.00" → NaN → valore azzerato
+ * in silenzio, e pipeline/CLV calcolavano su zero.
+ */
+export function parseEstimatedValue(raw: string | null): Prisma.Decimal | null {
+  const s = raw?.trim().replace(/[\s€]/g, "");
+  if (!s) return null;
+
+  const lastComma = s.lastIndexOf(",");
+  const lastDot = s.lastIndexOf(".");
+  let normalized: string;
+
+  if (lastComma >= 0 && lastDot >= 0) {
+    // Entrambi presenti: l'ultimo che compare è il separatore decimale.
+    const decimalSep = lastComma > lastDot ? "," : ".";
+    const thousandSep = decimalSep === "," ? "." : ",";
+    normalized = s.split(thousandSep).join("").replace(decimalSep, ".");
+  } else if (lastComma >= 0) {
+    // Solo virgole: in una interfaccia italiana la virgola è SEMPRE il decimale.
+    // "1,500" vale 1,50 € — chi intende millecinquecento scrive "1500" o "1.500".
+    normalized = s.replace(",", ".");
+  } else if (lastDot >= 0) {
+    // Solo punti: "1.500" sono migliaia, "1500.5" è decimale.
+    const isThousands = s.split(".").slice(1).every((part) => part.length === 3);
+    normalized = isThousands ? s.split(".").join("") : s;
+  } else {
+    normalized = s;
+  }
+
+  if (!/^-?\d+(\.\d+)?$/.test(normalized)) return null;
+  const n = Number(normalized);
+  if (!Number.isFinite(n) || n < 0) return null;
   return new Prisma.Decimal(n.toFixed(2));
 }
 
@@ -239,6 +273,11 @@ export async function updateOpportunity(
   }
 
   try {
+    // Lo `status` è ESCLUSO da questo update: WON/LOST devono passare da
+    // commitOpportunityStatusChange, che imposta lo stato dentro la stessa
+    // transazione della propagazione (promozione cliente, attivazione servizio,
+    // uscita dalle sequenze a freddo). Scriverlo qui direttamente lasciava il
+    // deal "vinto" senza che succedesse nient'altro.
     await prisma.opportunity.update({
       where: { id: opportunityId },
       data: {
@@ -247,7 +286,6 @@ export async function updateOpportunity(
         title,
         description,
         assetId,
-        status,
         priority,
         estimatedValue,
         probability,
@@ -266,6 +304,10 @@ export async function updateOpportunity(
     console.error(e);
     return { error: "Aggiornamento opportunità non riuscito." };
   }
+
+  // Ora lo stato, con la propagazione. No-op se non è cambiato.
+  const statusResult = await commitOpportunityStatusChange(session.user.id, opportunityId, status);
+  if (statusResult && "error" in statusResult) return statusResult;
 
   revalidatePath("/admin/crm/opportunities");
   revalidatePath("/admin/audit");

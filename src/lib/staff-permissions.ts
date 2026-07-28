@@ -50,6 +50,9 @@ const PATH_MODULE_RULES: { prefix: string; module: AdminModule }[] = [
   { prefix: "/api/admin/finance", module: "finance" },
   { prefix: "/admin/documents", module: "crm" },
   { prefix: "/admin/approvals", module: "reach" },
+  // Le campagne trattano dati personali per marketing: stesso modulo dell'outreach,
+  // non il default "core" (che è aperto a tutti gli staff).
+  { prefix: "/admin/campaigns", module: "reach" },
   { prefix: "/api/admin/prospect-from-vat", module: "crm" },
   { prefix: "/admin/crm", module: "crm" },
   { prefix: "/admin/clients", module: "crm" },

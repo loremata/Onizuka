@@ -20,6 +20,14 @@ export async function getClientMergeImpact(clientId: string): Promise<ClientMerg
     financeEntries,
     milestones,
     timeEntries,
+    retailContracts,
+    storeSales,
+    campaignEnrollments,
+    socialAccounts,
+    analyticsMetrics,
+    competitors,
+    commitments,
+    onboardingItems,
   ] = await Promise.all([
     prisma.postItem.count({ where: { clientId } }),
     prisma.webhookSubscription.count({ where: { clientId } }),
@@ -36,6 +44,14 @@ export async function getClientMergeImpact(clientId: string): Promise<ClientMerg
     prisma.financeEntry.count({ where: { clientId } }),
     prisma.clientMilestone.count({ where: { clientId } }),
     prisma.timeEntry.count({ where: { clientId } }),
+    prisma.clientRetailContract.count({ where: { clientId } }),
+    prisma.storeSale.count({ where: { clientId } }),
+    prisma.campaignEnrollment.count({ where: { clientId } }),
+    prisma.socialAccount.count({ where: { clientId } }),
+    prisma.analyticsMetric.count({ where: { clientId } }),
+    prisma.competitor.count({ where: { clientId } }),
+    prisma.clientCommitment.count({ where: { clientId } }),
+    prisma.clientOnboardingItem.count({ where: { clientId } }),
   ]);
 
   return [
@@ -54,5 +70,13 @@ export async function getClientMergeImpact(clientId: string): Promise<ClientMerg
     { label: "Finance", count: financeEntries },
     { label: "Milestone", count: milestones },
     { label: "Time entry", count: timeEntries },
+    { label: "Contratti retail", count: retailContracts },
+    { label: "Vendite negozio", count: storeSales },
+    { label: "Iscrizioni campagne", count: campaignEnrollments },
+    { label: "Account social", count: socialAccounts },
+    { label: "Metriche analytics", count: analyticsMetrics },
+    { label: "Competitor", count: competitors },
+    { label: "Impegni", count: commitments },
+    { label: "Onboarding", count: onboardingItems },
   ];
 }

@@ -146,9 +146,15 @@ export async function updateLead(
   const businessName = optionalString(formData.get("businessName"));
   const email = optionalString(formData.get("email"));
   const phone = optionalString(formData.get("phone"));
+  // Il form lead NON espone il codice fiscale. Leggerlo comunque dal payload lo
+  // azzerava a ogni salvataggio (bastava aggiungere una nota), cancellando la
+  // chiave d'identità dei privati e generando doppioni da lì in poi. Se il campo
+  // non c'è nel form, si conserva quello già a sistema.
   const { vatNumber, fiscalCode } = normalizeFiscalIdentity({
     vatNumber: optionalString(formData.get("vatNumber")),
-    fiscalCode: optionalString(formData.get("fiscalCode")),
+    fiscalCode: formData.has("fiscalCode")
+      ? optionalString(formData.get("fiscalCode"))
+      : existing.fiscalCode,
   });
   const source = optionalString(formData.get("source"));
   const referrerId = optionalString(formData.get("referrerId"));

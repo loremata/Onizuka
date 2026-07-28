@@ -1,0 +1,13 @@
+-- Nuova base per l'outreach B2B a freddo verso indirizzi aziendali generici
+-- (info@, commerciale@, dominio dell'azienda) reperiti da fonti pubbliche.
+--
+-- Perche' serve: SOFT_OPT_IN copre solo chi ha gia' comprato, EXPLICIT solo chi ha
+-- dato il consenso. Senza una terza voce, l'igiene sul consenso avrebbe spento
+-- l'intero outreach. Questa base va usata SOLO insieme a: origine dei dati
+-- dichiarata nel messaggio e link di disiscrizione funzionante — entrambi ora
+-- presenti in outreach-send.ts.
+--
+-- ALTER TYPE ... ADD VALUE deve stare da solo: il valore non e' utilizzabile
+-- nella stessa transazione in cui viene creato. Il backfill e' nella migration
+-- successiva.
+ALTER TYPE "MarketingConsentBasis" ADD VALUE IF NOT EXISTS 'LEGITIMATE_INTEREST';

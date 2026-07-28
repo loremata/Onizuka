@@ -4,7 +4,6 @@ import { runWithDb } from "@/lib/with-db";
 import { DbUnavailableBanner } from "@/components/onizuka/db-unavailable-banner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClientDeleteButton } from "./client-delete-button";
 import { clientStatusLabel } from "@/lib/crm-client-status";
 import { clientKindBadge, clientKindLabel, clientMacroCategoryLabel } from "@/lib/client-kind";
 import { buildClientSearchWhere, parseClientListFilters } from "@/lib/client-list-filters";
@@ -295,7 +294,6 @@ export default async function AdminClientsPage({ searchParams }: Props) {
                           <Button asChild variant="outline" size="sm">
                             <Link href={`/admin/clients/${c.id}/edit`}>Modifica</Link>
                           </Button>
-                          <ClientDeleteButton clientId={c.id} companyName={c.companyName} />
                         </div>
                       </td>
                     </tr>
