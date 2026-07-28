@@ -9,6 +9,7 @@ import { eur } from "@/lib/inserimenti/format";
 import { BRAND_TILES } from "@/lib/inserimenti/constants";
 import { DonutChart } from "@/components/onizuka/donut-chart";
 import { ChiusuraGiornata } from "./chiusura-giornata";
+import { loadSaleDataGaps } from "@/lib/inserimenti/data-gaps";
 import { Obiettivo } from "./obiettivo";
 import { RecapMatrixTable } from "./recap-matrix";
 import { InserimentiNav } from "./module-nav";
@@ -22,6 +23,7 @@ export default async function InserimentiPage({
   const session = await requireFullAdmin();
   const month = /^\d{4}-\d{2}$/.test(searchParams.mese ?? "") ? searchParams.mese! : currentMonth();
   const data = await loadDashboard(session.user.id, month);
+  const gaps = await loadSaleDataGaps(session.user.id, month);
 
   // recap interattivo: filtri brand/categoria e spaccato, sulla stessa pagina
   const fBrand = searchParams.brand || null;
@@ -374,6 +376,34 @@ export default async function InserimentiPage({
 
       {/* Chiusura giornata */}
       {data.today ? <ChiusuraGiornata today={data.today} /> : null}
+
+      {gaps.gaps.length > 0 ? (
+        <div className="rounded-lg border border-amber-400/40 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          <p className="font-medium">
+            {gaps.moneyGaps > 0
+              ? `${gaps.moneyGaps === 1 ? "1 vendita incide" : `${gaps.moneyGaps} vendite incidono`} sul totale`
+              : `${gaps.gaps.length} vendite da completare`}
+            {gaps.uncertaintyEur > 0 ? ` — fino a ${eur(gaps.uncertaintyEur)} di differenza` : ""}
+          </p>
+          <p className="mt-1 text-xs opacity-90">
+            {gaps.moneyGaps > 0
+              ? "Manca un dato che cambia il compenso: finché non lo inserisci il totale qui sopra è una stima."
+              : "Dati utili alle gare, il compenso non cambia."}
+          </p>
+          <ul className="mt-2 space-y-1 text-xs">
+            {gaps.gaps.slice(0, 8).map((g) => (
+              <li key={g.saleId} className="tabular-nums">
+                {g.affectsMoney ? "€ " : "· "}
+                {g.date.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" })} ·{" "}
+                <span className="font-medium">{g.brand} {g.lineKey}</span> — manca {g.missing}
+                {g.appliedEur != null ? ` (ora conteggiata ${eur(g.appliedEur)}` : ""}
+                {g.rangeEur ? `, il vero è tra ${eur(g.rangeEur.min)} e ${eur(g.rangeEur.max)})` : g.appliedEur != null ? ")" : ""}
+              </li>
+            ))}
+            {gaps.gaps.length > 8 ? <li>…e altre {gaps.gaps.length - 8}.</li> : null}
+          </ul>
+        </div>
+      ) : null}
 
       {provisional ? (
         <div className="rounded-lg border border-amber-400/40 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">

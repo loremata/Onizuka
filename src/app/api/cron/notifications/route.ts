@@ -4,7 +4,7 @@ import { jsonApiError } from "@/lib/api-json-errors";
 import { resolveRecapDayBounds } from "@/lib/day-bounds";
 import { runFinanceOverdueSnapshotAutomationRules } from "@/lib/automation-rules-run";
 import { syncFinanceOverdueStatuses } from "@/lib/finance-overdue";
-import { runFlowDueReminders } from "@/lib/flow-due-notifications";
+import { runFlowDueReminders, purgeOldNotifications } from "@/lib/flow-due-notifications";
 import { sendDigestToUsersWithUnread } from "@/lib/notification-digest";
 import {
   sendOpsWeeklyDigestToAllAdmins,
@@ -177,11 +177,15 @@ async function cronHandler(request: NextRequest) {
   // fallito un giro che ha fatto tutto il resto — sarebbe un allarme per nulla,
   // e gli allarmi per nulla sono il modo piu' rapido per farli ignorare.
   const cronRunsPurged = await purgeOldCronRuns(30).catch(() => null);
+  // Stessa logica per le notifiche: i promemoria dei task sono effimeri (la
+  // verita' e' la lista dei task), il resto resta 90 giorni.
+  const notificationsPurged = await purgeOldNotifications().catch(() => null);
 
   return NextResponse.json({
     ok: errors.length === 0,
     errors,
     cronRunsPurged,
+    notificationsPurged,
     financeOverdueSynced,
     financeAutomation,
     flow,
