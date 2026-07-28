@@ -4,6 +4,7 @@ import { SocialHubTabs } from "@/components/onizuka/social-hub-tabs";
 import { loadSocialEngagementReport } from "@/lib/social-engagement-report";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FeatureNotConfigured } from "@/components/onizuka/feature-not-configured";
 
 export default async function SocialEngagementPage() {
   await requireAdminArea();
@@ -16,6 +17,7 @@ export default async function SocialEngagementPage() {
 
   return (
     <div className="space-y-6">
+      <FeatureNotConfigured feature="social-metrics" />
       <SocialHubTabs />
       <div>
         <Button asChild variant="ghost" size="sm">

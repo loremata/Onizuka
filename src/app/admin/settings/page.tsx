@@ -12,6 +12,7 @@ import { RecapTimezoneForm } from "./recap-timezone-form";
 import { NotifyDigestForm } from "./notify-digest-form";
 import { MarketingPolicyForm } from "./marketing-policy-form";
 import { CronHealthPanel } from "@/components/onizuka/cron-health-panel";
+import { FeatureReadinessPanel } from "@/components/onizuka/feature-readiness-panel";
 import { DeployStatusPanel } from "@/components/onizuka/deploy-status-panel";
 import { ProductionReadinessPanel } from "@/components/onizuka/production-readiness-panel";
 import { GoLiveLinks } from "./go-live-links";
@@ -110,6 +111,8 @@ export default async function AdminSettingsPage() {
           <NotifyDigestForm defaultEnabled={userPrefs?.notifyDigestEmail !== false} />
         </CardContent>
       </Card>
+
+      {admin ? <FeatureReadinessPanel /> : null}
 
       {admin ? <CronHealthPanel /> : null}
 

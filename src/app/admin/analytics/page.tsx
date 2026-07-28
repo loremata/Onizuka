@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select } from "@/components/ui/select";
 import { loadAnalyticsDashboard, loadAudienceBreakdown, sourceLabel, type MetricCard } from "@/lib/analytics-dashboard";
 import type { AnalyticsSource } from "@prisma/client";
+import { FeatureNotConfigured } from "@/components/onizuka/feature-not-configured";
 
 type Props = { searchParams: Record<string, string | string[] | undefined> };
 
@@ -50,6 +51,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
+      <FeatureNotConfigured feature="analytics-ga4" />
       <SocialHubTabs />
       <div>
         <h1 className="onizuka-page-title">Analytics</h1>

@@ -1,6 +1,7 @@
 import { requireAdminArea } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
 import { AssistantChatClient } from "./assistant-chat-client";
+import { FeatureNotConfigured } from "@/components/onizuka/feature-not-configured";
 
 export default async function AdminChatPage() {
   const session = await requireAdminArea();
@@ -19,6 +20,7 @@ export default async function AdminChatPage() {
 
   return (
     <div className="space-y-6">
+      <FeatureNotConfigured feature="assistant-llm" />
       <div>
         <h1 className="onizuka-page-title">Assistente chat</h1>
         <p className="text-muted-foreground">

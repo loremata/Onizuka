@@ -9,6 +9,7 @@ import { platformLabelIt } from "@/lib/post-ui-labels";
 import type { SocialAccountStatus } from "@prisma/client";
 import { SocialAccountForm } from "./social-account-form";
 import { deleteSocialAccount, revokeSocialAccount, snapshotSocialAccount } from "./actions";
+import { FeatureNotConfigured } from "@/components/onizuka/feature-not-configured";
 
 const statusLabel: Record<SocialAccountStatus, string> = {
   CONNECTED: "Collegato",
@@ -49,6 +50,7 @@ export default async function SocialAccountsPage() {
 
   return (
     <div className="space-y-6">
+      <FeatureNotConfigured feature="social-publishing" />
       <SocialHubTabs />
       <div>
         <h1 className="onizuka-page-title">Account social collegati</h1>

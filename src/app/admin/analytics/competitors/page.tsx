@@ -11,6 +11,7 @@ import { Select } from "@/components/ui/select";
 import { sourceLabel } from "@/lib/analytics-dashboard";
 import { CompetitorForm } from "./competitor-form";
 import { deleteCompetitor, recordCompetitorSnapshot } from "./actions";
+import { FeatureNotConfigured } from "@/components/onizuka/feature-not-configured";
 
 type Props = { searchParams: Record<string, string | string[] | undefined> };
 
@@ -48,6 +49,7 @@ export default async function CompetitorsPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
+      <FeatureNotConfigured feature="analytics-ga4" />
       <SocialHubTabs />
       <div>
         <h1 className="onizuka-page-title">Competitor</h1>
