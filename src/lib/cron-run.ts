@@ -59,8 +59,20 @@ function truncate(s: string): string {
 
 type CronHandler = (request: NextRequest) => Promise<Response>;
 
+/**
+ * Durante `next build` Next prova a pre-renderizzare le route: se una dimentica
+ * `export const dynamic = "force-dynamic"` l'handler viene invocato in fase di
+ * build e registrerebbe un finto giro fallito. È già successo con
+ * automation-queue e dedupe-training: due righe ok=false nate dal build, non da
+ * un'esecuzione. Le route ora sono tutte dinamiche, questa è la rete di sicurezza.
+ */
+function isBuildPhase(): boolean {
+  return process.env.NEXT_PHASE === "phase-production-build";
+}
+
 export function withCronRun(name: string, handler: CronHandler): CronHandler {
   return async (request: NextRequest): Promise<Response> => {
+    if (isBuildPhase()) return handler(request);
     const startedAt = Date.now();
 
     // Riga aperta PRIMA di eseguire: se la funzione viene troncata dal timeout
