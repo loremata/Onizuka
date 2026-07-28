@@ -48,8 +48,13 @@ export function FinanceEntryForm({
         </Select>
       </div>
       <div>
-        <label className="mb-1 block text-xs text-muted-foreground">Importo € (netto IVA)</label>
-        <Input name="amountEur" type="text" inputMode="decimal" placeholder="1.500,00" required className="w-28" />
+        <label
+          className="mb-1 block text-xs text-muted-foreground"
+          title="Imponibile: quello che fatturi PRIMA dell'IVA. Es. contratto annuale 3.000 € → in fattura 3.660 €."
+        >
+          Imponibile € (senza IVA)
+        </label>
+        <Input name="amountEur" type="text" inputMode="decimal" placeholder="3.000,00" required className="w-28" />
       </div>
       <div>
         <label className="mb-1 block text-xs text-muted-foreground">Rif. fattura (opzionale)</label>

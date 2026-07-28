@@ -278,7 +278,7 @@ export function RegistraForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="space-y-1">
             <span className="text-xs font-medium text-muted-foreground">
-              Canone € (del cliente) <span className="text-red-600">*obbligatorio</span>
+              Canone € IVA inclusa <span className="text-red-600">*obbligatorio</span>
             </span>
             <input
               inputMode="decimal"
@@ -287,9 +287,13 @@ export function RegistraForm({
                 setFeeEur(e.target.value);
                 setOfferCode(""); // scritto a mano → non è più dal listino
               }}
-              placeholder="es. 9,99"
+              placeholder="es. 29,90"
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"
             />
+            <span className="block text-[11px] text-muted-foreground">
+              Il prezzo che paga il cliente, come da listino (es. TIM WiFi Casa 29,90).
+              È la base su cui il gestore calcola il moltiplicatore.
+            </span>
           </label>
           <label className="flex items-end gap-2 pb-2">
             <input type="checkbox" checked={domiciled} onChange={(e) => setDomiciled(e.target.checked)} />

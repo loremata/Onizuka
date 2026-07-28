@@ -10,8 +10,11 @@ import { loadDashboard, currentMonth } from "@/lib/inserimenti/dashboard";
  * "Reale" = il netto già consolidato: incassi del mese meno spese pagate
  * (agenzia) più compensi maturati al banco (negozio). "Stimato" = dove si
  * chiude il mese se il ritmo regge: reale + entrate attese − spese attese +
- * proiezione lineare del negozio. Stessa convenzione su entrambi i numeri,
- * tutti gli importi al netto di IVA (l'imposta è materia del commercialista).
+ * proiezione lineare del negozio. Stessa convenzione su entrambi i numeri.
+ *
+ * IVA: qui si sommano IMPONIBILI e COMPENSI, entrambi senza IVA. Da non
+ * confondere con i canoni registrati in /admin/inserimenti, che sono prezzi di
+ * listino IVA inclusa: quelli sono un INPUT del calcolo, non un ricavo.
  *
  * I consigli sono regole, non magia: scaduti da sollecitare, gap sul target,
  * la mossa di gara col miglior rapporto (focus del motore compensi), premi a

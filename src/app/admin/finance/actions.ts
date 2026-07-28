@@ -37,8 +37,11 @@ export async function createFinanceEntry(
   if (!label) return { error: "Etichetta obbligatoria." };
   if (!TYPES.includes(typeRaw as FinanceEntryType)) return { error: "Tipo non valido." };
 
-  // Importi sempre AL NETTO di IVA: l'imposta è materia del commercialista,
-  // Onizuka tiene traccia dell'imponibile per il punto della situazione.
+  // Registro AGENZIA: l'importo è l'IMPONIBILE (quello che fatturi prima dell'IVA;
+  // es. contratto 3.000 € → fattura 3.660 €). L'imposta è materia del commercialista.
+  // NB: i canoni di telefonia in /admin/inserimenti seguono la regola OPPOSTA —
+  // lì si registra il prezzo di listino IVA inclusa, perché è la base su cui il
+  // gestore calcola il moltiplicatore della gara.
   const amountDecimal = parseEurAmount(amountRaw);
   if (!amountDecimal || amountDecimal.lte(0)) return { error: "Importo non valido." };
   const amount = amountDecimal;
