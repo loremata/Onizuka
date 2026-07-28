@@ -28,3 +28,25 @@ describe("assertMergeClientsAllowed", () => {
     if (!r.ok) expect(r.error).toMatch(/email/i);
   });
 });
+
+describe("segnaposto @onizuka.local", () => {
+  const c = (vatNumber: string | null, contactEmail: string) =>
+    ({ vatNumber, contactEmail }) as never;
+
+  it("due segnaposto diversi NON sono un conflitto: sono due sconosciuti", () => {
+    const res = assertMergeClientsAllowed(
+      c(null, "lead+aaa@onizuka.local"),
+      c(null, "lead+bbb@onizuka.local")
+    );
+    expect(res.ok).toBe(true);
+  });
+
+  it("segnaposto contro email reale: si può unire", () => {
+    expect(assertMergeClientsAllowed(c(null, "info@officina.it"), c(null, "prospect+123@onizuka.local")).ok).toBe(true);
+  });
+
+  it("due email REALI diverse restano un conflitto", () => {
+    const res = assertMergeClientsAllowed(c(null, "info@officina.it"), c(null, "info@altro.it"));
+    expect(res.ok).toBe(false);
+  });
+});

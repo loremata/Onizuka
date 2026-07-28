@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { sweepStaleOutreach } from "@/lib/outreach-hygiene";
 import { buildOutreachDraftFromSequenceStep } from "@/lib/reach-sequence-draft";
 import { notifyAdminsViaTelegram, type TelegramInlineKeyboard } from "@/lib/telegram-bot";
 import { ITALY_TZ } from "@/lib/datetime-it";
@@ -388,15 +389,14 @@ export async function processDueOutreachSequenceSteps(): Promise<{
   activated: number;
   completedSequences: number;
   skippedWeekend?: boolean;
+  hygiene?: { stepsSkipped: number; draftsCancelled: number };
 }> {
   const now = new Date();
 
-  // Orario umano: niente follow-up nel weekend (ora Italia). Gli step restano
-  // SCHEDULED e partono al primo giorno feriale utile → più credibilità/consegna.
-  const weekday = new Intl.DateTimeFormat("en-US", { timeZone: ITALY_TZ, weekday: "short" }).format(now);
-  if (weekday === "Sat" || weekday === "Sun") {
-    return { activated: 0, completedSequences: 0, skippedWeekend: true };
-  }
+  // --- MANUTENZIONE: sempre, anche nel weekend ---
+  // Non manda niente, quindi non ha motivo di fermarsi il sabato. Prima stava
+  // dopo il controllo del weekend e per due giorni su sette l'arretrato
+  // continuava a crescere indisturbato.
 
   // Scadenza degli step "ACTIVATED" mai inviati (bozza manuale mai approvata):
   // oltre la soglia diventano SKIPPED, altrimenti la sequenza non si chiude mai
@@ -406,6 +406,18 @@ export async function processDueOutreachSequenceSteps(): Promise<{
     where: { status: "ACTIVATED", activatedAt: { lt: new Date(now.getTime() - STALE_ACTIVATED_MS) } },
     data: { status: "SKIPPED" },
   });
+
+  // Scadenza degli step SCHEDULED e delle bozze mai approvate: e' la regola che
+  // mancava del tutto, quella per cui un passo previsto per il 4 giugno restava
+  // "dovuto" a fine luglio e sarebbe partito al primo sblocco degli invii.
+  const hygiene = await sweepStaleOutreach(now);
+
+  // Orario umano: niente follow-up nel weekend (ora Italia). Gli step restano
+  // SCHEDULED e partono al primo giorno feriale utile → più credibilità/consegna.
+  const weekday = new Intl.DateTimeFormat("en-US", { timeZone: ITALY_TZ, weekday: "short" }).format(now);
+  if (weekday === "Sat" || weekday === "Sun") {
+    return { activated: 0, completedSequences: 0, skippedWeekend: true, hygiene };
+  }
 
   const due = await prisma.outreachSequenceStep.findMany({
     where: {
@@ -461,7 +473,7 @@ export async function processDueOutreachSequenceSteps(): Promise<{
     }
   }
 
-  return { activated, completedSequences };
+  return { activated, completedSequences, hygiene };
 }
 
 /** Segna step come SENT quando la bozza collegata viene inviata. */

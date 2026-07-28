@@ -1521,6 +1521,11 @@ model OutreachDraft {
   body           String              @db.Text
   status         OutreachDraftStatus @default(DRAFT)
   sentAt         DateTime?
+  /// Indirizzo a cui la mail e' partita davvero (minuscolo). Serve a due cose:
+  /// avere la prova di chi ha ricevuto cosa, e impedire che lo stesso recapito
+  /// riceva piu' sequenze in parallelo quando lo stesso soggetto e' duplicato
+  /// nell'anagrafica sotto ragioni sociali diverse.
+  sentToEmail    String?
   openedAt       DateTime?
   openCount      Int                 @default(0)
   clickedAt      DateTime?
@@ -1536,6 +1541,7 @@ model OutreachDraft {
 
   @@index([ownerUserId])
   @@index([status])
+  @@index([sentToEmail, sentAt])
   @@index([digitalAuditId])
   @@index([sentAt])
 }
