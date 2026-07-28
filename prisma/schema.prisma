@@ -320,6 +320,13 @@ model User {
   timeApproverClientIds    String[] @default([])
   /// Soglia gruppi dedupe per email alert (null = env DEDUPE_ALERT_MIN_GROUPS).
   dedupeAlertMinGroups     Int?
+  /// Base giuridica assegnata d'ufficio a un contatto reperito da fonti pubbliche
+  /// (Google Business Profile, sito aziendale, elenchi). NONE = nessuna assegnazione
+  /// automatica, i nuovi contatti nascono non contattabili.
+  marketingAutoBasis       MarketingConsentBasis @default(LEGITIMATE_INTEREST)
+  /// Domini email esclusi dall'assegnazione automatica (minuscolo, senza @).
+  /// Vuoto = nessuna esclusione: si contatta qualunque indirizzo pubblico.
+  marketingExcludedDomains String[] @default([])
   workspaceId              String?  @default("ws_default")
   /// Azioni admin vietate esplicitamente (es. client.delete, finance.export).
   staffDeniedActions       String[] @default([])

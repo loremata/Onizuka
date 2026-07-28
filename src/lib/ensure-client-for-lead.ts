@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import { findClientByFiscalIdentity } from "@/lib/client-fiscal-identity";
 import { inferClientKind } from "@/lib/client-kind";
+import {
+  DEFAULT_MARKETING_POLICY,
+  resolveAutoConsentBasis,
+} from "@/lib/marketing-consent-policy";
 
 async function uniqueClientSlug(base: string): Promise<string> {
   let s = slugify(base) || "lead";
@@ -38,6 +42,8 @@ export async function ensureClientForLead(leadId: string): Promise<string | null
       website: true,
       city: true,
       clientMacroCategory: true,
+      // Serve per leggere la politica di classificazione del titolare.
+      owner: { select: { marketingAutoBasis: true, marketingExcludedDomains: true } },
     },
   });
   if (!lead) return null;
@@ -64,6 +70,13 @@ export async function ensureClientForLead(leadId: string): Promise<string | null
   const contactEmail = lead.email?.trim() || `lead+${lead.id}@onizuka.local`;
   const kind = inferClientKind({ vatNumber: lead.vatNumber, fiscalCode: lead.fiscalCode });
   const slug = await uniqueClientSlug(companyName);
+  // Base giuridica secondo la politica del titolare: senza questo passaggio il
+  // Client nascerebbe con il default della colonna (NONE) e nessun contatto
+  // acquisito da fonti pubbliche sarebbe più raggiungibile.
+  const marketingConsentBasis = resolveAutoConsentBasis(
+    lead.email,
+    lead.owner ?? DEFAULT_MARKETING_POLICY
+  );
   const data = (s: string) => ({
     companyName,
     slug: s,
@@ -71,6 +84,7 @@ export async function ensureClientForLead(leadId: string): Promise<string | null
     status: "LEAD_QUALIFIED" as const,
     relationshipState: "LEAD" as const,
     kind,
+    marketingConsentBasis,
     vatNumber: lead.vatNumber ?? undefined,
     fiscalCode: lead.fiscalCode ?? undefined,
     phone: lead.phone ?? undefined,
@@ -130,6 +144,7 @@ export async function syncLeadIdentityToClient(leadId: string): Promise<void> {
       website: true,
       city: true,
       clientMacroCategory: true,
+      owner: { select: { marketingAutoBasis: true, marketingExcludedDomains: true } },
     },
   });
   if (!lead) return;
@@ -149,6 +164,8 @@ export async function syncLeadIdentityToClient(leadId: string): Promise<void> {
       website: true,
       city: true,
       clientMacroCategory: true,
+      marketingConsentBasis: true,
+      marketingOptOutAt: true,
     },
   });
   if (!client) return;
@@ -175,6 +192,18 @@ export async function syncLeadIdentityToClient(leadId: string): Promise<void> {
     return current == null || current === ("" as unknown as T) ? incoming : undefined;
   };
 
+  // Il satellite passa dal segnaposto a un indirizzo vero (arricchimento, GBP,
+  // sito): è il momento in cui va valutata la base giuridica, altrimenti resta
+  // NONE e quel contatto non sarà mai raggiungibile.
+  const promotingPlaceholder =
+    Boolean(contactEmail) &&
+    client.contactEmail.endsWith("@onizuka.local") &&
+    !contactEmail!.endsWith("@onizuka.local");
+  const rebasedConsent =
+    promotingPlaceholder && client.marketingConsentBasis === "NONE" && !client.marketingOptOutAt
+      ? resolveAutoConsentBasis(contactEmail, lead.owner ?? DEFAULT_MARKETING_POLICY)
+      : undefined;
+
   try {
     await prisma.client.update({
       where: { id: clientId },
@@ -182,6 +211,9 @@ export async function syncLeadIdentityToClient(leadId: string): Promise<void> {
         ...(companyName && (isSatellite || !client.companyName.trim()) ? { companyName } : {}),
         ...(contactEmail && (isSatellite || client.contactEmail.endsWith("@onizuka.local"))
           ? { contactEmail }
+          : {}),
+        ...(rebasedConsent && rebasedConsent !== "NONE"
+          ? { marketingConsentBasis: rebasedConsent }
           : {}),
         phone: fill(client.phone, lead.phone),
         vatNumber: fill(client.vatNumber, lead.vatNumber),

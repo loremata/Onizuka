@@ -12,6 +12,7 @@ import { recapTimezoneSelectOptions } from "@/lib/recap-timezones";
 import { prisma } from "@/lib/prisma";
 import { RecapTimezoneForm } from "./recap-timezone-form";
 import { NotifyDigestForm } from "./notify-digest-form";
+import { MarketingPolicyForm } from "./marketing-policy-form";
 import { DeployStatusPanel } from "@/components/onizuka/deploy-status-panel";
 import { ProductionReadinessPanel } from "@/components/onizuka/production-readiness-panel";
 import { GoLiveLinks } from "./go-live-links";
@@ -42,7 +43,11 @@ export default async function AdminSettingsPage() {
 
   const userPrefs = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { notifyDigestEmail: true },
+    select: {
+      notifyDigestEmail: true,
+      marketingAutoBasis: true,
+      marketingExcludedDomains: true,
+    },
   });
 
   const admin = isFullAdmin(session.user.role);
@@ -107,6 +112,25 @@ export default async function AdminSettingsPage() {
           <NotifyDigestForm defaultEnabled={userPrefs?.notifyDigestEmail !== false} />
         </CardContent>
       </Card>
+
+      {admin ? (
+        <Card className="max-w-2xl">
+          <CardHeader>
+            <CardTitle>Base giuridica dei contatti</CardTitle>
+            <CardDescription>
+              Decide come vengono classificati i recapiti reperiti da fonti pubbliche, e
+              quindi chi è raggiungibile dall&apos;outreach. Le campagne cross-sell hanno
+              una regola più stretta e restano riservate a chi è già cliente.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <MarketingPolicyForm
+              autoBasis={userPrefs?.marketingAutoBasis ?? "LEGITIMATE_INTEREST"}
+              excludedDomains={userPrefs?.marketingExcludedDomains ?? []}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {admin ? (
         <WorkspaceDatabasePanel
