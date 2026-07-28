@@ -8,6 +8,7 @@ import { pickOutreachBody, pickOutreachSubject } from "@/lib/outreach-ab";
 import { resolveReachAbVariantForSend } from "@/lib/reach-ab-default";
 import { ensureClientOptOutToken, isEmailable } from "@/lib/campaigns/consent";
 import { buildUnsubscribeUrl } from "@/lib/unsubscribe-link";
+import { checkRecipientCooldown } from "@/lib/outreach-hygiene";
 
 /**
  * Riga sull'origine dei dati, richiesta dall'art. 14 GDPR quando il contatto non
@@ -90,6 +91,16 @@ export async function sendOutreachDraftNow(
     return { sent: false, to, note: "Email segnaposto/non valida — usa WhatsApp o chiamata." };
   }
 
+  // ── Doppioni in anagrafica ───────────────────────────────────────────────
+  // ~306 clienti duplicati per telefono e ~120 per email: la stessa persona
+  // esiste più volte sotto ragioni sociali diverse, ognuna con la sua sequenza.
+  // Il controllo è sul RECAPITO, non sul record: è la persona a ricevere le
+  // mail, non la scheda.
+  const cooldown = await checkRecipientCooldown(to, draft.id);
+  if (cooldown.blocked) {
+    return { sent: false, to, note: cooldown.reason };
+  }
+
   // ── Consenso (GDPR) ──────────────────────────────────────────────────────
   // Il soggetto del consenso è il Client destinatario o, per un lead, il suo
   // Client satellite. Prima questo controllo non esisteva: chi si disiscriveva
@@ -136,7 +147,7 @@ export async function sendOutreachDraftNow(
       headers,
     });
     if (viaApi.ok) {
-      await markOutreachDraftSent(draftId, draft.ownerUserId, { abVariantSent: abVariant });
+      await markOutreachDraftSent(draftId, draft.ownerUserId, { abVariantSent: abVariant, sentToEmail: to });
       return { sent: true, to, channel: "gmail", note: `Inviata via Gmail a ${to} (variante ${abVariant}).` };
     }
     return { sent: false, to, note: "Invio Gmail fallito." };
@@ -145,7 +156,7 @@ export async function sendOutreachDraftNow(
   if (isSmtpConfigured()) {
     const res = await sendEmailViaSmtp({ to, subject, text: emailBody, html, headers });
     if (res.ok) {
-      await markOutreachDraftSent(draftId, draft.ownerUserId, { abVariantSent: abVariant });
+      await markOutreachDraftSent(draftId, draft.ownerUserId, { abVariantSent: abVariant, sentToEmail: to });
       return { sent: true, to, channel: "smtp", note: `Inviata via SMTP a ${to} (variante ${abVariant}).` };
     }
     return { sent: false, to, note: `SMTP: ${res.error}` };

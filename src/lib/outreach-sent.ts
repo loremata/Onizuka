@@ -40,7 +40,7 @@ async function advanceLeadStageOnSend(
 export async function markOutreachDraftSent(
   draftId: string,
   ownerUserId: string,
-  opts?: { abVariantSent?: "A" | "B" }
+  opts?: { abVariantSent?: "A" | "B"; sentToEmail?: string }
 ): Promise<boolean> {
   const updated = await prisma.outreachDraft.updateMany({
     where: {
@@ -52,6 +52,9 @@ export async function markOutreachDraftSent(
       status: "SENT",
       sentAt: new Date(),
       ...(opts?.abVariantSent ? { abVariantSent: opts.abVariantSent } : {}),
+      // Destinatario reale: prova di chi ha ricevuto cosa, e base del blocco
+      // anti doppio invio verso lo stesso recapito.
+      ...(opts?.sentToEmail ? { sentToEmail: opts.sentToEmail.trim().toLowerCase() } : {}),
     },
   });
 
