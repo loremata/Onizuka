@@ -7,6 +7,7 @@ import { loadAdminDashboardStats } from "@/lib/admin-dashboard-stats";
 import { loadAdminKpiTrends } from "@/lib/admin-kpi-trends";
 import { loadActionInbox } from "@/lib/action-inbox";
 import { ActionInboxCard } from "@/components/onizuka/action-inbox-card";
+import { EconomicOverviewCard } from "@/components/onizuka/economic-overview-card";
 import { resolveRecapDayBounds } from "@/lib/day-bounds";
 import { askIntentLabel } from "@/lib/ask-onizuka";
 import { orchestrateAsk } from "@/lib/ask-orchestration";
@@ -124,7 +125,10 @@ export default async function AdminDashboardPage({ searchParams }: Props) {
       {/* 1 · Cosa fare oggi — l'unica lista azionabile */}
       <ActionInboxCard items={inbox} />
 
-      {/* 2 · KPI chiave — ogni numero una sola volta */}
+      {/* 2 · Punto della situazione economica: reale vs stimato, agenzia + negozio */}
+      <EconomicOverviewCard ownerUserId={ownerId} />
+
+      {/* 3 · KPI chiave — ogni numero una sola volta */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {kpis.map((k) => (
           <Link

@@ -17,8 +17,6 @@ describe("formatFinanceEntriesCsv", () => {
         invoiceNumber: null,
         dueDate: new Date("2026-05-01"),
         paidAt: null,
-        sdiExportedAt: null,
-        stripeCheckoutSessionId: null,
         notes: null,
         createdAt: new Date(),
         updatedAt: new Date(),

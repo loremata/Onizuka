@@ -16,6 +16,19 @@ export type FinanceLedgerStats = {
   gapToTargetEur: string;
   overdueCount: number;
   entryCount: number;
+  /**
+   * Stessi valori come numeri. I campi stringa sopra sono formattati it-IT e
+   * alcuni consumer li ri-parsavano con replace() per fare confronti: fragile.
+   * Per qualsiasi calcolo usare questi.
+   */
+  raw: {
+    incomeExpected: number;
+    incomeReceived: number;
+    expenseExpected: number;
+    expensePaid: number;
+    netForecast: number;
+    gapToTarget: number;
+  };
 };
 
 function sumAmount(
@@ -87,6 +100,14 @@ export async function loadFinanceLedgerStats(
       gapToTargetEur: formatEur(gap),
       overdueCount,
       entryCount: entries.length,
+      raw: {
+        incomeExpected,
+        incomeReceived,
+        expenseExpected,
+        expensePaid,
+        netForecast,
+        gapToTarget: gap,
+      },
     };
   });
 

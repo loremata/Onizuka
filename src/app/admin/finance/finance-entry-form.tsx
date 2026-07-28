@@ -48,8 +48,12 @@ export function FinanceEntryForm({
         </Select>
       </div>
       <div>
-        <label className="mb-1 block text-xs text-muted-foreground">Importo €</label>
-        <Input name="amountEur" type="number" step="0.01" min="0" required className="w-28" />
+        <label className="mb-1 block text-xs text-muted-foreground">Importo € (netto IVA)</label>
+        <Input name="amountEur" type="text" inputMode="decimal" placeholder="1.500,00" required className="w-28" />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs text-muted-foreground">Rif. fattura (opzionale)</label>
+        <Input name="invoiceNumber" placeholder="n. del commercialista" className="w-40" maxLength={40} />
       </div>
       <div>
         <label className="mb-1 block text-xs text-muted-foreground">Cliente</label>

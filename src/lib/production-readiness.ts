@@ -6,8 +6,6 @@ import { isLlmConfigured } from "@/lib/llm-client";
 import { isNotificationBusEnabled } from "@/lib/notification-bus";
 import { isTelegramConfigured } from "@/lib/telegram-bot";
 import { isGbpBusinessOAuthConfigured } from "@/lib/gbp-business-oauth";
-import { isSdiBridgeConfigured } from "@/lib/finance-sdi";
-import { isStripeConfigured } from "@/lib/stripe-client";
 import { isMemoryEncryptionEnabled, isMemoryKeyRotationConfigured } from "@/lib/memory-crypto";
 import { isPgvectorConfigured } from "@/lib/memory-pgvector";
 import { isMemoryVaultPinConfigured } from "@/lib/memory-vault";
@@ -149,16 +147,6 @@ export function buildProductionReadinessChecklist(): ReadinessItem[] {
       id: "gbp-oauth",
       label: "Google Business Profile OAuth",
       status: isGbpBusinessOAuthConfigured() ? "done" : "optional",
-    },
-    {
-      id: "sdi",
-      label: "Bridge SDI (ONIZUKA_SDI_ENDPOINT)",
-      status: isSdiBridgeConfigured() ? "done" : "optional",
-    },
-    {
-      id: "stripe",
-      label: "Stripe pagamenti",
-      status: isStripeConfigured() ? "done" : "optional",
     },
     {
       id: "audit-sheet",

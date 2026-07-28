@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 
 type FinanceReconciliationDiag = {
   healthy: boolean;
-  stripeEnabled: boolean;
   issues: { id: string; label: string; count: number; severity: string }[];
 };
 
@@ -101,7 +100,6 @@ export function GoLiveDiagnosticsPanel() {
         <div>
           <p className="font-medium">Finance — riconciliazione</p>
           <p className="text-muted-foreground">
-            Stripe: {data.financeReconciliation.stripeEnabled ? "attivo" : "non configurato"} ·{" "}
             {data.financeReconciliation.healthy ? (
               <span className="text-green-600">registro coerente</span>
             ) : (

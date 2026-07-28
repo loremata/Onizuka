@@ -18,7 +18,7 @@ _Documento commerciale e funzionale · maggio 2026_
 | **Commerciale / CRM** | Lead, pipeline, opportunità, preventivi, segnalatori, dedupe, reach |
 | **Operations / account** | Clienti 360°, flow task, calendario, ticket, onboarding, commitment |
 | **Creativi / social** | Approvazione contenuti, Social Pro, piano editoriale, pubblicazione |
-| **Amministrazione** | Finanza, time tracking, ERP, FatturaPA, riconciliazione |
+| **Amministrazione** | Registro finance (netto IVA), time tracking, riconciliazione — fatture e imposte al commercialista |
 | **Cliente finale** | Portale: approva post, carica creatività, fatture, ticket, progetti |
 
 ---
@@ -131,17 +131,14 @@ _Documento commerciale e funzionale · maggio 2026_
 
 - Prima nota / ledger, entrate e uscite
 - Riconciliazione bancaria, export contabilità
-- FatturaPA, PDF fatture, SDI
+- PDF riepilogo voci
 - MRR, forecast, scaduti, rinnovi
-- Stripe checkout nel **portale cliente** per pagamento fatture
 
 ---
 
 ### 9. Onizuka Time
 
 - Time entry con doppia approvazione
-- Export e push verso ERP (Zucchetti / SAP partner cert)
-- Pull certificato ore da ERP
 
 ---
 
@@ -180,9 +177,8 @@ _Documento commerciale e funzionale · maggio 2026_
 | **Flow builder** | Editor visuale regole |
 | **Control Center** | Catalogo cron, capacità env |
 | **Webhook n8n** | POST_APPROVED, firma HMAC, retry delivery |
-| **OAuth** | Google Calendar, Gmail, GBP, ERP |
+| **OAuth** | Google Calendar, Gmail, GBP |
 | **Telegram / WhatsApp** | Bot e template |
-| **Stripe** | Webhook pagamenti |
 
 **Cron GitHub Actions:** notifiche, reach-sequences, webhook-retry, audit-sheet-queue, dedupe-training.
 
@@ -199,7 +195,7 @@ Il cliente accede a `/app` con ruolo **CLIENT** (isolamento tenant).
 | Invia creatività | Upload con crop |
 | Piano editoriale | Visualizza piano |
 | Social Pro | Vista social dedicata |
-| Fatture | Elenco e pagamento Stripe |
+| Fatture | Elenco informativo |
 | Progetti | Avanzamento progetti |
 | Galleria | Media |
 | Supporto | Ticket con allegati e aggiornamenti |
@@ -239,7 +235,7 @@ Il cliente accede a `/app` con ruolo **CLIENT** (isolamento tenant).
 1. **Agenzia marketing** — Gestire 50 clienti: approvazioni post, calendario, ticket, fatture e memoria per ogni account manager.
 2. **Studio commerciale telecom/energy** — Lead walk-in, pipeline, preventivi, rinnovi retail, reach WhatsApp.
 3. **Consulenza digitale** — Audit sito + GBP, report PDF, follow-up sequenze email.
-4. **Operations interne** — Flow task, time → ERP, regia giornaliera, intelligence su colli di bottiglia.
+4. **Operations interne** — Flow task, time tracking, regia giornaliera, intelligence su colli di bottiglia.
 5. **Partner / segnalatori** — Portale referral con commissioni e payout tracciati.
 
 ---

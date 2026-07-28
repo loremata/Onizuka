@@ -9,6 +9,7 @@ import { authOptions } from "@/lib/auth";
 import { requireAdminArea } from "@/lib/admin-session";
 import { logAuditEvent } from "@/lib/admin-audit-log";
 import { prisma } from "@/lib/prisma";
+import { parseEurAmount } from "@/lib/parse-eur";
 import { notifyAdminUsers } from "@/lib/user-notifications";
 import { opportunityPriorityOptions, opportunityStatusOptions } from "@/lib/crm-opportunity";
 import { assertOpportunityParty } from "@/lib/opportunity-party";
@@ -91,42 +92,6 @@ async function commitOpportunityStatusChange(
   return { ok: true } as const;
 }
 
-/**
- * Accetta sia il formato italiano ("1.500,00", "1.500", "1500,50") sia quello
- * inglese ("1500.50"). Prima si limitava a `replace(",", ".")`, che sostituisce
- * solo la PRIMA virgola: "1.500,00" diventava "1.500.00" → NaN → valore azzerato
- * in silenzio, e pipeline/CLV calcolavano su zero.
- */
-export function parseEstimatedValue(raw: string | null): Prisma.Decimal | null {
-  const s = raw?.trim().replace(/[\s€]/g, "");
-  if (!s) return null;
-
-  const lastComma = s.lastIndexOf(",");
-  const lastDot = s.lastIndexOf(".");
-  let normalized: string;
-
-  if (lastComma >= 0 && lastDot >= 0) {
-    // Entrambi presenti: l'ultimo che compare è il separatore decimale.
-    const decimalSep = lastComma > lastDot ? "," : ".";
-    const thousandSep = decimalSep === "," ? "." : ",";
-    normalized = s.split(thousandSep).join("").replace(decimalSep, ".");
-  } else if (lastComma >= 0) {
-    // Solo virgole: in una interfaccia italiana la virgola è SEMPRE il decimale.
-    // "1,500" vale 1,50 € — chi intende millecinquecento scrive "1500" o "1.500".
-    normalized = s.replace(",", ".");
-  } else if (lastDot >= 0) {
-    // Solo punti: "1.500" sono migliaia, "1500.5" è decimale.
-    const isThousands = s.split(".").slice(1).every((part) => part.length === 3);
-    normalized = isThousands ? s.split(".").join("") : s;
-  } else {
-    normalized = s;
-  }
-
-  if (!/^-?\d+(\.\d+)?$/.test(normalized)) return null;
-  const n = Number(normalized);
-  if (!Number.isFinite(n) || n < 0) return null;
-  return new Prisma.Decimal(n.toFixed(2));
-}
 
 function parseProbability(raw: string | null): number | null {
   if (!raw?.trim()) return null;
@@ -149,7 +114,7 @@ export async function createOpportunity(
   const assetId = optionalString(formData.get("assetId"));
   const status = parseStatus((formData.get("status") as string) ?? null) ?? "OPEN";
   const priority = parsePriority((formData.get("priority") as string) ?? null) ?? "MEDIUM";
-  const estimatedValue = parseEstimatedValue((formData.get("estimatedValue") as string) ?? null);
+  const estimatedValue = parseEurAmount((formData.get("estimatedValue") as string) ?? null);
   const probability = parseProbability((formData.get("probability") as string) ?? null);
   const nextAction = optionalString(formData.get("nextAction"));
   const dueRaw = (formData.get("dueDate") as string)?.trim();
@@ -239,7 +204,7 @@ export async function updateOpportunity(
   const assetId = optionalString(formData.get("assetId"));
   const status = parseStatus((formData.get("status") as string) ?? null) ?? "OPEN";
   const priority = parsePriority((formData.get("priority") as string) ?? null) ?? "MEDIUM";
-  const estimatedValue = parseEstimatedValue((formData.get("estimatedValue") as string) ?? null);
+  const estimatedValue = parseEurAmount((formData.get("estimatedValue") as string) ?? null);
   const probability = parseProbability((formData.get("probability") as string) ?? null);
   const nextAction = optionalString(formData.get("nextAction"));
   const dueRaw = (formData.get("dueDate") as string)?.trim();

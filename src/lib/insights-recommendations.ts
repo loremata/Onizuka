@@ -1,4 +1,5 @@
 import type { InsightsStats } from "@/lib/insights-stats";
+import { FINANCE_MONTHLY_TARGET_EUR } from "@/lib/finance-ledger-stats";
 
 export type InsightRecommendation = {
   id: string;
@@ -98,7 +99,7 @@ export function buildInsightRecommendations(
     out.push({
       id: "finance-gap",
       title: "Cashflow sotto target mensile",
-      detail: `Gap stimato € ${s.financeGapEur?.toLocaleString("it-IT")} rispetto a € 5.000/mese.`,
+      detail: `Gap stimato € ${s.financeGapEur?.toLocaleString("it-IT")} rispetto a € ${FINANCE_MONTHLY_TARGET_EUR.toLocaleString("it-IT")}/mese.`,
       href: "/admin/finance",
       priority: "high",
     });

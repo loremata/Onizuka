@@ -73,7 +73,6 @@ export async function GET() {
     financeReconciliation: financeReconciliation.ok
       ? {
           healthy: financeReconciliation.report.healthy,
-          stripeEnabled: financeReconciliation.report.stripeEnabled,
           issues: financeReconciliation.report.rows.filter((r) => r.severity !== "ok"),
         }
       : null,

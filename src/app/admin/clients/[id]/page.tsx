@@ -553,10 +553,6 @@ export default async function ClientOverviewPage({
             <p>{client.vatNumber ?? "—"}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Conto PDC gestionale</p>
-            <p className="font-mono text-xs">{client.accountingCode ?? "—"}</p>
-          </div>
-          <div>
             <p className="text-xs text-muted-foreground">Telefono</p>
             <p>{client.phone ?? "—"}</p>
           </div>

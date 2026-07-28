@@ -1,11 +1,8 @@
 import { dateTimeFormatIt } from "@/lib/datetime-it";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { requireAppClientContext } from "@/lib/app-client-session";
 import { prisma } from "@/lib/prisma";
-import { isStripeConfigured } from "@/lib/stripe-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { InvoicePayButton } from "./invoice-pay-button";
 
 const statusLabel: Record<string, string> = {
   PLANNED: "Pianificato",
@@ -15,11 +12,12 @@ const statusLabel: Record<string, string> = {
   PAID: "Pagato",
 };
 
-export default async function ClientInvoicesPage({
-  searchParams,
-}: {
-  searchParams: Record<string, string | string[] | undefined>;
-}) {
+/**
+ * Pagina informativa: elenca le voci di fatturazione collegate al cliente.
+ * Fatturazione e incassi sono gestiti dall'amministrazione (commercialista):
+ * qui non si paga nulla, si consulta lo stato.
+ */
+export default async function ClientInvoicesPage() {
   const ctx = await requireAppClientContext();
   const entries = await prisma.financeEntry.findMany({
     where: { clientId: ctx.clientId, type: "INCOME" },
@@ -28,22 +26,15 @@ export default async function ClientInvoicesPage({
   });
 
   const dateFmt = dateTimeFormatIt({ dateStyle: "medium" });
-  const paidFlash = searchParams.paid === "1";
-  const stripeOn = isStripeConfigured();
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="onizuka-page-title">Fatture e pagamenti</h1>
         <p className="text-muted-foreground">
-          Incassi collegati al tuo account cliente.
-          {stripeOn ? " Pagamento carta attivo." : " Pagamento online in configurazione."}
+          Situazione delle voci collegate al tuo account. Per pagamenti e documenti
+          fiscali fai riferimento alle indicazioni ricevute in fattura.
         </p>
-        {paidFlash ? (
-          <p className="mt-2 text-sm text-green-600 dark:text-green-400">
-            Pagamento ricevuto. Lo stato verrà aggiornato a breve.
-          </p>
-        ) : null}
         <Link href="/app/dashboard" className="mt-2 inline-block text-sm text-primary hover:underline">
           ← Dashboard
         </Link>
@@ -63,20 +54,14 @@ export default async function ClientInvoicesPage({
                 const amount = Number(e.amountEur.toString()).toLocaleString("it-IT", {
                   minimumFractionDigits: 2,
                 });
-                const payable =
-                  stripeOn &&
-                  (e.status === "EXPECTED" || e.status === "OVERDUE" || e.status === "PLANNED");
                 return (
-                  <li key={e.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="font-medium">{e.label}</p>
-                      <p className="text-xs text-muted-foreground">
-                        € {amount} · {statusLabel[e.status] ?? e.status}
-                        {e.invoiceNumber ? ` · ${e.invoiceNumber}` : ""}
-                        {e.dueDate ? ` · scad. ${dateFmt.format(e.dueDate)}` : ""}
-                      </p>
-                    </div>
-                    {payable ? <InvoicePayButton entryId={e.id} /> : null}
+                  <li key={e.id} className="py-3">
+                    <p className="font-medium">{e.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      € {amount} · {statusLabel[e.status] ?? e.status}
+                      {e.invoiceNumber ? ` · ${e.invoiceNumber}` : ""}
+                      {e.dueDate ? ` · scad. ${dateFmt.format(e.dueDate)}` : ""}
+                    </p>
                   </li>
                 );
               })}

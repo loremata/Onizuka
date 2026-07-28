@@ -12,7 +12,6 @@ import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import { logAdminAction } from "@/lib/admin-audit-log";
 import { clientStatusOptions } from "@/lib/crm-client-status";
-import { normalizeClientAccountingCode } from "@/lib/finance-accounting-accounts";
 import { staffCanPerformAction } from "@/lib/staff-action-permissions";
 import { logWorkspaceAudit } from "@/lib/workspace-audit";
 import { assertFiscalIdentityUnique } from "@/lib/client-fiscal-identity";
@@ -104,11 +103,6 @@ export async function createClient(
   const countryRaw = optionalString(formData.get("country"));
   const country = countryRaw ?? "IT";
   const driveFolderUrl = optionalString(formData.get("driveFolderUrl"));
-  const accountingCodeRaw = optionalString(formData.get("accountingCode"));
-  const accountingCode = normalizeClientAccountingCode(accountingCodeRaw);
-  if (accountingCodeRaw && !accountingCode) {
-    return { error: "Conto PDC non valido (3–12 caratteri alfanumerici)." };
-  }
   const slaRawCreate = optionalString(formData.get("ticketSlaHours"));
   const ticketSlaHours =
     slaRawCreate && Number.isFinite(Number(slaRawCreate)) && Number(slaRawCreate) > 0 && Number(slaRawCreate) <= 720
@@ -153,7 +147,6 @@ export async function createClient(
         city,
         country,
         driveFolderUrl,
-        accountingCode,
         ticketSlaHours,
       },
     });
@@ -195,11 +188,6 @@ export async function updateClient(
   const countryRaw = optionalString(formData.get("country"));
   const country = countryRaw ?? "IT";
   const driveFolderUrl = optionalString(formData.get("driveFolderUrl"));
-  const accountingCodeRaw = optionalString(formData.get("accountingCode"));
-  const accountingCode = normalizeClientAccountingCode(accountingCodeRaw);
-  if (accountingCodeRaw && !accountingCode) {
-    return { error: "Conto PDC non valido (3–12 caratteri alfanumerici)." };
-  }
   const slaRaw = optionalString(formData.get("ticketSlaHours"));
   const ticketSlaHours =
     slaRaw && Number.isFinite(Number(slaRaw)) && Number(slaRaw) > 0 && Number(slaRaw) <= 720
@@ -244,7 +232,6 @@ export async function updateClient(
         city,
         country,
         driveFolderUrl,
-        accountingCode,
         ticketSlaHours,
       },
     });

@@ -23,7 +23,7 @@ _Rivisione progetto: codice, master spec, documentazione, cron. Maggio 2026._
 | CRM | lead, clienti, pipeline, opportunità, preventivi, referrers, dedupe | **Fatto** |
 | Flow | `/admin/flow`, template `[Meeting]`, calendar sync | **Fatto** |
 | Calendar | `/admin/calendar`, ICS, Google Calendar | **Fatto** |
-| Finance | `/admin/finance`, SDI stub, Stripe, export | **Fatto** |
+| Finance | `/admin/finance`, registro gestionale (netto IVA), export CSV | **Fatto** |
 | Audit | `/admin/audit`, audit digitale, VAT lookup | **Fatto** |
 | Reach | `/admin/reach`, sequenze, tracking | **Fatto** |
 | Sales | `/admin/sales`, brand ecosistema | **Fatto** |
