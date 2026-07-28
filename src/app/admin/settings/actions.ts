@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { requireAdminArea } from "@/lib/admin-session";
+import { requireAdminArea, requireFullAdmin } from "@/lib/admin-session";
 import { isValidIanaTimeZone } from "@/lib/day-bounds";
 import { prisma } from "@/lib/prisma";
 
@@ -60,4 +60,54 @@ export async function setNotifyDigestEmailPreference(
   revalidatePath("/admin/settings");
   revalidatePath("/admin/notifications");
   redirect("/admin/settings");
+}
+
+export type MarketingPolicyActionResult =
+  | { error: string }
+  | { ok: true; reclassified: number }
+  | null;
+
+/**
+ * Politica di classificazione della base giuridica per i contatti reperiti da
+ * fonti pubbliche. Salvare la politica riclassifica anche i contatti già a
+ * sistema che non hanno ancora una base e non si sono disiscritti, così
+ * l'impostazione ha un effetto immediato e verificabile.
+ */
+export async function setMarketingPolicy(
+  _prev: MarketingPolicyActionResult,
+  formData: FormData
+): Promise<MarketingPolicyActionResult> {
+  const session = await requireFullAdmin();
+
+  const rawBasis = (formData.get("marketingAutoBasis") as string)?.trim();
+  if (rawBasis !== "LEGITIMATE_INTEREST" && rawBasis !== "NONE") {
+    return { error: "Scelta non valida." };
+  }
+  const { parseExcludedDomains } = await import("@/lib/marketing-consent-policy");
+  const excluded = parseExcludedDomains(formData.get("marketingExcludedDomains") as string);
+
+  try {
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { marketingAutoBasis: rawBasis, marketingExcludedDomains: excluded },
+    });
+
+    let reclassified = 0;
+    if (rawBasis === "LEGITIMATE_INTEREST") {
+      const { applyMarketingPolicyToExistingContacts } = await import(
+        "@/lib/marketing-consent-backfill"
+      );
+      reclassified = await applyMarketingPolicyToExistingContacts({
+        marketingAutoBasis: rawBasis,
+        marketingExcludedDomains: excluded,
+      });
+    }
+
+    revalidatePath("/admin/settings");
+    revalidatePath("/admin/reach");
+    return { ok: true, reclassified };
+  } catch (e) {
+    console.error(e);
+    return { error: "Salvataggio non riuscito." };
+  }
 }
