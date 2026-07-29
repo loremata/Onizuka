@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { recordSale, deleteSale } from "../actions";
+import { recordSale, deleteSale, searchClientsForCounter, createClientFromCounter } from "../actions";
+
+type CounterHit = { id: string; companyName: string; phone: string | null; isLead: boolean };
 
 export interface BrandOption {
   brand: string;
@@ -19,10 +21,6 @@ export interface OfferOption {
   lineKey: string | null;
 }
 
-export interface ClientOption {
-  id: string;
-  companyName: string;
-}
 
 /** Form di registrazione in blocco: la data resta impostata fra una vendita e
  *  l'altra (§A.16), brand→pista a cascata, canone solo per le piste TIM. */
@@ -30,12 +28,10 @@ export function RegistraForm({
   options,
   today,
   offers = [],
-  clients = [],
 }: {
   options: BrandOption[];
   today: string;
   offers?: OfferOption[];
-  clients?: ClientOption[];
 }) {
   const router = useRouter();
   const [date, setDate] = useState(today);
@@ -55,6 +51,33 @@ export function RegistraForm({
   // Aggancio CRM opzionale della vendita (facoltativo, non blocca il banco).
   const [clientId, setClientId] = useState("");
   const [clientQ, setClientQ] = useState("");
+  const [hits, setHits] = useState<CounterHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [pickedClient, setPickedClient] = useState<{ companyName: string; reused: boolean } | null>(null);
+  const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [clientErr, setClientErr] = useState<string | null>(null);
+
+  // Ricerca a digitazione, con pausa: al banco si scrive in fretta e non ha
+  // senso interrogare il database a ogni tasto.
+  useEffect(() => {
+    const term = clientQ.trim();
+    if (pickedClient || term.length < 2) {
+      setHits([]);
+      return;
+    }
+    setSearching(true);
+    const h = setTimeout(async () => {
+      const res = await searchClientsForCounter(term).catch(() => []);
+      setHits(res);
+      setSearching(false);
+      // Precompilo la creazione con quello che ha gia' scritto.
+      if (/\d/.test(term) && term.replace(/\D/g, "").length >= 8) setNewPhone((p) => p || term);
+      else setNewName((n) => n || term);
+    }, 300);
+    return () => clearTimeout(h);
+  }, [clientQ, pickedClient]);
 
   const brandOpt = useMemo(() => options.find((o) => o.brand === brand), [options, brand]);
   const line = useMemo(() => brandOpt?.lines.find((l) => l.key === lineKey), [brandOpt, lineKey]);
@@ -65,13 +88,6 @@ export function RegistraForm({
     if (!t) return all;
     return all.filter((l) => (l.label + " " + l.key).toLowerCase().includes(t));
   }, [brandOpt, q]);
-  /** Clienti filtrati dalla ricerca: lista potenzialmente lunga, si cerca per nome. */
-  const visibleClients = useMemo(() => {
-    const t = clientQ.trim().toLowerCase();
-    if (!t) return clients.slice(0, 50);
-    return clients.filter((c) => c.companyName.toLowerCase().includes(t)).slice(0, 50);
-  }, [clients, clientQ]);
-  const selectedClient = useMemo(() => clients.find((c) => c.id === clientId), [clients, clientId]);
   // il canone serve ovunque il compenso lo moltiplichi: gare TIM, business
   // Fastweb (5 × canone), Iliad (1 × canone). Non dipende dal brand.
   const isFisso = brand === "TIM" && line?.key === "ACCESSO_FISSO";
@@ -340,57 +356,120 @@ export function RegistraForm({
         </label>
       ) : null}
 
-      {clients.length ? (
-        <div className="space-y-1 rounded-md border border-dashed p-3">
-          <span className="text-xs font-medium text-muted-foreground">
-            Cliente (facoltativo){" "}
-            <span className="font-normal">— aggancia la vendita alla scheda CRM e attiva il servizio</span>
-          </span>
-          {selectedClient ? (
-            <p className="flex items-center gap-3 text-sm">
-              <span>👤 {selectedClient.companyName}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setClientId("");
-                  setClientQ("");
-                }}
-                className="underline hover:no-underline"
-              >
-                togli
-              </button>
-            </p>
-          ) : (
-            <>
-              <input
-                value={clientQ}
-                onChange={(e) => setClientQ(e.target.value)}
-                placeholder="Cerca cliente per nome…"
-                className="mb-2 w-full rounded-md border bg-background px-3 py-2 text-sm"
-              />
-              {clientQ.trim() ? (
-                <select
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                  size={Math.min(6, Math.max(2, visibleClients.length + 1))}
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">— nessun cliente —</option>
-                  {visibleClients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.companyName}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <span className="text-xs text-muted-foreground">
-                  Lascia vuoto per registrare senza cliente. Non rallenta il banco.
-                </span>
-              )}
-            </>
-          )}
-        </div>
-      ) : null}
+      <div className="space-y-2 rounded-md border border-dashed p-3">
+        <span className="text-xs font-medium text-muted-foreground">
+          Cliente (facoltativo){" "}
+          <span className="font-normal">— aggancia la vendita alla scheda e attiva il servizio</span>
+        </span>
+
+        {pickedClient ? (
+          <p className="flex flex-wrap items-center gap-3 text-sm">
+            <span>
+              👤 {pickedClient.companyName}
+              {pickedClient.reused ? (
+                <span className="ml-2 text-xs text-muted-foreground">(già a sistema)</span>
+              ) : null}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setPickedClient(null);
+                setClientId("");
+                setClientQ("");
+                setHits([]);
+              }}
+              className="underline hover:no-underline"
+            >
+              togli
+            </button>
+          </p>
+        ) : (
+          <>
+            <input
+              value={clientQ}
+              onChange={(e) => setClientQ(e.target.value)}
+              placeholder="Nome o telefono del cliente…"
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+            />
+
+            {hits.length > 0 ? (
+              <ul className="divide-y rounded-md border">
+                {hits.map((h) => (
+                  <li key={h.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setClientId(h.id);
+                        setPickedClient({ companyName: h.companyName, reused: true });
+                      }}
+                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted"
+                    >
+                      <span>
+                        {h.companyName}
+                        {h.phone ? <span className="text-muted-foreground"> · {h.phone}</span> : null}
+                      </span>
+                      {h.isLead ? (
+                        <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-800 dark:text-amber-300">
+                          prospect
+                        </span>
+                      ) : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            {clientQ.trim().length >= 2 && hits.length === 0 && !searching ? (
+              <div className="space-y-2 rounded-md bg-muted/50 p-2">
+                <p className="text-xs text-muted-foreground">
+                  Nessun cliente trovato. Creane uno al volo: bastano nome e telefono.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="Nome e cognome"
+                    className="min-w-[10rem] flex-1 rounded-md border bg-background px-3 py-2 text-sm"
+                  />
+                  <input
+                    value={newPhone}
+                    onChange={(e) => setNewPhone(e.target.value)}
+                    inputMode="tel"
+                    placeholder="Telefono"
+                    className="w-40 rounded-md border bg-background px-3 py-2 text-sm"
+                  />
+                  <button
+                    type="button"
+                    disabled={creating || newName.trim().length < 2 || newPhone.replace(/\D/g, "").length < 8}
+                    onClick={async () => {
+                      setCreating(true);
+                      setClientErr(null);
+                      const res = await createClientFromCounter(newName, newPhone);
+                      setCreating(false);
+                      if (!res.ok) {
+                        setClientErr(res.error);
+                        return;
+                      }
+                      setClientId(res.id);
+                      setPickedClient({ companyName: res.companyName, reused: res.reused });
+                    }}
+                    className="rounded-md border bg-background px-3 py-2 text-sm font-medium disabled:opacity-50"
+                  >
+                    {creating ? "Creo…" : "Crea cliente"}
+                  </button>
+                </div>
+                {clientErr ? <p className="text-xs text-destructive">{clientErr}</p> : null}
+              </div>
+            ) : null}
+
+            {!clientQ.trim() ? (
+              <span className="text-xs text-muted-foreground">
+                Lascia vuoto per registrare senza cliente. Non rallenta il banco.
+              </span>
+            ) : null}
+          </>
+        )}
+      </div>
 
       {billWarn ? <p className="text-sm text-amber-700 dark:text-amber-300">{billWarn}</p> : null}
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
