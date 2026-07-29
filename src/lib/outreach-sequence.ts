@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sweepStaleOutreach } from "@/lib/outreach-hygiene";
+import { isAutoSendAllowed } from "@/lib/outreach-send-cap";
 import { buildOutreachDraftFromSequenceStep } from "@/lib/reach-sequence-draft";
 import { notifyAdminsViaTelegram, type TelegramInlineKeyboard } from "@/lib/telegram-bot";
 import { ITALY_TZ } from "@/lib/datetime-it";
@@ -337,7 +338,14 @@ export async function activateSequenceStep(stepId: string): Promise<{ draftId: s
   });
   const eligibleForAutoSend = step.stepIndex >= 1 && firstStep?.status === "SENT";
 
-  if (eligibleForAutoSend) {
+  // Tetto giornaliero: protegge il dominio dalla macchina, non da Lorenzo.
+  // Gli invii manuali non passano di qui e restano liberi. Se il tetto è
+  // raggiunto la bozza resta pronta e riparte domani: non si perde nulla.
+  const capGate = eligibleForAutoSend
+    ? await isAutoSendAllowed(step.sequence.ownerUserId)
+    : { allowed: false as const, reason: "" };
+
+  if (eligibleForAutoSend && capGate.allowed) {
     const { sendOutreachDraftNow } = await import("@/lib/outreach-send");
     const result = await sendOutreachDraftNow(draft.id, { auto: true });
     if (result.sent) {

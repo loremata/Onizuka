@@ -1,0 +1,104 @@
+name: Backup produzione
+
+# Nasce dalla prova di ripristino del 29/07 (docs/RIPRISTINO.md): il piano
+# gratuito Supabase NON offre il recupero a un istante preciso, quindi senza
+# questo l'unica copia dei dati è quella fatta a mano.
+#
+# Gira su GitHub e non su Vercel per due motivi: qui c'è pg_dump (nel runtime
+# di Vercel no), e soprattutto la copia finisce su un fornitore DIVERSO da
+# quello che ospita il database. Un backup nello stesso posto del database
+# protegge dall'errore umano, non da un guasto del fornitore.
+
+on:
+  schedule:
+    # 01:00 UTC = 03:00 in Italia. Dopo la giornata di lavoro, prima dei cron
+    # delle 04:30, quando non sta scrivendo nessuno.
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+    # A mano PRIMA di ogni migration distruttiva: è il momento in cui serve
+    # davvero, ed è l'unico che nessuno schedule può prevedere.
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Client PostgreSQL 17 (non può essere più vecchio del server)
+        run: |
+          set -euo pipefail
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          pg_dump --version
+
+      - name: Dump
+        env:
+          PGURL: ${{ secrets.SUPABASE_DIRECT_URL }}
+        run: |
+          set -euo pipefail
+          STAMP=$(date -u +%Y%m%d-%H%M)
+          pg_dump "$PGURL" --format=custom --no-owner --no-acl --schema=public -f "onizuka-$STAMP.dump"
+          ls -lh "onizuka-$STAMP.dump"
+          # Un dump troppo piccolo significa che qualcosa è andato storto in
+          # silenzio: meglio far fallire il job che archiviare un file inutile.
+          SIZE=$(stat -c%s "onizuka-$STAMP.dump")
+          if [ "$SIZE" -lt 500000 ]; then
+            echo "::error::Backup sospetto: solo $SIZE byte (attesi ~1,8 MB)."
+            exit 1
+          fi
+          {
+            echo "STAMP=$STAMP"
+            echo "DOW=$(date -u +%u)"
+            echo "DOM=$(date -u +%d)"
+          } >> "$GITHUB_ENV"
+
+      # --- Rotazione nonno-padre-figlio -----------------------------------
+      # Non "gli ultimi 30 giorni". Il guasto pericoloso non è "il database è
+      # morto ieri": è "da tre settimane qualcosa corrompe i dati e me ne
+      # accorgo adesso". Con le sole copie recenti le hai già sovrascritte
+      # tutte. Le mensili sono l'assicurazione contro il danno lento.
+      - name: Copia giornaliera (7 giorni)
+        uses: actions/upload-artifact@v4
+        with:
+          name: onizuka-giornaliero-${{ env.STAMP }}
+          path: onizuka-${{ env.STAMP }}.dump
+          retention-days: 7
+
+      - name: Copia settimanale (5 settimane) — solo il lunedì
+        if: env.DOW == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: onizuka-settimanale-${{ env.STAMP }}
+          path: onizuka-${{ env.STAMP }}.dump
+          retention-days: 35
+
+      - name: Copia mensile (6 mesi) — solo il primo del mese
+        if: env.DOM == '01'
+        uses: actions/upload-artifact@v4
+        with:
+          name: onizuka-mensile-${{ env.STAMP }}
+          path: onizuka-${{ env.STAMP }}.dump
+          retention-days: 180
+
+      # Un backup che fallisce in silenzio è peggio di nessun backup: dà la
+      # sensazione di essere coperti. Richiede i segreti TELEGRAM_BOT_TOKEN e
+      # TELEGRAM_ADMIN_CHAT_IDS nel repo; se mancano, il passo non fa nulla.
+      - name: Avviso Telegram se il backup fallisce
+        if: failure()
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_ADMIN_CHAT_IDS }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "${TOKEN:-}" ] || [ -z "${CHAT:-}" ]; then
+            echo "Segreti Telegram non configurati: nessun avviso inviato."
+            exit 0
+          fi
+          for id in ${CHAT//,/ }; do
+            curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendMessage" \
+              -d chat_id="$id" \
+              -d text="🚨 Backup produzione FALLITO: nessuna copia nuova. $RUN_URL" >/dev/null || true
+          done
