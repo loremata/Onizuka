@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { missingRequiredSaleData } from "@/lib/inserimenti/sale-required-data";
 
 /**
  * VENDITE DA COMPLETARE — solo i dati mancanti che cambiano i SOLDI.
@@ -90,59 +91,48 @@ export async function loadSaleDataGaps(ownerUserId: string, month: string): Prom
     const line = lineByKey.get(`${s.brand}|${s.lineKey}`);
     if (!line) continue;
     const defaultRate = line.tiers.length ? Number(line.tiers[0].value) : 0;
+    const offerPricesForLine = offersByLine.get(`${s.brand}|${s.lineKey}`) ?? [];
 
-    // 1) Pista a gettone senza offerta, quando il listino ha valori DIVERSI:
-    //    è lì che il default mente. Se il brand ha un prezzo solo, nessun dubbio.
-    if (line.unit === "EUR_PER_PIECE" && !s.offerCode) {
-      const lineOffers = offersByLine.get(`${s.brand}|${s.lineKey}`) ?? [];
-      const distinct = Array.from(new Set(lineOffers));
-      if (distinct.length > 1) {
-        const min = Math.min(...distinct);
-        const max = Math.max(...distinct);
-        gaps.push({
-          saleId: s.id,
-          date: s.date,
-          brand: s.brand,
-          lineKey: s.lineKey,
-          missing: "offerta venduta",
-          appliedEur: defaultRate,
-          rangeEur: { min, max },
-          affectsMoney: true,
-        });
-        uncertainty += Math.max(Math.abs(max - defaultRate), Math.abs(defaultRate - min));
-      }
-    }
+    // STESSA regola che il form usa per rifiutare: se divergessero, il sistema
+    // direbbe una cosa al salvataggio e un'altra guardando il totale.
+    const missing = missingRequiredSaleData({
+      lineKey: s.lineKey,
+      lineUnit: line.unit,
+      subtype: s.subtype,
+      offerCode: s.offerCode,
+      feeEur: s.feeEur == null ? null : Number(s.feeEur),
+      provenance: s.provenance,
+      offerPricesForLine,
+    });
+    if (!missing) continue;
 
-    // 2) Pista a moltiplicatore senza canone: il compenso è canone × moltiplicatore,
-    //    quindi senza canone quella vendita vale zero. Eccezione legittima: le FWA
-    //    ricaricabili, pagate a gettone e prive di canone per natura.
-    const isGettoneFwa = s.lineKey === "ACCESSO_FISSO" && s.subtype === "FWA_RIC";
-    if (line.unit === "MULTIPLIER_ON_FEE" && s.feeEur == null && !isGettoneFwa) {
-      gaps.push({
-        saleId: s.id,
-        date: s.date,
-        brand: s.brand,
-        lineKey: s.lineKey,
-        missing: "canone del cliente",
-        appliedEur: 0,
-        rangeEur: null,
-        affectsMoney: true,
-      });
-    }
+    const distinct = Array.from(new Set(offerPricesForLine));
+    const rangeEur =
+      missing.field === "offerCode" && distinct.length > 1
+        ? { min: Math.min(...distinct), max: Math.max(...distinct) }
+        : null;
 
-    // 3) MNP senza provenienza: serve alle gare, non al compenso della singola
-    //    vendita — segnalata ma senza incertezza economica.
-    if (s.lineKey === "MNP" && !s.provenance) {
-      gaps.push({
-        saleId: s.id,
-        date: s.date,
-        brand: s.brand,
-        lineKey: s.lineKey,
-        missing: "provenienza (operatore di origine)",
-        appliedEur: null,
-        rangeEur: null,
-        affectsMoney: false,
-      });
+    gaps.push({
+      saleId: s.id,
+      date: s.date,
+      brand: s.brand,
+      lineKey: s.lineKey,
+      missing:
+        missing.field === "offerCode"
+          ? "offerta venduta"
+          : missing.field === "feeEur"
+            ? "canone del cliente"
+            : "provenienza (operatore di origine)",
+      appliedEur: missing.field === "offerCode" ? defaultRate : missing.field === "feeEur" ? 0 : null,
+      rangeEur,
+      affectsMoney: missing.affectsMoney,
+    });
+
+    if (rangeEur) {
+      uncertainty += Math.max(
+        Math.abs(rangeEur.max - defaultRate),
+        Math.abs(defaultRate - rangeEur.min)
+      );
     }
   }
 
