@@ -111,3 +111,27 @@ export async function setMarketingPolicy(
     return { error: "Salvataggio non riuscito." };
   }
 }
+
+export type ReachCapActionResult = { error: string } | { ok: true; cap: number } | null;
+
+/** Applica il tetto agli invii automatici (follow-up). */
+export async function applyReachDailyCap(
+  _prev: ReachCapActionResult,
+  formData: FormData
+): Promise<ReachCapActionResult> {
+  const session = await requireFullAdmin();
+  const raw = Number((formData.get("cap") as string)?.trim());
+  if (!Number.isFinite(raw) || raw < 1 || raw > 500) {
+    return { error: "Valore non valido (1–500 invii al giorno)." };
+  }
+  try {
+    const { setDailyCap } = await import("@/lib/outreach-send-cap");
+    await setDailyCap(session.user.id, raw);
+    revalidatePath("/admin/settings");
+    revalidatePath("/admin/reach");
+    return { ok: true, cap: Math.round(raw) };
+  } catch (e) {
+    console.error(e);
+    return { error: "Salvataggio non riuscito." };
+  }
+}

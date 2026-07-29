@@ -329,6 +329,13 @@ model User {
   /// Domini email esclusi dall'assegnazione automatica (minuscolo, senza @).
   /// Vuoto = nessuna esclusione: si contatta qualunque indirizzo pubblico.
   marketingExcludedDomains String[] @default([])
+  /// Tetto giornaliero agli invii AUTOMATICI (follow-up). Null = valore di
+  /// partenza prudente. Gli invii manuali non sono soggetti al tetto: quelli
+  /// sono una decisione presa una per una.
+  reachDailySendCap        Int?
+  /// Quando il tetto e' stato alzato l'ultima volta: si aspetta che una soglia
+  /// nuova regga qualche giorno prima di consigliarne un'altra.
+  reachCapRaisedAt         DateTime?
   workspaceId              String?  @default("ws_default")
   /// Azioni admin vietate esplicitamente (es. client.delete, finance.export).
   staffDeniedActions       String[] @default([])
