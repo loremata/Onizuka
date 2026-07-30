@@ -231,6 +231,32 @@ export function billWeight(fee: number | null | undefined, bill?: Params["billSi
   return 0;
 }
 
+/**
+ * Bill size REALE: non è una soglia sulla singola SIM, è la MEDIA dei canoni di
+ * tutte le SIM della gara nel mese (chiarito da Lorenzo il 30/07/2026).
+ *
+ * «Ai fini dell'erogazione del gettone di gara è necessario il raggiungimento
+ * della soglia Bill Size di 9€. Qualora fosse compreso tra 8€ e 8,99€ verrà
+ * riconosciuto il relativo gettone al 50%.» La clausola compare identica dentro
+ * la gara MNP e dentro la gara AL PP Nette: si calcola per pista, sulle SIM di
+ * quella pista.
+ *
+ * Il peso che ne esce vale per TUTTE le SIM della gara, non solo per quelle
+ * sotto soglia: 5 SIM a 7,99 in mezzo a 100 a 9,99 non perdono niente, perché
+ * la media resta sopra i 9 €. Al contrario, 50 SIM a 8,99 con 10 a 7,99 fanno
+ * media 8,82 e pagano tutte al 50%.
+ *
+ * Prima del 30/07 il motore applicava la soglia SIM per SIM: azzerava le
+ * singole offerte sotto 8 € anche quando la media del mese era ampiamente sopra.
+ */
+export function billWeightOfLine(sales: Sale[], bill?: Params["billSize"]): number {
+  if (!bill) return 1;
+  const conCanone = sales.filter((s) => s.feeEur != null);
+  if (!conCanone.length) return 1;
+  const media = conCanone.reduce((a, s) => a + (s.feeEur ?? 0), 0) / conCanone.length;
+  return billWeight(media, bill);
+}
+
 const salesFor = (sales: Sale[], lineKey: string) => sales.filter((s) => s.lineKey === lineKey);
 
 /** Peso di una vendita sulla gara: FWA ricaricabile vale 0,5 sul Fisso (soglia
@@ -388,14 +414,11 @@ function computeTimLine(
     }
   };
 
-  const compensoRaw = mine.reduce((a, s) => {
-    const w = line.applyBillSize ? billWeight(s.feeEur, bill) : 1;
-    return a + perUnit(s) * (s.feeEur ?? 0) * w * fwWeight(s);
-  }, 0);
-  const eligibleFee = mine.reduce(
-    (a, s) => a + (s.feeEur ?? 0) * (line.applyBillSize ? billWeight(s.feeEur, bill) : 1) * fwWeight(s),
-    0,
-  );
+  // Un solo peso per tutta la pista, dalla MEDIA dei canoni del mese: il bill
+  // size non guarda la singola SIM (vedi billWeightOfLine).
+  const bw = line.applyBillSize ? billWeightOfLine(mine, bill) : 1;
+  const compensoRaw = mine.reduce((a, s) => a + perUnit(s) * (s.feeEur ?? 0) * bw * fwWeight(s), 0);
+  const eligibleFee = mine.reduce((a, s) => a + (s.feeEur ?? 0) * bw * fwWeight(s), 0);
 
   // valore dello scatto: quanto guadagno in più portando il volume alla soglia
   // successiva (l'intero mese si rivaluta al moltiplicatore più alto).
@@ -408,10 +431,7 @@ function computeTimLine(
         : line.domiciliationMode === "split"
           ? s.domiciled ? nextMult : nonDom
           : nextMult;
-    const compensoNext = mine.reduce((a, s) => {
-      const w = line.applyBillSize ? billWeight(s.feeEur, bill) : 1;
-      return a + nextPerUnit(s) * (s.feeEur ?? 0) * w * fwWeight(s);
-    }, 0);
+    const compensoNext = mine.reduce((a, s) => a + nextPerUnit(s) * (s.feeEur ?? 0) * bw * fwWeight(s), 0);
     stepValue = round2(compensoNext - compensoRaw);
   }
 
@@ -716,6 +736,9 @@ export function attributeSales(plan: Plan, sales: Sale[], inputs: MonthlyInputs 
     const mult = Math.max(0, tierValue(qty, line.tiers) - penalty);
     const domicVal = line.domiciliationValue ?? 0;
     const nonDom = line.nonDomiciledValue ?? 0;
+    // Bill size di PISTA (media dei canoni del mese), non della singola SIM:
+    // stessa definizione di computeTimLine.
+    const bw = line.applyBillSize ? billWeightOfLine(mine.map((m) => m.s), bill) : 1;
     for (const { s, i } of mine) {
       const perUnit =
         line.domiciliationMode === "bonus"
@@ -727,12 +750,11 @@ export function attributeSales(plan: Plan, sales: Sale[], inputs: MonthlyInputs 
               ? mult
               : nonDom
             : mult;
-      const w = line.applyBillSize ? billWeight(s.feeEur, bill) : 1;
       out.push({
         index: i,
         lineKey: line.key,
-        compenso: round2(perUnit * (s.feeEur ?? 0) * w * fwWeight(s)),
-        paysGettone: w > 0,
+        compenso: round2(perUnit * (s.feeEur ?? 0) * bw * fwWeight(s)),
+        paysGettone: bw > 0,
       });
     }
   }

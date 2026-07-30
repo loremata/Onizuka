@@ -200,7 +200,47 @@ describe("MNP — moltiplicatore sul canone", () => {
     expect(dom).toBe(24); // (1,2 + 1,2) × 10
   });
 
-  test("bill size a 8,50 conta metà; a 7,99 conta zero", () => {
+  // Il bill size è la MEDIA dei canoni della gara nel mese, non una soglia sulla
+  // singola SIM (chiarito da Lorenzo il 30/07/2026). Gli esempi sono i suoi.
+  describe("bill size = media del mese", () => {
+    const al16: Sale[] = Array.from({ length: 16 }, () => ({ lineKey: "AL_PP", feeEur: 10, domiciled: false }));
+    const many = (n: number, fee: number): Sale[] => Array.from({ length: n }, () => mnpSale(fee));
+
+    test("50 a 8,99 e 10 a 7,99: media 8,82 → tutte pagate al 50%", () => {
+      const mnp = [...many(50, 8.99), ...many(10, 7.99)];
+      const r = computeTim(timPlan([MNP, AL_PP]), [...mnp, ...al16], {});
+      const somma = 50 * 8.99 + 10 * 7.99; // 529,40
+      // 60 pezzi → scaglione ≥37 → 2,9. Il 50% colpisce TUTTE, anche le 8,99.
+      expect(r.lines[0].compenso).toBeCloseTo(2.9 * somma * 0.5, 2);
+    });
+
+    test("5 a 7,99, 10 a 8,99 e 100 a 9,99: media 9,82 → tutte al 100%", () => {
+      const mnp = [...many(5, 7.99), ...many(10, 8.99), ...many(100, 9.99)];
+      const r = computeTim(timPlan([MNP, AL_PP]), [...mnp, ...al16], {});
+      const somma = 5 * 7.99 + 10 * 8.99 + 100 * 9.99; // 1.128,85
+      // 115 pezzi → scaglione ≥110 → 5,2. Le 5 a 7,99 NON perdono niente.
+      expect(r.lines[0].compenso).toBeCloseTo(5.2 * somma, 2);
+    });
+
+    test("le offerte basse non si perdono se la media tiene: 10 a 9,99 + 2 a 7,99", () => {
+      const mnp = [...many(10, 9.99), ...many(2, 7.99)];
+      const r = computeTim(timPlan([MNP, AL_PP]), [...mnp, ...al16], {});
+      const somma = 10 * 9.99 + 2 * 7.99; // 115,88 · media 9,66
+      expect(r.lines[0].compenso).toBeCloseTo(1.2 * somma, 2);
+      // col vecchio calcolo per-SIM le due a 7,99 valevano zero: 1,2 × 99,90
+      expect(r.lines[0].compenso).toBeGreaterThan(1.2 * 10 * 9.99);
+    });
+
+    test("se la media crolla sotto 8 la gara non paga niente", () => {
+      const r = computeTim(timPlan([MNP, AL_PP]), [...many(12, 7.5), ...al16], {});
+      expect(r.lines[0].compenso).toBe(0);
+      expect(r.lines[0].qty).toBe(12); // i pezzi contano comunque per la soglia
+    });
+  });
+
+  // Con UNA sola SIM la media coincide col suo canone, quindi qui il risultato
+  // è lo stesso di prima: il caso multi-SIM sta nel describe "bill size = media".
+  test("mese con una sola SIM: a 8,50 conta metà, a 7,99 conta zero", () => {
     const al: Sale[] = Array.from({ length: 16 }, () => ({ lineKey: "AL_PP", feeEur: 10, domiciled: false }));
     const half = computeTim(timPlan([MNP, AL_PP]), [mnpSale(8.5), ...al], {}).lines[0].compenso;
     const zero = computeTim(timPlan([MNP, AL_PP]), [mnpSale(7.99), ...al], {}).lines[0].compenso;
