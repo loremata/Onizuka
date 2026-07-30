@@ -587,8 +587,21 @@ describe("prizeOpportunities — quando i cancelli non bastano", () => {
     const [o] = prizeOpportunities(plan, r);
     expect(o.missingGates).toEqual([{ lineKey: "MNP", missing: 1 }]);
     expect(o.pointsIfClosed).toBe(188);
-    expect(o.prizeIfClosed).toBeGreaterThan(1000);
+    // Premio A SCALINO: 188 punti stanno fra la soglia minima (180) e quella
+    // massima (300), quindi vale esattamente il premio minimo. Non esiste un
+    // valore intermedio: la soglia si raggiunge o non si raggiunge.
+    expect(o.prizeIfClosed).toBe(1000);
     expect(o.worthChasing).toBe(true);
+  });
+
+  test("il premio non è proporzionale: a un punto dalla soglia massima vale ancora il minimo", () => {
+    // 299 punti prendono 1.000 €, non 1.983: il salto è tutto sull'ultimo punto.
+    const quasi = computeMonth(plan, sales(49, 50)); // 49×2 + 50×4 = 298 punti
+    const pieno = computeMonth(plan, sales(50, 50)); // 50×2 + 50×4 = 300 punti
+    expect(quasi.prizes[0].points).toBe(298);
+    expect(quasi.prizes[0].prize).toBe(1000);
+    expect(pieno.prizes[0].points).toBe(300);
+    expect(pieno.prizes[0].prize).toBe(2000);
   });
 
   test("cancelli tutti aperti: nessuna opportunità da segnalare", () => {
@@ -648,10 +661,17 @@ describe("addon MNP a conteggio — bonus una tantum sopra soglia", () => {
     expect(r.extras).toBe(0);
   });
 
-  test("≥12 MNP con canone ≥9,99 → +15€ una tantum (non per-pezzo)", () => {
+  test("≥12 MNP con canone ≥9,99 → +15€ PER OGNI SIM che ha la caratteristica", () => {
     const mnp: Sale[] = Array.from({ length: 12 }, () => mnpSale(10));
     const r = computeTim(withAddons(), [...mnp, ...al16], {});
-    expect(r.extras).toBe(15); // una volta sola, non 12 × 15
+    // La soglia decide SE si prende, il conteggio decide QUANTO: 12 × 15.
+    expect(r.extras).toBe(180);
+  });
+
+  test("l'addon per SIM cresce col volume: 20 MNP valgono 300€, non 15", () => {
+    const mnp: Sale[] = Array.from({ length: 20 }, () => mnpSale(10));
+    const r = computeTim(withAddons(), [...mnp, ...al16], {});
+    expect(r.extras).toBe(300);
   });
 
   test("il filtro canone conta: MNP a 9,98 non alimentano l'addon", () => {
@@ -660,11 +680,12 @@ describe("addon MNP a conteggio — bonus una tantum sopra soglia", () => {
     expect(r.extras).toBe(0);
   });
 
-  test("gruppo Iliad/COOP a scaglioni: ≥14 vale 15€, non 15+5", () => {
+  test("gruppo Iliad/COOP a scaglioni: vale solo il più alto, ma per ogni SIM", () => {
     const mnp: Sale[] = Array.from({ length: 14 }, () => ({ lineKey: "MNP", feeEur: 10, domiciled: false, provenance: "ILIAD" }));
     const r = computeTim(withAddons(), [...mnp, ...al16], {});
-    // canone≥9,99 (14≥12 → +15) + gruppo IC al max (≥14 → 15, non 20) = 30
-    expect(r.extras).toBe(30);
+    // bill alto (14 ≥ 12) → 14 × 15 = 210; gruppo IC al massimo (≥14 → 15 €,
+    // non 15+5) → 14 × 15 = 210. I due addon sono indipendenti: 420.
+    expect(r.extras).toBe(420);
   });
 
   test("provenienza diversa da Iliad/COOP non alimenta il gruppo", () => {

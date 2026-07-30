@@ -63,6 +63,10 @@ async function seedPlan(ownerUserId: string, plan: SeedPlan) {
               sortOrder: k.sortOrder,
               sourceLineKey: k.sourceLineKey,
               matchSubtype: k.matchSubtype,
+              excludeSubtype: k.excludeSubtype,
+              provenanceIn: k.provenanceIn ?? [],
+              provenanceNotIn: k.provenanceNotIn ?? [],
+              minFeeEur: k.minFeeEur,
             })),
           },
           bonuses: {

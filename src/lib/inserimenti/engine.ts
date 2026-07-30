@@ -63,9 +63,19 @@ export interface ScoreKpi {
    *  pesa su DUE righe di punteggio (Top Club: una MNP vale 2 pt "No ICP" +
    *  1,5 pt "Val") e la chiave della riga non può ripetersi. */
   sourceLineKey?: string | null;
-  /** Conta solo le vendite con questo subtype (es. "FWA_RIC"): il Top Club
-   *  premia gli accessi FWA ricaricabile, non tutti gli accessi fisso. */
+  /** Conta SOLO le vendite con questo subtype. */
   matchSubtype?: string | null;
+  /** Conta tutte le vendite TRANNE quelle con questo subtype. La riga
+   *  "Accessi Consumer (netto FWA Ricaricabile)" va letta così: la lettera dice
+   *  «Non saranno conteggiate le acquisizioni con offerta FWA Ricaricabile»,
+   *  quindi il punto spetta agli accessi a canone. */
+  excludeSubtype?: string | null;
+  /** Conta solo queste provenienze (MNP MVNO da Iliad/Coop/Poste: 3 pt). */
+  provenanceIn?: string[] | null;
+  /** Esclude queste provenienze (MNP netto MVNO: 2 pt). */
+  provenanceNotIn?: string[] | null;
+  /** Canone minimo perché il punto spetti (MNP Valore: >= 9,99 €). */
+  minFeeEur?: number | null;
 }
 
 export interface Bonus {
@@ -228,13 +238,15 @@ const salesFor = (sales: Sale[], lineKey: string) => sales.filter((s) => s.lineK
 export function saleWeight(lineKey: string, subtype?: string | null): number {
   // FWA ricaricabile: mezzo punto sul Fisso (soglia e canone), come da lettera.
   if (lineKey === "ACCESSO_FISSO" && subtype === "FWA_RIC") return 0.5;
-  // Contenuti: i bundle multi-OTT contano più pezzi, su soglia E gettone.
-  // TIMVision L include 3 OTT (Netflix, Prime Video, Disney+) → 3 pezzi
-  // (confermato da Lorenzo il 27/07); Dazn completo ×3 e MyClub ×2 erano già
-  // nella lettera ma non erano mai stati portati nel motore.
+  // Contenuti: conta UN PEZZO PER OGNI OTT compreso nel pacchetto venduto, su
+  // soglia E gettone. Dal documento del 30/07: «TIMVision S ha il pacchetto
+  // base + Netflix, quindi vale 1 punto. TIMVision M ha base + Netflix e
+  // Disney+, quindi 2. TIMVision L ha base + Netflix, Disney+ e Prime Video,
+  // quindi 3.» Il pacchetto base non conta di per sé; esistono anche pacchetti
+  // con DAZN fra gli OTT. Nessun OTT è escluso dal gettone.
   if (lineKey === "CONTENUTI") {
     if (subtype === "TIMVISION_L" || subtype === "DAZN10") return 3;
-    if (subtype === "MYCLUB") return 2;
+    if (subtype === "TIMVISION_M" || subtype === "MYCLUB") return 2;
     return 1;
   }
   return 1;
@@ -444,11 +456,16 @@ function qtyOf(sales: Sale[], lineKey: string): number {
  * che non li usano non cambiano comportamento.
  */
 function qtyOfKpi(sales: Sale[], kpi: ScoreKpi): number {
-  const mine = salesFor(sales, kpi.sourceLineKey ?? kpi.key);
-  // Conteggio GREZZO di proposito: il punteggio va a PRATICA. La riga "Acc.
-  // netto FWA Ric" vale 4 punti per ogni FWA ricaricabile, non 2 — il peso 0,5
-  // agisce sulla soglia della gara Fisso, non sui punti del Top Club.
-  return kpi.matchSubtype ? mine.filter((s) => s.subtype === kpi.matchSubtype).length : mine.length;
+  let mine = salesFor(sales, kpi.sourceLineKey ?? kpi.key);
+  if (kpi.matchSubtype) mine = mine.filter((s) => s.subtype === kpi.matchSubtype);
+  if (kpi.excludeSubtype) mine = mine.filter((s) => s.subtype !== kpi.excludeSubtype);
+  if (kpi.provenanceIn?.length) mine = mine.filter((s) => !!s.provenance && kpi.provenanceIn!.includes(s.provenance));
+  if (kpi.provenanceNotIn?.length) mine = mine.filter((s) => !s.provenance || !kpi.provenanceNotIn!.includes(s.provenance));
+  if (kpi.minFeeEur != null) mine = mine.filter((s) => (s.feeEur ?? 0) >= kpi.minFeeEur!);
+  // Conteggio GREZZO di proposito: il punteggio va a PRATICA, non pesato. Il
+  // peso 0,5 dell'FWA ricaricabile agisce sulla soglia della gara Fisso, non
+  // sui punti del premio.
+  return mine.length;
 }
 
 /** Premio a punteggio con cancelli in AND (§E.5–E.6). */
@@ -479,14 +496,16 @@ function computePrize(
     }
   }
 
-  // premio base: interpolazione lineare minPoints→maxPoints ⇒ minPrize→maxPrize
+  // Premio A SCALINO, non interpolato (confermato da Lorenzo il 30/07): la
+  // soglia si raggiunge o non si raggiunge. Top Club: sotto 180 zero, da 180
+  // mille euro, da 300 tremila — a 299 punti si prendono mille euro, non 2.983.
+  // Stessa meccanica sul Customer Base (200 → 200 €, 450 → 1.500 €).
+  // Fino al 29/07 qui c'era un'interpolazione lineare che gonfiava il premio
+  // di migliaia di euro in tutta la fascia intermedia.
   let base = 0;
-  if (gateOpen && points >= prize.minPoints) {
+  if (gateOpen) {
     if (points >= prize.maxPoints) base = prize.maxPrize;
-    else {
-      const frac = (points - prize.minPoints) / (prize.maxPoints - prize.minPoints);
-      base = prize.minPrize + frac * (prize.maxPrize - prize.minPrize);
-    }
+    else if (points >= prize.minPoints) base = prize.minPrize;
   }
 
   // dimezzamenti condizionati da input mensili (Customer Base: up-selling < 8)
@@ -551,8 +570,16 @@ function computeAddons(params: Params, sales: Sale[]): number {
         (a.provenanceIn ? a.provenanceIn.includes(s.provenance ?? "") : true),
     ).length;
     if (n < a.minCount) continue;
-    if (a.group) byGroup.set(a.group, Math.max(byGroup.get(a.group) ?? 0, a.eur));
-    else sum += a.eur;
+    // L'addon si prende PER OGNI SIM che ha la caratteristica, non una volta
+    // sola: «se >= 12 le mnp con offerta >=9,99€ allora +15€ (per ogni sim con
+    // questa caratteristica)». La soglia decide SE si prende, il conteggio
+    // decide QUANTO. Fino al 30/07 qui c'era un forfait, che a 34 MNP dava
+    // 15 € invece di 510.
+    const importo = round2(a.eur * n);
+    // Gruppo = scaglioni alternativi sulla stessa condizione (Iliad/COOP a 7 e
+    // a 14 pezzi): vale solo il più alto, non si sommano.
+    if (a.group) byGroup.set(a.group, Math.max(byGroup.get(a.group) ?? 0, importo));
+    else sum += importo;
   }
   for (const v of Array.from(byGroup.values())) sum += v;
   return round2(sum);
@@ -731,12 +758,13 @@ export interface PrizeOpportunity {
   worthChasing: boolean;
 }
 
-/** Premio interpolato per un dato punteggio (senza considerare i cancelli). */
+/** Premio a scalino per un dato punteggio (senza considerare i cancelli).
+ *  Deve restare identico alla logica di `computePrize`: la soglia si raggiunge
+ *  o non si raggiunge, non esistono valori intermedi. */
 function prizeAtPoints(prize: Prize, points: number): number {
-  if (points < prize.minPoints) return 0;
-  const span = prize.maxPoints - prize.minPoints;
-  const frac = span > 0 ? Math.min(1, (points - prize.minPoints) / span) : 1;
-  return round2(prize.minPrize + frac * (prize.maxPrize - prize.minPrize));
+  if (points >= prize.maxPoints) return round2(prize.maxPrize);
+  if (points >= prize.minPoints) return round2(prize.minPrize);
+  return 0;
 }
 
 /**
