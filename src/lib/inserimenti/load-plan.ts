@@ -65,9 +65,14 @@ export async function loadPlan(
         label: k.label,
         points: Number(k.points),
         source: k.source,
-        // deroghe di conteggio (pista diversa dalla key / filtro subtype)
+        // deroghe di conteggio: pista diversa dalla key, filtri subtype,
+        // provenienza e canone minimo (vedi ScoreKpi nel motore)
         sourceLineKey: k.sourceLineKey,
         matchSubtype: k.matchSubtype,
+        excludeSubtype: k.excludeSubtype,
+        provenanceIn: k.provenanceIn,
+        provenanceNotIn: k.provenanceNotIn,
+        minFeeEur: k.minFeeEur == null ? null : Number(k.minFeeEur),
       })),
     bonuses: pr.bonuses.map((b) => ({
       conditionLineKey: b.conditionLineKey,

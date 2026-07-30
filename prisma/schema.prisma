@@ -2239,9 +2239,22 @@ model IncentiveScoreKpi {
   /// più righe di punteggio (es. Top Club: una MNP vale 2 pt "No ICP" + 1,5 pt
   /// "Val") — l'unique (prizeId,key) impedisce di ripetere la chiave.
   sourceLineKey String?
-  /// Conta solo le vendite con questo subtype (es. FWA_RIC): il Top Club premia
-  /// gli accessi FWA ricaricabile, non tutti gli accessi fisso.
+  /// Conta SOLO le vendite con questo subtype.
   matchSubtype  String?
+  /// Conta tutte le vendite TRANNE quelle con questo subtype. Serve per la riga
+  /// "Accessi Consumer (netto FWA Ricaricabile)" del Top Club: la lettera dice
+  /// «Non saranno conteggiate le acquisizioni con offerta FWA Ricaricabile»,
+  /// quindi il punto va agli accessi a canone, NON agli FWA ricaricabili.
+  excludeSubtype String?
+  /// Conta solo le vendite con una di queste provenienze (es. MNP MVNO da
+  /// Iliad/Coop/Poste, che valgono 3 pt invece di 2).
+  provenanceIn      String[]
+  /// Conta tutte le vendite TRANNE quelle con queste provenienze (la riga
+  /// "MNP netto MVNO Iliad/Coop/Poste").
+  provenanceNotIn   String[]
+  /// Conta solo le vendite con canone almeno pari a questo valore: "MNP Valore"
+  /// prende il punto addizionale solo con canone >= 9,99 €.
+  minFeeEur     Decimal? @db.Decimal(12, 2)
 
   prize IncentivePrize @relation(fields: [prizeId], references: [id], onDelete: Cascade)
 

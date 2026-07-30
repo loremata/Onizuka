@@ -67,6 +67,14 @@ export interface SeedKpi {
   sourceLineKey?: string;
   /** Conta solo le vendite con questo subtype (es. "FWA_RIC"). */
   matchSubtype?: string;
+  /** Conta tutte le vendite TRANNE quelle con questo subtype. */
+  excludeSubtype?: string;
+  /** Conta solo queste provenienze. */
+  provenanceIn?: string[];
+  /** Esclude queste provenienze. */
+  provenanceNotIn?: string[];
+  /** Canone minimo perché il punto spetti. */
+  minFeeEur?: number;
 }
 export interface SeedBonus {
   conditionLineKey: string;
@@ -263,15 +271,21 @@ const TIM: SeedPlan = {
       category: "Telepass",
       unit: "EUR_PER_PIECE",
       hasTiers: true,
-      target: 8,
+      target: 15,
       pxqEur: 0,
       status: "ATTIVA",
-      statusNote: "In vendita: 4 pezzi a luglio (17 e 22/07)",
+      statusNote: "In vendita: 6 pezzi a luglio (1 il 17, 2 il 22, 3 il 28)",
       rules:
-        "25 € A PEZZO DAL PRIMO, sempre: non è una gara a soglia (confermato da Lorenzo il 27/07, dopo aver ristudiato la lettera). " +
-        "Gli 8 pezzi restano importanti ma per un'altra ragione: sono un CANCELLO del Top Club, che senza di essi si azzera. " +
-        "TWIN 10€ e Assistenza Europa 5€ restano extra separati.",
-      tiers: [{ minQty: 0, value: 25 }],
+        "DUE COMPONENTI CHE SI SOMMANO (documento 30/07). PxQ: Family 20 € + Assistenza Stradale Europa 5 € = 25 € a pezzo, sempre, dal primo — Lorenzo vende sempre l'abbinata. " +
+        "Gara volume sul Family primario: al raggiungimento della soglia si aggiunge un gettone su TUTTI i pezzi del mese, +10 € da 8 pezzi e +20 € da 15. " +
+        "Quindi il valore pieno è 25 € sotto gli 8, 35 € da 8, 45 € da 15. TWIN vale 10 € in più, come extra separato. " +
+        "Gli 8 pezzi sono anche un CANCELLO del Top Club, che senza di essi si azzera.",
+      // I tier sono il valore COMPLESSIVO a pezzo (PxQ + gettone volume).
+      tiers: [
+        { minQty: 0, value: 25 },
+        { minQty: 8, value: 35 },
+        { minQty: 15, value: 45 },
+      ],
       sortOrder: 70,
     },
     {
@@ -308,14 +322,24 @@ const TIM: SeedPlan = {
         { lineKey: "MNP", minQty: 34 },
         { lineKey: "TELEPASS_FAMILY", minQty: 8 },
       ],
+      // Le 10 righe della lettera, verificate il 29/07 su "Incentivazione TIM.docx"
+      // (divisione definitiva) e sulla lettera TIM Fisso/Mobile Luglio 2026.
+      // ⚠️ "Accessi Consumer (netto FWA Ricaricabile)": la lettera dice
+      // «Non saranno conteggiate le acquisizioni con offerta FWA Ricaricabile»,
+      // quindi il punto va agli accessi A CANONE. Fino al 29/07 qui c'era
+      // matchSubtype FWA_RIC, che contava esattamente il contrario.
       scoreKpis: [
-        // conta solo le FWA ricaricabile: il consuntivo TIM valorizza "Acc.netto FWA Ric"
-        { key: "ACCESSO_FISSO", label: "Acc. netto FWA Ric", points: 4, source: "DERIVED", matchSubtype: "FWA_RIC", sortOrder: 10 },
+        { key: "ACCESSO_FISSO", label: "Accessi (netto FWA Ric)", points: 4, source: "DERIVED", excludeSubtype: "FWA_RIC", sortOrder: 10 },
+        { key: "SMB_FIX", label: "Accessi SMB", points: 4, source: "DERIVED", sortOrder: 15 },
         { key: "TIMFIN", label: "TIM Fin", points: 4, source: "DERIVED", sortOrder: 20 },
         { key: "TELEPASS_FAMILY", label: "Telepass", points: 4, source: "DERIVED", sortOrder: 30 },
-        { key: "MNP", label: "MNP (No ICP)", points: 2, source: "DERIVED", sortOrder: 40 },
-        // seconda riga sulla STESSA pista MNP (l'unique prizeId+key impone una key propria)
-        { key: "MNP_VAL", label: "MNP Val", points: 1.5, source: "DERIVED", sourceLineKey: "MNP", sortOrder: 45 },
+        { key: "TRASFORMAZIONE", label: "Trasf. Fibra da proponi", points: 3, source: "DERIVED", sortOrder: 35 },
+        // le MNP si dividono per provenienza: da MVNO valgono 3, le altre 2 (non si sommano)
+        { key: "MNP_MVNO", label: "MNP MVNO (Iliad/Coop/Poste)", points: 3, source: "DERIVED", sourceLineKey: "MNP", provenanceIn: ["ILIAD", "COOP", "POSTE"], sortOrder: 38 },
+        { key: "MNP", label: "MNP (netto MVNO)", points: 2, source: "DERIVED", provenanceNotIn: ["ILIAD", "COOP", "POSTE", "KENA"], sortOrder: 40 },
+        // riga ADDIZIONALE sulla stessa pista MNP, ma solo col canone da 9,99 in su
+        { key: "MNP_VAL", label: "MNP Val (canone ≥ 9,99)", points: 1.5, source: "DERIVED", sourceLineKey: "MNP", minFeeEur: 9.99, sortOrder: 45 },
+        { key: "MNP_KENA", label: "MNP Kena", points: 2, source: "DERIVED", sourceLineKey: "MNP", provenanceIn: ["KENA"], sortOrder: 48 },
         { key: "AL_PP", label: "AL PP net", points: 0.5, source: "DERIVED", sortOrder: 50 },
       ],
       bonuses: [{ conditionLineKey: "ENERGIA", conditionMinQty: 4, pct: 0.3, label: "+30% Energia" }],
@@ -329,7 +353,7 @@ const TIM: SeedPlan = {
       minPrize: 200,
       maxPrize: 1500,
       rules:
-        "Lettera luglio: soglia 1 = 200 pt → 200€, soglia 2 = 450 pt → 1.500€ (interpolato). Soglia minima 8 Prop. Mobile/mese (cambio offerta + add-on dati): sotto 8 il premio è dimezzato. KPI da consuntivo TIM (M+1), inseriti a mano.",
+        "Premio A SCALINO: 200 pt → 200€, 450 pt → 1.500€. Nessun valore intermedio. Soglia minima 8 Prop. Mobile/mese (cambio offerta + add-on dati ricorsivi): sotto gli 8 il premio NON si prende affatto (confermato da Lorenzo il 30/07: è un requisito, non un dimezzamento). KPI da consuntivo TIM (M+1), inseriti a mano.",
       gates: [],
       scoreKpis: [
         { key: "cb.trasfFibra", label: "Trasf. FIBRA prop.", points: 15, source: "MANUAL", sortOrder: 10 },
@@ -349,7 +373,8 @@ const TIM: SeedPlan = {
         { key: "cb.ricAutoCb", label: "Ric. Auto CB", points: 1, source: "MANUAL", sortOrder: 150 },
       ],
       bonuses: [],
-      halvings: [{ inputKey: "cb.upsellingVolume", minValue: 8, factor: 0.5, label: "Prop. Mobile < 8 → premio dimezzato" }],
+      // factor 0 = requisito secco, non dimezzamento: sotto 8 Prop. Mobile il premio è ZERO.
+      halvings: [{ inputKey: "cb.upsellingVolume", minValue: 8, factor: 0, label: "Prop. Mobile < 8 → premio azzerato" }],
     },
   ],
   params: [
