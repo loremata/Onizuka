@@ -139,23 +139,25 @@ const TIM: SeedPlan = {
       category: "Mobile",
       unit: "MULTIPLIER_ON_FEE",
       hasTiers: true,
-      target: 34,
+      target: 37,
       applyBillSize: true,
       domiciliationMode: "bonus",
       domiciliationValue: 1.2,
       rules:
-        "Moltiplicatore × somma canoni. Domiciliato +1,2. Bill size: ≥9€ pieno, 8-8,99 metà, <8 escluso (nel listino TIM non c'è nulla tra 8 e 9: o pieno o zero). Se AL PP < soglia 2 (15), tutte le MNP perdono 0,5. Kena alza la soglia ma non paga gara. " +
+        "Moltiplicatore × somma canoni. Domiciliato +1,2. Bill size: è la MEDIA dei canoni della gara nel mese — ≥9€ gettone pieno su tutte, 8-8,99 al 50% su tutte, sotto 8 niente. Se AL PP < soglia 2 (16), tutte le MNP perdono 0,5. Kena alza la soglia ma non paga gara. " +
         "Addon confermati dal documento definitivo: ≥12 MNP con canone ≥9,99€ → +15€; ≥7 MNP da Iliad/COOP → +5€, che salgono a +15€ da 14 in su.",
       // Documento definitivo: 2,4 · 3,5 · 4,1 · 5,2 · 6,4 · 7 canoni.
       // Qui ogni tier è quel valore MENO il bonus domiciliazione (1,2): una MNP
       // domiciliata torna esatta al documento, una non domiciliata prende meno.
+      // LETTERA TIM luglio 2026 (Lorenzo 31/07: vale la lettera, non la mail di
+      // avanzamento né il documento aziendale, che davano 19/34/59/104/154).
       tiers: [
         { minQty: 0, value: 1.2 },
-        { minQty: 19, value: 2.3 },
-        { minQty: 34, value: 2.9 },
-        { minQty: 59, value: 4.0 },
-        { minQty: 104, value: 5.2 },
-        { minQty: 154, value: 5.8 },
+        { minQty: 21, value: 2.3 },
+        { minQty: 37, value: 2.9 },
+        { minQty: 65, value: 4.0 },
+        { minQty: 110, value: 5.2 },
+        { minQty: 160, value: 5.8 },
       ],
       sortOrder: 10,
     },
@@ -165,20 +167,21 @@ const TIM: SeedPlan = {
       category: "Mobile",
       unit: "MULTIPLIER_ON_FEE",
       hasTiers: true,
-      target: 15,
+      target: 37,
       applyBillSize: true,
       domiciliationMode: "bonus",
       domiciliationValue: 1.5,
       rules:
-        "Nuove attivazioni (non portabilità). Moltiplicatore × canoni. Domiciliato +1,5. Bill size come MNP. Sotto soglia 2 (15 pezzi) penalizza tutte le MNP di -0,5.",
+        "Nuove attivazioni (non portabilità). Moltiplicatore × canoni. Domiciliato +1,5. Bill size come MNP. Sotto soglia 2 (16 pezzi) penalizza tutte le MNP di -0,5.",
       // Documento definitivo: 1,7 · 2,1 · 3,6 · 3,8 · 4 canoni, meno il bonus
       // domiciliazione (1,5) come per le MNP.
+      // LETTERA TIM luglio 2026 (prima 15/35/70/110, dal documento aziendale).
       tiers: [
         { minQty: 0, value: 0.2 },
-        { minQty: 15, value: 0.6 },
-        { minQty: 35, value: 2.1 },
-        { minQty: 70, value: 2.3 },
-        { minQty: 110, value: 2.5 },
+        { minQty: 16, value: 0.6 },
+        { minQty: 37, value: 2.1 },
+        { minQty: 75, value: 2.3 },
+        { minQty: 115, value: 2.5 },
       ],
       sortOrder: 20,
     },
@@ -188,18 +191,21 @@ const TIM: SeedPlan = {
       category: "Fisso",
       unit: "MULTIPLIER_ON_FEE",
       hasTiers: true,
-      target: 16,
+      target: 17,
       applyBillSize: false,
       domiciliationMode: "split",
       nonDomiciledValue: 1.7,
       rules:
         "Domiciliati: moltiplicatore a scaglione × canoni. Non domiciliati: sempre 1,7 × canone. FWA ricaricabile pesa 0,5 per la soglia. +50€ PxQ per TIM WiFi GO in abbinata FTTH (M+4).",
+      // LETTERA TIM luglio 2026: ≥3 · ≥9 · ≥17 · ≥27. La mail di avanzamento di
+      // Mirko diceva 8 sulla soglia 2 ed era un errore (confermato il 31/07):
+      // Onizuka dava per superata una soglia che non lo era.
       tiers: [
         { minQty: 0, value: 0 },
         { minQty: 3, value: 1.7 },
-        { minQty: 8, value: 4.5 },
-        { minQty: 16, value: 5.0 },
-        { minQty: 26, value: 6.5 },
+        { minQty: 9, value: 4.5 },
+        { minQty: 17, value: 5.0 },
+        { minQty: 27, value: 6.5 },
       ],
       sortOrder: 30,
     },
@@ -318,8 +324,8 @@ const TIM: SeedPlan = {
         "Punteggi lettera (per il calcolo live uso quelli deducibili dalle vendite; gli altri servono a mano dal consuntivo): Acc.netto FWA Ric 4 · SMB Fix 4 · TIM FIN 4 · Telepass 4 · Trasf. da prop. 3 · MNVO ICP 3 · MNP No ICP 2 · MNP KENA 2 · MNP Val 1,5 · AL PP net 0,5. " +
         "Due precisazioni recepite dal consuntivo TIM: (1) la riga Accessi premia SOLO le FWA ricaricabile (vendite ACCESSO_FISSO con subtype FWA_RIC) — gli accessi in fibra piena non portano quei 4 pt; (2) ogni MNP pesa DUE volte, 2 pt sulla riga 'No ICP' + 1,5 pt sulla riga 'Val', quindi 3,5 pt a pezzo.",
       gates: [
-        { lineKey: "ACCESSO_FISSO", minQty: 16 },
-        { lineKey: "MNP", minQty: 34 },
+        { lineKey: "ACCESSO_FISSO", minQty: 17 },
+        { lineKey: "MNP", minQty: 37 },
         { lineKey: "TELEPASS_FAMILY", minQty: 8 },
       ],
       // Le 10 righe della lettera, verificate il 29/07 su "Incentivazione TIM.docx"
@@ -381,7 +387,7 @@ const TIM: SeedPlan = {
     { key: "billSize", valueJson: { full: 9, half: 8 } },
     // La penalità scatta "sotto la soglia 2 delle AL": il documento definitivo
     // fissa quella soglia a 15 (prima qui c'era 16, preso dall'avanzamento di Mirko).
-    { key: "alPpPenalty", valueJson: { threshold: 15, delta: 0.5 } },
+    { key: "alPpPenalty", valueJson: { threshold: 16, delta: 0.5 } },
     {
       key: "extras",
       valueJson: [
