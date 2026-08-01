@@ -340,7 +340,7 @@ const TIM: SeedPlan = {
       // matchSubtype FWA_RIC, che contava esattamente il contrario.
       scoreKpis: [
         // Accessi Consumer a canone: scarta i tre sottotipi che hanno righe proprie.
-        { key: "ACCESSO_FISSO", label: "Accessi Consumer a canone", points: 4, source: "DERIVED", excludeSubtypeIn: ["FWA_RIC", "SMB", "TRASFORMAZIONE"], sortOrder: 10 },
+        { key: "ACCESSO_FISSO", label: "Accessi Consumer a canone", points: 4, source: "DERIVED", excludeSubtypeIn: ["FWA_RIC", "SMB", "TRASFORMAZIONE", "TRASFORMAZIONE_FWA"], sortOrder: 10 },
         { key: "SMB_FIX", label: "Accessi SMB", points: 4, source: "DERIVED", sourceLineKey: "ACCESSO_FISSO", matchSubtype: "SMB", sortOrder: 15 },
         { key: "TIMFIN", label: "TIM Fin", points: 4, source: "DERIVED", sortOrder: 20 },
         { key: "TELEPASS_FAMILY", label: "Telepass", points: 4, source: "DERIVED", sortOrder: 30 },

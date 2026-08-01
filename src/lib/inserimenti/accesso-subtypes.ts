@@ -33,7 +33,12 @@ export const ACCESSO_SUBTYPES = {
   },
   TRASFORMAZIONE: {
     label: "Trasformazione fibra da proponi",
-    hint: "da RTG/ADSL a FTTC/FTTH · niente gettone · 3 pt Top Club e 15 sul Customer Base",
+    hint: "da RTG/ADSL a FTTC/FTTH · 50 € di Gara Extra CB · 3 pt Top Club e 15 sul Customer Base",
+    weight: 1,
+  },
+  TRASFORMAZIONE_FWA: {
+    label: "Trasformazione FWA da proponi",
+    hint: "50 € di Gara Extra CB · conta per la soglia, niente gettone di gara",
     weight: 1,
   },
 } as const;
@@ -42,7 +47,7 @@ export type AccessoSubtype = keyof typeof ACCESSO_SUBTYPES;
 
 /** I sottotipi di accesso che NON prendono il gettone di gara e quindi non
  *  hanno un canone da chiedere in registrazione. */
-export const ACCESSI_SENZA_CANONE: AccessoSubtype[] = ["FWA_RIC", "SMB", "TRASFORMAZIONE"];
+export const ACCESSI_SENZA_CANONE: AccessoSubtype[] = ["FWA_RIC", "SMB", "TRASFORMAZIONE", "TRASFORMAZIONE_FWA"];
 
 export function isAccessoSenzaCanone(lineKey: string, subtype?: string | null): boolean {
   return lineKey === "ACCESSO_FISSO" && !!subtype && (ACCESSI_SENZA_CANONE as string[]).includes(subtype);

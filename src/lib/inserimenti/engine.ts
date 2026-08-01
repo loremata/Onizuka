@@ -262,6 +262,22 @@ export function billWeightOfLine(sales: Sale[], bill?: Params["billSize"]): numb
 
 const salesFor = (sales: Sale[], lineKey: string) => sales.filter((s) => s.lineKey === lineKey);
 
+/**
+ * Peso di una vendita ai fini del PAGAMENTO, che non sempre coincide con quello
+ * della soglia. Unico caso oggi: «Il servizio Amazon Prime concorre al solo
+ * raggiungimento della soglia» (lettera Contenuti luglio 2026) — fa volume ma
+ * non prende il gettone. Ovunque altro vale il peso di gara.
+ */
+export function payWeight(lineKey: string, subtype?: string | null): number {
+  if (lineKey === "CONTENUTI" && subtype === "PRIME") return 0;
+  return saleWeight(lineKey, subtype);
+}
+
+/** Pezzi PAGATI di una pista (soglia e pagamento possono divergere). */
+export function paidQtyOf(sales: Sale[], lineKey: string): number {
+  return round2(salesFor(sales, lineKey).reduce((a, s) => a + payWeight(lineKey, s.subtype), 0));
+}
+
 /** Peso di una vendita sulla gara: FWA ricaricabile vale 0,5 sul Fisso (soglia
  *  e canone), tutto il resto 1. UNICA definizione — la usano motore e UI. */
 export function saleWeight(lineKey: string, subtype?: string | null): number {
@@ -382,8 +398,11 @@ function computeTimLine(
     // Energia/Telepass/TIM Unica: (PxQ additivo + valore scaglione) × pezzi.
     const pxq = line.pxqEur ?? 0;
     const rate = tierValue(qty, line.tiers);
-    const compenso = round2((pxq + rate) * qty);
-    const stepValue = next ? round2((next.value - rate) * qty) : 0;
+    // La soglia si legge sui pezzi di gara, il compenso sui pezzi PAGATI: per
+    // Amazon Prime i due numeri divergono (fa volume, non prende gettone).
+    const qtyPagata = paidQtyOf(sales, line.key);
+    const compenso = round2((pxq + rate) * qtyPagata);
+    const stepValue = next ? round2((next.value - rate) * qtyPagata) : 0;
     return {
       key: line.key,
       label: line.label,
@@ -730,7 +749,7 @@ export function attributeSales(plan: Plan, sales: Sale[], inputs: MonthlyInputs 
       const rate = tierValue(qty, line.tiers);
       for (const { s, i } of mine) {
         // sulle piste lineari il compenso può essere specifico dell'offerta
-        const base = isLinear ? (s.unitCompenso ?? rate) : pxq + rate;
+        const base = isLinear ? (s.unitCompenso ?? rate) : (pxq + rate) * payWeight(line.key, s.subtype);
         out.push({ index: i, lineKey: line.key, compenso: round2(base), paysGettone: base > 0 });
       }
       continue;
