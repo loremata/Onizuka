@@ -64,6 +64,7 @@ async function seedPlan(ownerUserId: string, plan: SeedPlan) {
               sourceLineKey: k.sourceLineKey,
               matchSubtype: k.matchSubtype,
               excludeSubtype: k.excludeSubtype,
+              excludeSubtypeIn: k.excludeSubtypeIn ?? [],
               provenanceIn: k.provenanceIn ?? [],
               provenanceNotIn: k.provenanceNotIn ?? [],
               minFeeEur: k.minFeeEur,

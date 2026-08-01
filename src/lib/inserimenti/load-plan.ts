@@ -70,6 +70,7 @@ export async function loadPlan(
         sourceLineKey: k.sourceLineKey,
         matchSubtype: k.matchSubtype,
         excludeSubtype: k.excludeSubtype,
+        excludeSubtypeIn: k.excludeSubtypeIn,
         provenanceIn: k.provenanceIn,
         provenanceNotIn: k.provenanceNotIn,
         minFeeEur: k.minFeeEur == null ? null : Number(k.minFeeEur),
@@ -113,9 +114,10 @@ function lineStructure(brand: string, key: string): Partial<Line> {
       // PxQ additivo né qualitativa separata: il valore è già nello scaglione.
       return { pxqEur: 0 };
     case "TELEPASS_FAMILY":
-      // Luglio 2026: 25 € a pezzo DAL PRIMO (confermato da Lorenzo il 27/07): il
-      // valore sta tutto nell'unico scaglione a quota 0, niente PxQ additivo.
-      // Gli 8 pezzi contano solo come cancello del Top Club.
+      // Luglio 2026: 25 € a pezzo dal primo (Family 20 + Assistenza Europa 5) PIÙ
+      // il gettone di volume su tutti i pezzi del mese (+10 da 8 pezzi, +20 da
+      // 15). Entrambe le componenti stanno negli scaglioni (25/35/45), quindi
+      // niente PxQ additivo qui. Gli 8 pezzi sono anche cancello del Top Club.
       return { pxqEur: 0 };
     default:
       return {};

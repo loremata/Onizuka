@@ -2246,6 +2246,10 @@ model IncentiveScoreKpi {
   /// «Non saranno conteggiate le acquisizioni con offerta FWA Ricaricabile»,
   /// quindi il punto va agli accessi a canone, NON agli FWA ricaricabili.
   excludeSubtype String?
+  /// Conta tutte le vendite TRANNE quelle con uno di questi subtype. Serve alla
+  /// riga "Accessi Consumer": vanno esclusi FWA ricaricabile, linee PMI e
+  /// trasformazioni, che hanno righe di punteggio proprie.
+  excludeSubtypeIn String[]
   /// Conta solo le vendite con una di queste provenienze (es. MNP MVNO da
   /// Iliad/Coop/Poste, che valgono 3 pt invece di 2).
   provenanceIn      String[]

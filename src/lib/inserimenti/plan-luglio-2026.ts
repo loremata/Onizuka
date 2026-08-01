@@ -69,6 +69,8 @@ export interface SeedKpi {
   matchSubtype?: string;
   /** Conta tutte le vendite TRANNE quelle con questo subtype. */
   excludeSubtype?: string;
+  /** Esclude più subtype insieme. */
+  excludeSubtypeIn?: string[];
   /** Conta solo queste provenienze. */
   provenanceIn?: string[];
   /** Esclude queste provenienze. */
@@ -196,7 +198,9 @@ const TIM: SeedPlan = {
       domiciliationMode: "split",
       nonDomiciledValue: 1.7,
       rules:
-        "Domiciliati: moltiplicatore a scaglione × canoni. Non domiciliati: sempre 1,7 × canone. FWA ricaricabile pesa 0,5 per la soglia. +50€ PxQ per TIM WiFi GO in abbinata FTTH (M+4).",
+        "Domiciliati: moltiplicatore a scaglione × canoni. Non domiciliati: sempre 1,7 × canone. +50€ PxQ per TIM WiFi GO in abbinata FTTH (M+4). " +
+        "TRE SOTTOTIPI contano per la soglia ma NON prendono il gettone (lettera luglio 2026): FWA ricaricabile (pesa 0,5), linee PMI fisso/SMB, trasformazioni fibra da proponi. " +
+        "⚠️ NON MODELLATO: le linee PMI valgono per la soglia solo fino al 40% del consuntivo linee Consumer.",
       // LETTERA TIM luglio 2026: ≥3 · ≥9 · ≥17 · ≥27. La mail di avanzamento di
       // Mirko diceva 8 sulla soglia 2 ed era un errore (confermato il 31/07):
       // Onizuka dava per superata una soglia che non lo era.
@@ -335,11 +339,12 @@ const TIM: SeedPlan = {
       // quindi il punto va agli accessi A CANONE. Fino al 29/07 qui c'era
       // matchSubtype FWA_RIC, che contava esattamente il contrario.
       scoreKpis: [
-        { key: "ACCESSO_FISSO", label: "Accessi (netto FWA Ric)", points: 4, source: "DERIVED", excludeSubtype: "FWA_RIC", sortOrder: 10 },
-        { key: "SMB_FIX", label: "Accessi SMB", points: 4, source: "DERIVED", sortOrder: 15 },
+        // Accessi Consumer a canone: scarta i tre sottotipi che hanno righe proprie.
+        { key: "ACCESSO_FISSO", label: "Accessi Consumer a canone", points: 4, source: "DERIVED", excludeSubtypeIn: ["FWA_RIC", "SMB", "TRASFORMAZIONE"], sortOrder: 10 },
+        { key: "SMB_FIX", label: "Accessi SMB", points: 4, source: "DERIVED", sourceLineKey: "ACCESSO_FISSO", matchSubtype: "SMB", sortOrder: 15 },
         { key: "TIMFIN", label: "TIM Fin", points: 4, source: "DERIVED", sortOrder: 20 },
         { key: "TELEPASS_FAMILY", label: "Telepass", points: 4, source: "DERIVED", sortOrder: 30 },
-        { key: "TRASFORMAZIONE", label: "Trasf. Fibra da proponi", points: 3, source: "DERIVED", sortOrder: 35 },
+        { key: "TRASFORMAZIONE", label: "Trasf. Fibra da proponi", points: 3, source: "DERIVED", sourceLineKey: "ACCESSO_FISSO", matchSubtype: "TRASFORMAZIONE", sortOrder: 35 },
         // le MNP si dividono per provenienza: da MVNO valgono 3, le altre 2 (non si sommano)
         { key: "MNP_MVNO", label: "MNP MVNO (Iliad/Coop/Poste)", points: 3, source: "DERIVED", sourceLineKey: "MNP", provenanceIn: ["ILIAD", "COOP", "POSTE"], sortOrder: 38 },
         { key: "MNP", label: "MNP (netto MVNO)", points: 2, source: "DERIVED", provenanceNotIn: ["ILIAD", "COOP", "POSTE", "KENA"], sortOrder: 40 },

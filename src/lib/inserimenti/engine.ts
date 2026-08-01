@@ -70,6 +70,9 @@ export interface ScoreKpi {
    *  «Non saranno conteggiate le acquisizioni con offerta FWA Ricaricabile»,
    *  quindi il punto spetta agli accessi a canone. */
   excludeSubtype?: string | null;
+  /** Esclude più subtype insieme: la riga "Accessi Consumer" scarta FWA
+   *  ricaricabile, linee PMI e trasformazioni, che hanno righe proprie. */
+  excludeSubtypeIn?: string[] | null;
   /** Conta solo queste provenienze (MNP MVNO da Iliad/Coop/Poste: 3 pt). */
   provenanceIn?: string[] | null;
   /** Esclude queste provenienze (MNP netto MVNO: 2 pt). */
@@ -479,6 +482,8 @@ function qtyOfKpi(sales: Sale[], kpi: ScoreKpi): number {
   let mine = salesFor(sales, kpi.sourceLineKey ?? kpi.key);
   if (kpi.matchSubtype) mine = mine.filter((s) => s.subtype === kpi.matchSubtype);
   if (kpi.excludeSubtype) mine = mine.filter((s) => s.subtype !== kpi.excludeSubtype);
+  if (kpi.excludeSubtypeIn?.length)
+    mine = mine.filter((s) => !s.subtype || !kpi.excludeSubtypeIn!.includes(s.subtype));
   if (kpi.provenanceIn?.length) mine = mine.filter((s) => !!s.provenance && kpi.provenanceIn!.includes(s.provenance));
   if (kpi.provenanceNotIn?.length) mine = mine.filter((s) => !s.provenance || !kpi.provenanceNotIn!.includes(s.provenance));
   if (kpi.minFeeEur != null) mine = mine.filter((s) => (s.feeEur ?? 0) >= kpi.minFeeEur!);

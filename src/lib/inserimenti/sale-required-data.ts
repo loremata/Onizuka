@@ -11,6 +11,8 @@
  * è obbligatorio — al momento in cui lo si può ancora chiedere al cliente.
  */
 
+import { isAccessoSenzaCanone } from "./accesso-subtypes";
+
 export type SaleFacts = {
   lineKey: string;
   /** EUR_PER_PIECE | MULTIPLIER_ON_FEE */
@@ -39,7 +41,10 @@ export type MissingSaleData = {
  * sarebbe un falso allarme, e i falsi allarmi insegnano a ignorarli tutti.
  */
 function isGettoneFwa(f: SaleFacts): boolean {
-  return f.lineKey === "ACCESSO_FISSO" && f.subtype === "FWA_RIC";
+  // Estesa il 01/08: oltre all'FWA ricaricabile ci sono le linee PMI e le
+  // trasformazioni fibra, che per lettera contano per la soglia ma non
+  // prendono il gettone. Nessuna delle tre ha un canone da chiedere.
+  return isAccessoSenzaCanone(f.lineKey, f.subtype);
 }
 
 /** Il primo dato mancante che rende falso il compenso, o null se la riga è completa. */

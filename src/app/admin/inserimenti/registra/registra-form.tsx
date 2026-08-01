@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { recordSale, deleteSale, searchClientsForCounter, createClientFromCounter } from "../actions";
+import { ACCESSO_SUBTYPES, isAccessoSenzaCanone, type AccessoSubtype } from "@/lib/inserimenti/accesso-subtypes";
 
 type CounterHit = { id: string; companyName: string; phone: string | null; isLead: boolean };
 
@@ -41,7 +42,7 @@ export function RegistraForm({
   const [feeEur, setFeeEur] = useState("");
   const [domiciled, setDomiciled] = useState(false);
   const [provenance, setProvenance] = useState("");
-  const [fwaRic, setFwaRic] = useState(false);
+  const [accessoTipo, setAccessoTipo] = useState("");
   const [contenutoTipo, setContenutoTipo] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,9 +92,10 @@ export function RegistraForm({
   // il canone serve ovunque il compenso lo moltiplichi: gare TIM, business
   // Fastweb (5 × canone), Iliad (1 × canone). Non dipende dal brand.
   const isFisso = brand === "TIM" && line?.key === "ACCESSO_FISSO";
-  // FWA ricaricabile: niente canone mensile, conta solo il pezzo (peso 0,5)
-  const isFwaRic = isFisso && fwaRic;
-  const needsFee = line?.unit === "MULTIPLIER_ON_FEE" && !isFwaRic;
+  // Tre sottotipi di accesso contano per la soglia ma non prendono il gettone,
+  // e nessuno dei tre ha un canone da chiedere (vedi accesso-subtypes.ts).
+  const accessoSenzaCanone = isFisso && isAccessoSenzaCanone("ACCESSO_FISSO", accessoTipo);
+  const needsFee = line?.unit === "MULTIPLIER_ON_FEE" && !accessoSenzaCanone;
   const isMnp = brand === "TIM" && line?.key === "MNP";
   // Contenuti: i bundle multi-OTT valgono più pezzi (TIMVision L = 3 OTT = 3 pezzi)
   const isContenuti = brand === "TIM" && line?.key === "CONTENUTI";
@@ -129,7 +131,7 @@ export function RegistraForm({
     fd.set("lineKey", lineKey);
     fd.set("date", date);
     if (offerCode) fd.set("offerCode", offerCode);
-    if (isFwaRic) fd.set("subtype", "FWA_RIC");
+    if (isFisso && accessoTipo) fd.set("subtype", accessoTipo);
     if (isContenuti && contenutoTipo) fd.set("subtype", contenutoTipo);
     if (needsFee) {
       fd.set("feeEur", feeEur);
@@ -147,7 +149,7 @@ export function RegistraForm({
     }
     // registrazione in blocco: tieni data e brand, azzera il resto
     setLastLabel(
-      `${brand} · ${line?.label ?? lineKey}${isFwaRic ? " · FWA ric" : ""}` +
+      `${brand} · ${line?.label ?? lineKey}${isFisso && accessoTipo ? ` · ${ACCESSO_SUBTYPES[accessoTipo as AccessoSubtype].label}` : ""}` +
         `${isContenuti && contenutoTipo ? ` · ${contenutoTipo}` : ""}` +
         `${needsFee && feeEur ? ` · ${feeEur} €` : ""}`,
     );
@@ -156,7 +158,7 @@ export function RegistraForm({
     setOfferCode("");
     setDomiciled(false);
     setProvenance("");
-    setFwaRic(false);
+    setAccessoTipo("");
     // Azzero il tipo contenuto: se restasse "TIMVision L" le registrazioni
     // successive conterebbero 3 pezzi ciascuna, e il subtype non è correggibile
     // dalla UI (updateSale non lo tocca) — si potrebbe solo cancellare la vendita.
@@ -234,7 +236,7 @@ export function RegistraForm({
           value={lineKey}
           onChange={(e) => {
             setLineKey(e.target.value);
-            setFwaRic(false);
+            setAccessoTipo("");
           }}
           size={Math.min(8, Math.max(3, visibleLines.length + 1))}
           className="w-full rounded-md border bg-background px-3 py-2 text-sm"
@@ -282,11 +284,23 @@ export function RegistraForm({
       ) : null}
 
       {isFisso ? (
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={fwaRic} onChange={(e) => setFwaRic(e.target.checked)} />
-          <span className="text-sm">
-            FWA Ricaricabile <span className="text-muted-foreground">(pesa 0,5 sulla soglia, senza canone)</span>
+        <label className="space-y-1 block">
+          <span className="text-xs font-medium text-muted-foreground">
+            Tipo di accesso{" "}
+            <span className="font-normal">— gli ultimi tre contano per la soglia ma non prendono il gettone</span>
           </span>
+          <select
+            value={accessoTipo}
+            onChange={(e) => setAccessoTipo(e.target.value)}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          >
+            <option value="">Accesso a canone — fibra, FWA, FLEXY</option>
+            {(Object.keys(ACCESSO_SUBTYPES) as AccessoSubtype[]).map((k) => (
+              <option key={k} value={k}>
+                {ACCESSO_SUBTYPES[k].label} — {ACCESSO_SUBTYPES[k].hint}
+              </option>
+            ))}
+          </select>
         </label>
       ) : null}
 
@@ -347,11 +361,11 @@ export function RegistraForm({
             onChange={(e) => setContenutoTipo(e.target.value)}
             className="w-full rounded-md border bg-background px-3 py-2 text-sm"
           >
-            <option value="">Standard — 1 pezzo</option>
-            <option value="TIMVISION_L">TIMVision L (Netflix + Prime + Disney+) — 3 pezzi</option>
+            <option value="">Standard — 1 OTT, 1 pezzo</option>
+            <option value="TIMVISION_M">TIMVision M (Netflix + Disney+) — 2 pezzi</option>
+            <option value="TIMVISION_L">TIMVision L (Netflix + Disney+ + Prime) — 3 pezzi</option>
             <option value="DAZN10">Dazn completo — 3 pezzi</option>
             <option value="MYCLUB">MyClub — 2 pezzi</option>
-            <option value="PRIME">Solo Prime — 1 pezzo, niente gettone (solo PxQ 3 €)</option>
           </select>
         </label>
       ) : null}

@@ -736,6 +736,87 @@ describe("addon MNP a conteggio — bonus una tantum sopra soglia", () => {
 });
 
 // --------------------------------------------------------------------------
+// Sottotipi di accesso che contano per la soglia ma non prendono il gettone
+// (lettera TIM luglio 2026): FWA ricaricabile, linee PMI (SMB) e
+// trasformazioni fibra da proponi. Ognuno ha la sua riga di punteggio Top
+// Club, quindi la riga "Accessi Consumer" deve escluderli tutti e tre.
+
+describe("accessi che contano per la soglia ma non pagano", () => {
+  const FISSO_LETTERA: Line = {
+    key: "ACCESSO_FISSO",
+    label: "Accessi Fisso",
+    unit: "MULTIPLIER_ON_FEE",
+    hasTiers: true,
+    applyBillSize: false,
+    domiciliationMode: "split",
+    nonDomiciledValue: 1.7,
+    tiers: [
+      { minQty: 0, value: 0 },
+      { minQty: 3, value: 1.7 },
+      { minQty: 9, value: 4.5 },
+      { minQty: 17, value: 5.0 },
+    ],
+  };
+  const TOP_CLUB = {
+    key: "TOP_CLUB" as const,
+    label: "Top Club",
+    minPoints: 180,
+    maxPoints: 300,
+    minPrize: 1000,
+    maxPrize: 3000,
+    gates: [],
+    bonuses: [],
+    halvings: [],
+    scoreKpis: [
+      { key: "ACCESSO_FISSO", label: "Accessi Consumer a canone", points: 4, source: "DERIVED" as const,
+        excludeSubtypeIn: ["FWA_RIC", "SMB", "TRASFORMAZIONE"] },
+      { key: "SMB_FIX", label: "Accessi SMB", points: 4, source: "DERIVED" as const,
+        sourceLineKey: "ACCESSO_FISSO", matchSubtype: "SMB" },
+      { key: "TRASFORMAZIONE", label: "Trasf. Fibra", points: 3, source: "DERIVED" as const,
+        sourceLineKey: "ACCESSO_FISSO", matchSubtype: "TRASFORMAZIONE" },
+    ],
+  };
+  const plan: Plan = {
+    brand: "TIM", month: "2026-08", engineVersion: "tim-2026-07",
+    lines: [FISSO_LETTERA], prizes: [TOP_CLUB], params: PARAMS,
+  };
+  const acc = (n: number, subtype: string | null, feeEur: number | null): Sale[] =>
+    Array.from({ length: n }, () => ({ lineKey: "ACCESSO_FISSO", feeEur, domiciled: true, subtype }));
+
+  const sales = [...acc(12, null, 29.9), ...acc(3, "SMB", null), ...acc(2, "TRASFORMAZIONE", null)];
+
+  test("SMB e trasformazioni portano il negozio alla soglia successiva", () => {
+    const r = computeMonth(plan, sales);
+    // 17 pezzi: 12 + 3 + 2. Senza SMB e trasformazioni sarebbero 12, cioè lo
+    // scaglione precedente.
+    expect(r.lines[0].qty).toBe(17);
+    expect(r.lines[0].tierIndex).toBe(3);
+  });
+
+  test("ma non prendono un euro: paga solo il canone dei 12 Consumer", () => {
+    const r = computeMonth(plan, sales);
+    expect(r.lines[0].compenso).toBeCloseTo(12 * 29.9 * 5, 2);
+    // la controprova: se fossero tutti e 17 a canone il compenso sarebbe più alto
+    const tutti = computeMonth(plan, acc(17, null, 29.9));
+    expect(tutti.lines[0].compenso).toBeCloseTo(17 * 29.9 * 5, 2);
+  });
+
+  test("i punti Top Club non si sovrappongono: ognuno sulla sua riga", () => {
+    const r = computeMonth(plan, sales);
+    // 12 Consumer × 4 + 3 SMB × 4 + 2 trasformazioni × 3 = 66.
+    // Col vecchio excludeSubtype singolo, SMB e trasformazioni sarebbero state
+    // contate DUE volte: una sulla riga Accessi e una sulla propria.
+    expect(r.prizes[0].points).toBe(66);
+  });
+
+  test("l'FWA ricaricabile resta a mezzo punto e a zero punti premio", () => {
+    const r = computeMonth(plan, [...acc(12, null, 29.9), ...acc(4, "FWA_RIC", null)]);
+    expect(r.lines[0].qty).toBe(14); // 12 + 4 × 0,5
+    expect(r.prizes[0].points).toBe(48); // solo i 12 Consumer
+  });
+});
+
+// --------------------------------------------------------------------------
 // Un solo modo di contare i pezzi di una pista (27/07/2026).
 //
 // I cancelli dei premi contavano le RIGHE registrate, tutto il resto contava i
