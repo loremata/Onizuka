@@ -10,6 +10,9 @@ function buildStructuredSalesEmail(params: {
   companyName: string;
   findings: AuditFinding[];
   hasWebsite?: boolean;
+  /** Se l'unica presenza trovata è su una piattaforma di terzi (pagina
+   *  Facebook, scheda su un portale): va detto, non spacciato per sito. */
+  piattaformaTerzi?: string | null;
   gbpReviewCount?: number | null;
   gbpRating?: number | null;
   reportUrl?: string;
@@ -24,9 +27,11 @@ function buildStructuredSalesEmail(params: {
 
   // Apertura sul segnale più forte e concreto (= più credibile del generico "abbiamo analizzato").
   const opener =
-    params.hasWebsite === false
-      ? `cercando online ${companyName} non ho trovato un sito web attivo: chi vi cerca oggi su Google rischia di non trovarvi — o di trovare prima un concorrente.`
-      : `ho analizzato la presenza online di ${companyName} e preparato un report dettagliato con le aree su cui potete crescere.`;
+    params.piattaformaTerzi
+      ? `cercando online ${companyName} ho trovato ${params.piattaformaTerzi}, ma non un sito vostro: chi vi cerca oggi vede una presenza che non controllate e che non porta a voi.`
+      : params.hasWebsite === false
+        ? `cercando online ${companyName} non ho trovato un sito web attivo: chi vi cerca oggi su Google rischia di non trovarvi — o di trovare prima un concorrente.`
+        : `ho analizzato la presenza online di ${companyName} e preparato un report dettagliato con le aree su cui potete crescere.`;
 
   // Riferimento concreto al profilo Google, quando disponibile: dimostra che ho guardato davvero.
   let gbpLine = "";
@@ -41,7 +46,9 @@ function buildStructuredSalesEmail(params: {
 
   // Oggetto principale (benefit/curiosità) + variante A/B (loss-framing) per testare l'open rate.
   const subject =
-    params.hasWebsite === false
+    params.piattaformaTerzi
+      ? `${companyName}: online vi rappresenta una pagina che non è vostra`
+      : params.hasWebsite === false
       ? `${companyName}: chi vi cerca su Google non trova il vostro sito`
       : `${companyName}: ${n} ${n === 1 ? "area" : "aree"} da sistemare nella vostra presenza online`;
   const subjectAlt = `${companyName}: ${n} ${n === 1 ? "area" : "aree"} che oggi vi fanno perdere clienti`;
@@ -100,6 +107,7 @@ export function buildFirstAuditOutreachEmail(params: {
   overallScore?: number | null;
   findings?: AuditFinding[];
   hasWebsite?: boolean;
+  piattaformaTerzi?: string | null;
   gbpReviewCount?: number | null;
   gbpRating?: number | null;
   reportUrl?: string;
@@ -113,6 +121,7 @@ export function buildFirstAuditOutreachEmail(params: {
       companyName,
       findings,
       hasWebsite: params.hasWebsite,
+      piattaformaTerzi: params.piattaformaTerzi,
       gbpReviewCount: params.gbpReviewCount,
       gbpRating: params.gbpRating,
       reportUrl: params.reportUrl,

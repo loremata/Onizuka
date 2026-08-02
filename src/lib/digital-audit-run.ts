@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { ensureCommercialCatalogSeeded } from "@/lib/commercial-catalog-seed";
 import { notifyDigitalAuditCompleted } from "@/lib/audit-telegram-notify";
 import { uploadDigitalAuditReportsToDrive } from "@/lib/digital-audit-drive";
-import { pickAuditRecommendationFromSections, buildAuditFindings } from "@/lib/audit-service-recommendations";
+import { pickAuditRecommendationFromSections } from "@/lib/audit-service-recommendations";
+import { buildEvidenceFindings, isNonSito, piattaformaDi, parseMetrics } from "@/lib/audit-evidence";
 import { wireAuditCommercialCrm } from "@/lib/audit-commercial-wire";
 import type { AuditMatchKind } from "@/lib/audit-commercial-match";
 import { buildFirstAuditOutreachEmail } from "@/lib/audit-outreach-draft";
@@ -89,7 +90,12 @@ export async function runDigitalAuditForClient(params: {
     client.phone = gbpSnapshot.gbpPhone;
   }
 
-  const hasWebsiteUrl = Boolean(client.website?.trim());
+  // Un profilo Facebook o una scheda su un portale non sono il sito
+  // dell'azienda: analizzarli significa misurare la pagina di qualcun altro e
+  // poi scrivere al cliente che il "suo" sito ha problemi che non sono suoi.
+  // Nel magazzino di luglio erano 37 casi su 854.
+  const sitoDiTerzi = isNonSito(client.website);
+  const hasWebsiteUrl = Boolean(client.website?.trim()) && !sitoDiTerzi;
   const probe = await probeWebsiteWithSubpages(client.website);
 
   // Recupero contatti dal sito (mailto/tel/pagina contatti): i lead scrapati non hanno
@@ -228,9 +234,16 @@ export async function runDigitalAuditForClient(params: {
       brandName: brand?.name,
       serviceName: service?.name,
       overallScore,
-      findings: buildAuditFindings(sections),
-      // Dati per la personalizzazione: aggancio "nessun sito" + recensioni Google reali.
-      hasWebsite: Boolean(client.website?.trim()),
+      // I punti della mail nascono dalle METRICHE MISURATE: se il dato manca,
+      // la riga non esce. La vecchia tabella per sezione resta come rete di
+      // sicurezza quando le metriche non bastano a dire niente di verificabile.
+      // NIENTE ripiego sulla tabella generica: se le metriche non dicono
+      // niente di verificabile, la mail resta sul solo dato certo (sito
+      // assente, scheda Google) invece di inventare tre problemi plausibili.
+      // Nel magazzino di luglio succederebbe su 277 audit su 854.
+      findings: buildEvidenceFindings(parseMetrics(scored.metrics)),
+      hasWebsite: hasWebsiteUrl,
+      piattaformaTerzi: sitoDiTerzi ? piattaformaDi(client.website) : null,
       gbpReviewCount: gbpSnapshot?.gbpReviewCount ?? null,
       gbpRating: gbpSnapshot?.gbpRating ?? null,
       reportUrl,
