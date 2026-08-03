@@ -1,5 +1,6 @@
 import { BRAND_PROPOSAL_TEMPLATES } from "@/lib/commercial-catalog-seed";
 import type { AuditFinding } from "@/lib/audit-service-recommendations";
+import { nomeCommerciale } from "@/lib/nome-commerciale";
 
 /**
  * Email diretta orientata alla vendita, linguaggio semplice e senza brand interni:
@@ -23,7 +24,12 @@ function buildStructuredSalesEmail(params: {
   const gapsBlock = findings
     .map((f) => `• ${capitalize(f.gap)}: ${f.consequence}.`)
     .join("\n");
-  const solutionsBlock = findings.map((f) => `✓ ${capitalize(f.solution)}`).join("\n");
+  // Due problemi diversi possono avere la stessa soluzione (orari e foto si
+  // sistemano entrambi sulla scheda Google): elencarla due volte fa sembrare
+  // il testo generato male.
+  const solutionsBlock = Array.from(new Set(findings.map((f) => capitalize(f.solution))))
+    .map((s) => `✓ ${s}`)
+    .join("\n");
 
   // Apertura sul segnale più forte e concreto (= più credibile del generico "abbiamo analizzato").
   const opener =
@@ -53,10 +59,13 @@ function buildStructuredSalesEmail(params: {
       : `${companyName}: ${n} ${n === 1 ? "area" : "aree"} da sistemare nella vostra presenza online`;
   const subjectAlt = `${companyName}: ${n} ${n === 1 ? "area" : "aree"} che oggi vi fanno perdere clienti`;
 
-  const body = `Buongiorno,
-
-${opener}
-${gbpLine ? `\n${gbpLine}\n` : ""}
+  // Con zero punti verificabili l'elenco non si scrive: la mail resta sul dato
+  // certo dell'apertura (sito assente, pagina di terzi, scheda Google) e passa
+  // direttamente al report. Meglio corta e vera che lunga e riempita.
+  const blocco =
+    n === 0
+      ? ""
+      : `
 Guardando più nel dettaglio, questi sono i punti che oggi vi fanno perdere clienti:
 
 ${gapsBlock}
@@ -64,6 +73,12 @@ ${gapsBlock}
 Sono tutte situazioni che sappiamo risolvere. In concreto:
 
 ${solutionsBlock}
+`;
+
+  const body = `Buongiorno,
+
+${opener}
+${gbpLine ? `\n${gbpLine}\n` : ""}${blocco}
 
 ${
     params.reportUrl
@@ -112,11 +127,25 @@ export function buildFirstAuditOutreachEmail(params: {
   gbpRating?: number | null;
   reportUrl?: string;
 }): { subject: string; body: string; subjectAlt?: string } {
-  const companyName = params.companyName.trim() || "la vostra azienda";
+  // Il nome arriva dalla visura camerale: va ripulito prima di finire in un
+  // oggetto mail, altrimenti si legge «Az.Agr.Marchi E Barsotti Societa'
+  // Sempliice Societa' Agricola» e il destinatario capisce, prima ancora di
+  // leggere il contenuto, che dall'altra parte non c'è nessuno.
+  const nc = nomeCommerciale(params.companyName);
+  const companyName = nc.nome || "la vostra azienda";
 
-  // Percorso principale: email personalizzata sui problemi reali emersi dall'audit.
+  // Percorso principale: email costruita sui fatti misurati dall'audit.
+  //
+  // Ci si passa anche con ZERO punti verificabili, purché ci sia un aggancio
+  // vero — sito assente, pagina di terzi, scheda Google — e il report da
+  // mandare. La vecchia scorciatoia rimandava questi casi al testo generico,
+  // che oltre a essere vago perdeva per strada il link al report: succedeva su
+  // 298 audit su 854, cioè un terzo delle mail sarebbe uscito senza l'unica
+  // cosa che dà valore al contatto.
   const findings = (params.findings ?? []).filter((f) => f.gap?.trim() && f.solution?.trim()).slice(0, 3);
-  if (findings.length > 0) {
+  const agganciaDatoCerto =
+    !!params.piattaformaTerzi || params.hasWebsite === false || typeof params.gbpReviewCount === "number";
+  if (findings.length > 0 || (agganciaDatoCerto && params.reportUrl)) {
     return buildStructuredSalesEmail({
       companyName,
       findings,

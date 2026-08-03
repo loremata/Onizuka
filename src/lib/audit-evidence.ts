@@ -262,6 +262,36 @@ export function buildEvidenceFindings(metrics: AuditMetrics | null | undefined, 
     .map((r) => ({ gap: r.fatto(metrics), consequence: r.conseguenza, solution: r.soluzione }));
 }
 
+/**
+ * Neutralizza le metriche raccolte su una pagina che non è il sito
+ * dell'azienda (profilo Facebook, scheda su un portale).
+ *
+ * Serve per gli audit già a sistema: `metricsJson` è stato salvato quando la
+ * pagina di terzi veniva scambiata per il sito aziendale, quindi contiene
+ * HTTPS, form di contatto e tracciamento **di quella pagina**. Senza questa
+ * pulizia la mail direbbe «non ho trovato un sito vostro» nell'apertura e poi
+ * «sul sito non c'è il modulo di contatto» due righe sotto: si contraddice da
+ * sola, ed è esattamente il genere di svista che rivela l'automatismo.
+ */
+export function metricheSenzaSito(m: AuditMetrics | null): AuditMetrics | null {
+  if (!m) return m;
+  return {
+    ...m,
+    hasWebsite: false,
+    siteReachable: null,
+    https: null,
+    responseMs: null,
+    mobileFriendly: null,
+    pagespeed: null,
+    seo: null,
+    tracking: [],
+    social: [],
+    contact: null,
+    images: null,
+    // la scheda Google resta: quella è davvero dell'azienda
+  };
+}
+
 /** Legge `metricsJson` senza far esplodere niente se la forma cambia. */
 export function parseMetrics(raw: unknown): AuditMetrics | null {
   if (!raw) return null;
