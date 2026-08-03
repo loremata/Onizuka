@@ -7,6 +7,7 @@ import { Prisma } from "@prisma/client";
 import { GOAL_KEY } from "@/lib/inserimenti/constants";
 import { applySaleToClient } from "@/lib/inserimenti/apply-sale-to-client";
 import { missingRequiredSaleData } from "@/lib/inserimenti/sale-required-data";
+import { subtypeDaOfferta } from "@/lib/inserimenti/accesso-subtypes";
 import {
   searchCounterClients,
   createCounterClient,
@@ -46,7 +47,12 @@ export async function recordSale(formData: FormData): Promise<{ error: string } 
   const domiciled = formData.get("domiciled") === "on" || formData.get("domiciled") === "true";
   const offerCode = (String(formData.get("offerCode") ?? "").trim() || null) as string | null;
   const provenanceRaw = String(formData.get("provenance") ?? "").trim();
-  const subtype = (String(formData.get("subtype") ?? "").trim() || null) as string | null;
+  // Il sottotipo si deduce dall'offerta quando il listino lo dice già: sceglier
+  // «FWA Ricaricabile pack» e poi dover ripetere «tipo: FWA ricaricabile» è una
+  // trappola, e chi registra la salta. Senza sottotipo la vendita pesa un punto
+  // invece di mezzo e sballa i cancelli del Top Club.
+  const subtypeForm = (String(formData.get("subtype") ?? "").trim() || null) as string | null;
+  const subtype = subtypeForm ?? subtypeDaOfferta(offerCode);
   const notes = (String(formData.get("notes") ?? "").trim() || null) as string | null;
 
   const PROVS = ["ILIAD", "COOP", "POSTE", "FASTWEB", "KENA", "ALTRO"];

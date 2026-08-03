@@ -49,6 +49,24 @@ export type AccessoSubtype = keyof typeof ACCESSO_SUBTYPES;
  *  hanno un canone da chiedere in registrazione. */
 export const ACCESSI_SENZA_CANONE: AccessoSubtype[] = ["FWA_RIC", "SMB", "TRASFORMAZIONE", "TRASFORMAZIONE_FWA"];
 
+/**
+ * Ricava il sottotipo dall'offerta scelta a listino.
+ *
+ * Il tipo di accesso e l'offerta dicono la stessa cosa, e chiederli due volte
+ * è una trappola: chi registra sceglie «FWA Ricaricabile pack» dal listino e
+ * dà per scontato di aver detto tutto. Se il sottotipo resta vuoto la vendita
+ * pesa un punto invece di mezzo sulla soglia Accessi, sballa i cancelli del
+ * Top Club, e per giunta il canone del pack (99 €) finisce nel calcolo come
+ * se fosse un abbonamento mensile. È successo il 3 agosto 2026.
+ *
+ * Quindi il sottotipo si deduce dall'offerta, e la scelta manuale resta solo
+ * per i casi che il listino non descrive.
+ */
+export function subtypeDaOfferta(offerCode?: string | null): AccessoSubtype | null {
+  if (!offerCode) return null;
+  return offerCode.toUpperCase().includes("RICARICABILE") ? "FWA_RIC" : null;
+}
+
 export function isAccessoSenzaCanone(lineKey: string, subtype?: string | null): boolean {
   return lineKey === "ACCESSO_FISSO" && !!subtype && (ACCESSI_SENZA_CANONE as string[]).includes(subtype);
 }
