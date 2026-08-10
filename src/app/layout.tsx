@@ -8,6 +8,13 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Onizuka",
   description: "Sistema operativo intelligente personale e aziendale",
+  applicationName: "Onizuka",
+  /** iOS < 16.4 apre a schermo pieno solo con questi meta, non col manifest. */
+  appleWebApp: {
+    capable: true,
+    title: "Onizuka",
+    statusBarStyle: "default",
+  },
 };
 
 export default function RootLayout({
