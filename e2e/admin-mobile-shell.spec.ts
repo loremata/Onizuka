@@ -49,6 +49,27 @@ test.describe("Shell mobile", () => {
     }
   });
 
+  test("il service worker delle notifiche e' servito", async ({ page }) => {
+    const res = await page.request.get("/admin-sw.js");
+    expect(res.status()).toBe(200);
+    expect(await res.text()).toContain("notificationclick");
+  });
+
+  test("senza chiavi VAPID l'opt-in push non compare", async ({ page }) => {
+    // Meglio nulla che un pulsante che non potrebbe funzionare: lato server la
+    // funzione e' spenta finche' VAPID_* non sono impostate.
+    test.skip(Boolean(process.env.VAPID_PUBLIC_KEY?.trim()), "VAPID configurata");
+
+    await loginAsAdmin(page);
+    await page.goto("/admin/m/lead");
+    await expect(page.getByRole("heading", { name: "In arrivo", level: 1 })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByRole("button", { name: /Avvisami quando entra un contatto/ })).toHaveCount(
+      0
+    );
+  });
+
   test("REGRESSIONE: il desktop tiene la sua navigazione, /admin/memory compresa", async ({
     page,
   }) => {

@@ -6,6 +6,7 @@ import { leadStatusLabel } from "@/lib/crm-lead-status";
 import { loadUserNotificationsPage } from "@/lib/user-notifications";
 import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { Card, CardContent } from "@/components/ui/card";
+import { PushOptIn } from "./push-opt-in";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,8 @@ export default async function MobileLeadPage() {
   return (
     <div className="space-y-5">
       <h1 className="text-xl font-semibold tracking-tight">In arrivo</h1>
+
+      <PushOptIn vapidPublicKey={process.env.VAPID_PUBLIC_KEY?.trim() || null} />
 
       {unread.length > 0 ? (
         <section className="space-y-2">

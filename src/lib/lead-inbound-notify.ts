@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { isSmtpConfigured, sendEmailViaSmtp } from "@/lib/smtp-send";
 import { notifyAdminsViaTelegram } from "@/lib/telegram-bot";
+import { notifyAdminsViaWebPush } from "@/lib/admin-web-push";
 
 /**
  * Notifica in tempo reale all'admin di un nuovo lead entrato dai form pubblici
@@ -90,6 +91,22 @@ export async function notifyInboundLead(params: NotifyInboundLeadParams): Promis
   tasks.push(
     notifyAdminsViaTelegram(text).catch((e) => {
       console.warn("[lead-inbound-notify] telegram", e);
+    })
+  );
+
+  // Canale Web Push: no-op interno se le chiavi VAPID mancano. La notifica
+  // porta a /admin/m/lead, dove il contatto si chiama con un tocco: è l'unico
+  // canale dei tre che arriva sul telefono senza aprire nulla.
+  tasks.push(
+    notifyAdminsViaWebPush({
+      title: `Nuovo lead · ${SOURCE_LABEL[params.source]}`,
+      body:
+        [params.businessName ?? params.contactName, params.city, params.phone]
+          .filter(Boolean)
+          .join(" · ") || "Apri per i dettagli",
+      url: "/admin/m/lead",
+    }).catch((e) => {
+      console.warn("[lead-inbound-notify] webpush", e);
     })
   );
 

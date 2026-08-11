@@ -383,6 +383,7 @@ model User {
   storeSales                  StoreSale[]
   storeOffers                 StoreOffer[]
   storeMonthlyInputs          StoreMonthlyInput[]
+  pushSubscriptions           AdminPushSubscription[]
 }
 
 /// Workspace / tenant leggero (MVP multi-agenzia).
@@ -987,6 +988,23 @@ model ReferrerMagicLink {
 }
 
 /// Web Push subscription portale segnalatore.
+/// Iscrizione Web Push di un utente admin (una per dispositivo/browser).
+/// Gemello di ReferrerPushSubscription, ma sull'utente invece che sul segnalatore.
+model AdminPushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  /// Per riconoscere il dispositivo quando se ne revoca uno.
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
 model ReferrerPushSubscription {
   id         String   @id @default(cuid())
   referrerId String
