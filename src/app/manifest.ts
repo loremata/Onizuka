@@ -32,31 +32,35 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "maskable",
       },
     ],
-    /** I gesti che si fanno dal telefono, raggiungibili col tocco lungo sull'icona. */
+    /**
+     * I gesti che si fanno dal telefono, raggiungibili col tocco lungo
+     * sull'icona. Puntano alla shell mobile `/admin/m`, non alle pagine
+     * desktop: chi arriva da qui ha il telefono in mano per definizione.
+     */
     shortcuts: [
       {
         name: "Registra inserimento",
         short_name: "Registra",
         description: "Registra una vendita del negozio",
-        url: "/admin/inserimenti/registra",
+        url: "/admin/m/registra",
       },
       {
-        name: "Nuovo lead",
-        short_name: "Lead",
-        description: "Inserimento veloce di un contatto",
-        url: "/admin/crm/leads/quick",
+        name: "Contatti in arrivo",
+        short_name: "In arrivo",
+        description: "Lead nuovi e avvisi da leggere",
+        url: "/admin/m/lead",
       },
       {
-        name: "Cerca",
+        name: "Cerca cliente",
         short_name: "Cerca",
-        description: "Cerca un cliente o un contatto",
-        url: "/admin/search",
+        description: "Cerca un cliente e apri la scheda essenziale",
+        url: "/admin/m/cerca",
       },
       {
-        name: "Notifiche",
-        short_name: "Notifiche",
-        description: "Lead in arrivo e avvisi",
-        url: "/admin/notifications",
+        name: "Prossime mosse",
+        short_name: "Mosse",
+        description: "Chi chiamare e perché",
+        url: "/admin/m/mosse",
       },
     ],
   };

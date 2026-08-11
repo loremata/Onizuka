@@ -36,6 +36,15 @@ export const ALL_ADMIN_MODULES: AdminModule[] = [
 const STAFF_DENIED_DEFAULT: AdminModule[] = ["finance", "users", "go-live", "integrations"];
 
 const PATH_MODULE_RULES: { prefix: string; module: AdminModule }[] = [
+  // Shell mobile (/admin/m): ogni vista eredita il modulo della pagina desktop
+  // che rispecchia. Senza queste righe cadrebbero nel fallback "core", che gli
+  // STAFF vedono di default: un collaboratore escluso da /admin/inserimenti
+  // (modulo finance) avrebbe potuto registrare vendite da /admin/m/registra.
+  // NB: nessun conflitto con /admin/memory — il match e' esatto o su "prefix/".
+  { prefix: "/admin/m/registra", module: "finance" },
+  { prefix: "/admin/m/cerca", module: "crm" },
+  { prefix: "/admin/m/lead", module: "crm" },
+  { prefix: "/admin/m/mosse", module: "crm" },
   { prefix: "/admin/users", module: "users" },
   { prefix: "/api/admin/users", module: "users" },
   { prefix: "/admin/go-live", module: "go-live" },

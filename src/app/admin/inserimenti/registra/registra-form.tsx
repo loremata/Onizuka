@@ -200,7 +200,7 @@ export function RegistraForm({
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+            className="w-full rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
           />
           <span className="text-xs text-muted-foreground">Resta impostata per le vendite successive.</span>
         </label>
@@ -213,7 +213,7 @@ export function RegistraForm({
               setBrand(e.target.value);
               setLineKey("");
             }}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+            className="w-full rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
           >
             {options.map((o) => (
               <option key={o.brand} value={o.brand}>
@@ -239,7 +239,7 @@ export function RegistraForm({
             setAccessoTipo("");
           }}
           size={Math.min(8, Math.max(3, visibleLines.length + 1))}
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          className="w-full rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
         >
           <option value="">— scegli —</option>
           {visibleLines.map((l) => (
@@ -264,7 +264,7 @@ export function RegistraForm({
               const o = offerChoices.find((x) => x.code === code);
               if (o && o.feeEur > 0) setFeeEur(String(o.feeEur).replace(".", ","));
             }}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+            className="w-full rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
           >
             <option value="">— scegli l&apos;offerta —</option>
             {offerChoices.map((o) => (
@@ -292,7 +292,7 @@ export function RegistraForm({
           <select
             value={accessoTipo}
             onChange={(e) => setAccessoTipo(e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+            className="w-full rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
           >
             <option value="">Accesso a canone — fibra, FWA, FLEXY</option>
             {(Object.keys(ACCESSO_SUBTYPES) as AccessoSubtype[]).map((k) => (
@@ -318,7 +318,7 @@ export function RegistraForm({
                 setOfferCode(""); // scritto a mano → non è più dal listino
               }}
               placeholder="es. 29,90"
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              className="w-full rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
             />
             <span className="block text-[11px] text-muted-foreground">
               Il prezzo che paga il cliente, come da listino (es. TIM WiFi Casa 29,90).
@@ -338,7 +338,7 @@ export function RegistraForm({
           <select
             value={provenance}
             onChange={(e) => setProvenance(e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+            className="w-full rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
           >
             <option value="">—</option>
             {["ILIAD", "COOP", "POSTE", "FASTWEB", "ALTRO"].map((p) => (
@@ -359,7 +359,7 @@ export function RegistraForm({
           <select
             value={contenutoTipo}
             onChange={(e) => setContenutoTipo(e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+            className="w-full rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
           >
             <option value="">Standard — 1 OTT, 1 pezzo</option>
             <option value="TIMVISION_M">TIMVision M (Netflix + Disney+) — 2 pezzi</option>
@@ -403,7 +403,7 @@ export function RegistraForm({
               value={clientQ}
               onChange={(e) => setClientQ(e.target.value)}
               placeholder="Nome o telefono del cliente…"
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              className="w-full rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
             />
 
             {hits.length > 0 ? (
@@ -443,14 +443,14 @@ export function RegistraForm({
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     placeholder="Nome e cognome"
-                    className="min-w-[10rem] flex-1 rounded-md border bg-background px-3 py-2 text-sm"
+                    className="min-w-[10rem] flex-1 rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
                   />
                   <input
                     value={newPhone}
                     onChange={(e) => setNewPhone(e.target.value)}
                     inputMode="tel"
                     placeholder="Telefono"
-                    className="w-40 rounded-md border bg-background px-3 py-2 text-sm"
+                    className="w-40 rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
                   />
                   <button
                     type="button"

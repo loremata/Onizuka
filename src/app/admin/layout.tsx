@@ -8,6 +8,7 @@ import { GlobalCommandBar } from "@/components/onizuka/global-command-bar";
 import { MarketingSiteLink } from "@/components/onizuka/marketing-site-link";
 import { NavLiveUpdates } from "@/components/onizuka/nav-live-updates";
 import { AdminBrandMark } from "@/components/onizuka/admin-brand-mark";
+import { AdminDesktopChrome, AdminMain } from "@/components/onizuka/admin-shell-chrome";
 import { AdminPrimaryNav } from "@/components/onizuka/admin-nav-links";
 import { AdminToolsMenu } from "@/components/onizuka/admin-tools-menu";
 import { ADMIN_TOOL_NAV_GROUPS } from "@/lib/admin-tool-nav-groups";
@@ -59,6 +60,7 @@ export default async function AdminLayout({
   return (
     <div className="min-h-screen onizuka-shell-bg">
       <NavLiveUpdates />
+      <AdminDesktopChrome>
       <div className="static lg:sticky lg:top-0 z-20 border-b border-border/80 bg-card/90 shadow-sm shadow-black/5 backdrop-blur-md supports-[backdrop-filter]:bg-card/75">
         <header className="container mx-auto px-4">
           <div className="flex flex-col gap-3 py-3 lg:flex-row lg:items-center lg:justify-between">
@@ -84,7 +86,8 @@ export default async function AdminLayout({
           <GlobalCommandBar />
         </Suspense>
       </div>
-      <main className="container mx-auto px-4 py-8">{children}</main>
+      </AdminDesktopChrome>
+      <AdminMain>{children}</AdminMain>
       <Toaster richColors position="top-right" closeButton />
       <Suspense fallback={null}>
         <FlashToast />
