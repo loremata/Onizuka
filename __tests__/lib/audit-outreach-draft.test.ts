@@ -10,7 +10,11 @@ describe("buildFirstAuditOutreachEmail", () => {
       serviceName: "SEO",
       overallScore: 42,
     });
-    expect(subject).toContain("Demo Srl");
+    // La ragione sociale viene ridotta al nome commerciale (nomeCommerciale):
+    // "Demo Srl" diventa "Demo". Scrivere la forma giuridica in oggetto fa
+    // sembrare la mail una visura, non qualcuno che ha guardato il sito.
+    expect(subject).toContain("Demo");
+    expect(subject).not.toMatch(/\bS\.?r\.?l\.?\b/i);
     expect(body).toContain("LabSeven");
     expect(body).toContain("42/100");
   });
