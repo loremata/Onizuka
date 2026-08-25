@@ -9,6 +9,8 @@ import { resolveReachAbVariantForSend } from "@/lib/reach-ab-default";
 import { ensureClientOptOutToken, isEmailable } from "@/lib/campaigns/consent";
 import { buildUnsubscribeUrl } from "@/lib/unsubscribe-link";
 import { checkRecipientCooldown } from "@/lib/outreach-hygiene";
+import { describeOutreachQuality, validateOutreachDraft } from "@/lib/outreach-quality";
+import { buildMailtoUrl } from "@/lib/mailto-outreach";
 
 /**
  * Riga sull'origine dei dati, richiesta dall'art. 14 GDPR quando il contatto non
@@ -24,6 +26,14 @@ export type OutreachSendResult = {
   to?: string;
   channel?: "gmail" | "smtp";
   note: string;
+  /**
+   * Valorizzato solo quando non è configurato alcun canale automatico: contiene
+   * il testo già completo di footer di disiscrizione e nota art. 14, così anche
+   * l'invio a mano dal client di posta parte con le stesse garanzie.
+   */
+  mailto?: string;
+  /** Oggetto e corpo effettivi (decorati), per precompilare l'invio manuale. */
+  prepared?: { subject: string; body: string };
 };
 
 /**
@@ -34,7 +44,7 @@ export type OutreachSendResult = {
  */
 export async function sendOutreachDraftNow(
   draftId: string,
-  opts?: { auto?: boolean }
+  opts?: { auto?: boolean; prepareOnly?: boolean }
 ): Promise<OutreachSendResult> {
   const draft = await prisma.outreachDraft.findUnique({
     where: { id: draftId },
@@ -128,6 +138,16 @@ export async function sendOutreachDraftNow(
   const abVariant = await resolveReachAbVariantForSend(draft.ownerUserId, undefined);
   const subject = pickOutreachSubject(draft, abVariant);
   const rawBody = pickOutreachBody(draft, abVariant);
+
+  // ── Qualità del testo ────────────────────────────────────────────────────
+  // Ultimo controllo prima che il messaggio esca: placeholder non sostituiti,
+  // interpolazioni fallite, punteggi a zero, ragione sociale grezza. Difetti
+  // così si scoprivano solo andandoli a cercare a mano, a mail già partita.
+  const quality = validateOutreachDraft({ subject, body: rawBody });
+  if (!quality.ok) {
+    return { sent: false, to, note: `Invio bloccato — ${describeOutreachQuality(quality)}` };
+  }
+
   const bodyOptions = { unsubscribeUrl, tracking, sourceNote };
   const emailBody = appendOutreachTextFooter(rawBody, bodyOptions);
   const html = wrapOutreachHtmlBody(rawBody, draft.id, bodyOptions);
@@ -137,6 +157,18 @@ export async function sendOutreachDraftNow(
     "List-Unsubscribe": `<${unsubscribeUrl}>`,
     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
   };
+
+  // Invio manuale dal client di posta: stesse verifiche, nessuna spedizione qui.
+  // Serve a non avere una seconda strada che salta consenso, cooldown e footer.
+  if (opts?.prepareOnly) {
+    return {
+      sent: false,
+      to,
+      note: "Testo verificato e pronto per l'invio manuale.",
+      mailto: buildMailtoUrl({ to, subject, body: emailBody }),
+      prepared: { subject, body: emailBody },
+    };
+  }
 
   if (await isGmailConnected(draft.ownerUserId)) {
     const viaApi = await sendGmailViaApi(draft.ownerUserId, {
@@ -162,5 +194,14 @@ export async function sendOutreachDraftNow(
     return { sent: false, to, note: `SMTP: ${res.error}` };
   }
 
-  return { sent: false, to, note: "Nessun canale email configurato." };
+  // Nessun canale automatico: si degrada all'invio manuale dal client di posta,
+  // ma col testo GIÀ decorato (footer di disiscrizione + nota art. 14), così la
+  // via manuale non è una scorciatoia per saltare le garanzie.
+  return {
+    sent: false,
+    to,
+    note: "Nessun canale email configurato: usa l'invio manuale dal tuo client di posta.",
+    mailto: buildMailtoUrl({ to, subject, body: emailBody }),
+    prepared: { subject, body: emailBody },
+  };
 }

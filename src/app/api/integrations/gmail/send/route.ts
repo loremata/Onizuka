@@ -3,16 +3,23 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isAdminAreaRole } from "@/lib/auth-roles";
 import { prisma } from "@/lib/prisma";
-import { buildMailtoUrl, resolveGmailSendMode } from "@/lib/mailto-outreach";
-import { sendGmailViaApi } from "@/lib/gmail-api";
-import { isGmailConnected } from "@/lib/gmail-oauth";
-import { isSmtpConfigured, sendEmailViaSmtp } from "@/lib/smtp-send";
-import { markOutreachDraftSent } from "@/lib/outreach-sent";
-import { wrapOutreachHtmlBody } from "@/lib/outreach-tracking";
-import { pickOutreachBody, pickOutreachSubject } from "@/lib/outreach-ab";
-import { resolveReachAbVariantForSend } from "@/lib/reach-ab-default";
+import { isSmtpConfigured } from "@/lib/smtp-send";
+import { sendOutreachDraftNow } from "@/lib/outreach-send";
 
-/** Invio outreach: SMTP se configurato, altrimenti mailto. */
+/**
+ * Invio outreach dalla UI (Reach / Approvazioni).
+ *
+ * Questa route NON spedisce più per conto proprio: delega interamente a
+ * `sendOutreachDraftNow`, che è l'unico punto da cui esce una mail di outreach.
+ * Prima esisteva una seconda strada che saltava consenso, disiscrizione,
+ * cooldown anti-doppione e header List-Unsubscribe — cioè proprio le garanzie
+ * che il percorso "ufficiale" applicava. Un solo choke point, un solo insieme
+ * di regole.
+ *
+ * `markSent: true`  → spedisci adesso col canale configurato.
+ * `markSent: false` → non spedire: restituisci il testo già decorato per
+ *                     l'invio manuale dal client di posta.
+ */
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session || !isAdminAreaRole(session.user.role)) {
@@ -21,93 +28,59 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}));
   const draftId = typeof body.draftId === "string" ? body.draftId : "";
-  const markSent = body.markSent === true;
-  const abVariant = await resolveReachAbVariantForSend(
-    session.user.id,
-    typeof body.abVariant === "string" ? body.abVariant : undefined
-  );
+  const inviaOra = body.markSent === true;
 
   if (!draftId) {
     return NextResponse.json({ error: "draftId richiesto" }, { status: 400 });
   }
 
+  // La proprietà della bozza resta un controllo di questa route: la funzione di
+  // invio lavora per id e non conosce la sessione.
   const draft = await prisma.outreachDraft.findFirst({
     where: { id: draftId, ownerUserId: session.user.id },
-    include: {
-      client: { select: { contactEmail: true, companyName: true } },
-      lead: { select: { email: true } },
-    },
+    select: { id: true, status: true },
   });
-
   if (!draft) {
     return NextResponse.json({ error: "Bozza non trovata" }, { status: 404 });
   }
-
   if (draft.status !== "APPROVED" && draft.status !== "PENDING_APPROVAL") {
     return NextResponse.json({ error: "Bozza non approvata per l'invio" }, { status: 400 });
   }
 
-  const subject = pickOutreachSubject(draft, abVariant);
-  const emailBody = pickOutreachBody(draft, abVariant);
-  const to = (draft.client?.contactEmail?.trim() || draft.lead?.email?.trim()) ?? "";
-  const mode = resolveGmailSendMode();
-
-  if (to && (await isGmailConnected(session.user.id))) {
-    const viaApi = await sendGmailViaApi(session.user.id, {
-      to,
-      subject,
-      text: emailBody,
-      html: wrapOutreachHtmlBody(emailBody, draft.id),
+  // Premere "Invia" su una bozza in attesa È l'approvazione umana: registriamola
+  // invece di scavalcarla in silenzio, così lo storico resta leggibile.
+  if (inviaOra && draft.status === "PENDING_APPROVAL") {
+    await prisma.outreachDraft.updateMany({
+      where: { id: draftId, ownerUserId: session.user.id, status: "PENDING_APPROVAL" },
+      data: { status: "APPROVED" },
     });
-    if (viaApi.ok) {
-      if (markSent) {
-        await markOutreachDraftSent(draftId, session.user.id, { abVariantSent: abVariant });
-      }
-      return NextResponse.json({
-        mode: "gmail_api",
-        sent: true,
-        markedSent: markSent,
-        to,
-        abVariant,
-        subject,
-      });
-    }
   }
 
-  if (mode === "smtp" && to) {
-    const sent = await sendEmailViaSmtp({
-      to,
-      subject,
-      text: emailBody,
-      html: wrapOutreachHtmlBody(emailBody, draft.id),
-    });
-    if (!sent.ok) {
-      return NextResponse.json({ error: sent.error }, { status: 502 });
-    }
-    if (markSent) {
-      await markOutreachDraftSent(draftId, session.user.id, { abVariantSent: abVariant });
-    }
+  const result = await sendOutreachDraftNow(draftId, inviaOra ? undefined : { prepareOnly: true });
+
+  if (result.sent) {
     return NextResponse.json({
-      mode: "smtp",
+      mode: result.channel ?? "smtp",
       sent: true,
-      markedSent: markSent,
-      to,
-      abVariant,
-      subject,
+      markedSent: true,
+      to: result.to,
+      note: result.note,
     });
   }
 
-  if (mode === "smtp" && !to) {
-    return NextResponse.json({ error: "Email destinatario mancante sul cliente" }, { status: 400 });
+  // Non spedita ma il testo è pronto: apertura nel client di posta.
+  if (result.mailto) {
+    return NextResponse.json({
+      mode: "mailto",
+      sent: false,
+      mailto: result.mailto,
+      to: result.to,
+      subject: result.prepared?.subject,
+      smtpAvailable: isSmtpConfigured(),
+      message: "Apri il client email precompilato. Dopo l'invio, segna come inviata in Reach.",
+    });
   }
 
-  const mailto = buildMailtoUrl({ to: to || undefined, subject, body: emailBody });
-  return NextResponse.json({
-    mode: "mailto",
-    mailto,
-    smtpAvailable: isSmtpConfigured(),
-    abVariant,
-    subject,
-    message: "Apri il client email precompilato. Dopo l'invio, segna come inviata in Reach.",
-  });
+  // Bloccata da una guardia (consenso, disiscrizione, doppione, qualità del testo).
+  return NextResponse.json({ error: result.note }, { status: 400 });
 }
