@@ -1555,6 +1555,14 @@ model OutreachDraft {
   openCount      Int                 @default(0)
   clickedAt      DateTime?
   clickCount     Int                 @default(0)
+  /// Quando il destinatario ha risposto via email (dal watcher IMAP). E' il
+  /// segnale d'esito che mancava: senza, il tasso di risposta era inconoscibile.
+  repliedAt      DateTime?
+  /// Perche' questa bozza e' nello stato in cui e': scartata dall'igiene,
+  /// bloccata da una guardia (consenso, doppione, qualita' del testo), sostituita
+  /// da una rigenerazione. Prima gli scarti avvenivano in silenzio e la dashboard
+  /// dei flussi non aveva niente da mostrare.
+  statusNote     String?
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 

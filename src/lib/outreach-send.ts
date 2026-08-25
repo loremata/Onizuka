@@ -21,6 +21,17 @@ const DATA_SOURCE_NOTE =
   process.env.REACH_DATA_SOURCE_NOTE?.trim() ||
   "Ti scriviamo da Online Station. Abbiamo reperito questo contatto tra le informazioni aziendali pubbliche; se preferisci non essere ricontattato usa il link qui sotto.";
 
+/**
+ * Registra sul draft il motivo per cui l'invio non e' passato: e' quello che la
+ * dashboard dei flussi mostra alla colonna "perche'". Fire-and-forget: un
+ * fallimento qui non deve mai far fallire la valutazione della guardia.
+ */
+function annotaBlocco(draftId: string, note: string): void {
+  void prisma.outreachDraft
+    .updateMany({ where: { id: draftId }, data: { statusNote: note } })
+    .catch(() => undefined);
+}
+
 export type OutreachSendResult = {
   sent: boolean;
   to?: string;
@@ -94,10 +105,21 @@ export async function sendOutreachDraftNow(
     }
   }
 
-  const to = (draft.client?.contactEmail ?? draft.lead?.email ?? "").trim();
-  if (!to) return { sent: false, note: "Nessuna email destinatario." };
+  // La PRIMA email REALE vince, da qualunque dei due record arrivi: il client
+  // satellite spesso porta il segnaposto interno mentre l'indirizzo vero sta
+  // sul Lead (Sheet, form P.IVA). Il vecchio `client ?? lead` si fermava al
+  // segnaposto e bloccava invii perfettamente possibili.
+  const isRealAddress = (e?: string | null) =>
+    !!e && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.trim()) && !/@onizuka\.local$/i.test(e.trim());
+  const candidates = [draft.client?.contactEmail, draft.lead?.email];
+  const to = (candidates.find(isRealAddress) ?? candidates.find((e) => !!e?.trim()) ?? "").trim();
+  if (!to) {
+    annotaBlocco(draftId, "Bloccata: nessuna email destinatario");
+    return { sent: false, note: "Nessuna email destinatario." };
+  }
   // Prospect da Sheet senza contatto reale: email segnaposto interna → mai inviare.
   if (/@onizuka\.local$/i.test(to) || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
+    annotaBlocco(draftId, "Bloccata: email segnaposto/non valida (serve WhatsApp o chiamata)");
     return { sent: false, to, note: "Email segnaposto/non valida — usa WhatsApp o chiamata." };
   }
 
@@ -108,6 +130,7 @@ export async function sendOutreachDraftNow(
   // mail, non la scheda.
   const cooldown = await checkRecipientCooldown(to, draft.id);
   if (cooldown.blocked) {
+    annotaBlocco(draftId, `Bloccata: ${cooldown.reason}`);
     return { sent: false, to, note: cooldown.reason };
   }
 
@@ -117,10 +140,12 @@ export async function sendOutreachDraftNow(
   // dalle campagne continuava a ricevere l'outreach, e viceversa.
   const consentSubject = draft.client ?? draft.lead?.dossierClient ?? null;
   if (!consentSubject) {
+    annotaBlocco(draftId, "Bloccata: nessun soggetto di consenso collegato");
     return { sent: false, to, note: "Nessun soggetto di consenso collegato: invio bloccato." };
   }
   if (!isEmailable(consentSubject)) {
     const why = consentSubject.marketingOptOutAt ? "si è disiscritto" : "non ha una base di contatto valida";
+    annotaBlocco(draftId, `Bloccata: il destinatario ${why}`);
     return { sent: false, to, note: `Invio bloccato: il destinatario ${why}.` };
   }
 
@@ -145,6 +170,7 @@ export async function sendOutreachDraftNow(
   // così si scoprivano solo andandoli a cercare a mano, a mail già partita.
   const quality = validateOutreachDraft({ subject, body: rawBody });
   if (!quality.ok) {
+    annotaBlocco(draftId, `Bloccata dalla qualità del testo: ${describeOutreachQuality(quality)}`);
     return { sent: false, to, note: `Invio bloccato — ${describeOutreachQuality(quality)}` };
   }
 

@@ -39,7 +39,13 @@ export async function sweepStaleOutreach(now = new Date()): Promise<OutreachHygi
 
   const drafts = await prisma.outreachDraft.updateMany({
     where: { status: { in: ["PENDING_APPROVAL", "DRAFT"] }, createdAt: { lt: draftCutoff } },
-    data: { status: "CANCELLED" },
+    // Il motivo va scritto QUI, nel momento dello scarto: prima le bozze
+    // sparivano in CANCELLED senza spiegazione e la dashboard dei flussi
+    // non aveva niente da raccontare (1.210 scarti muti).
+    data: {
+      status: "CANCELLED",
+      statusNote: `Scaduta: in attesa di approvazione da oltre ${STALE_PENDING_DRAFT_DAYS} giorni`,
+    },
   });
 
   return { stepsSkipped: steps.count, draftsCancelled: drafts.count };

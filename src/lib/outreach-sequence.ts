@@ -13,7 +13,14 @@ export type SequenceStepTemplate = {
   bodyAlt?: string;
 };
 
-export const DEFAULT_AUDIT_SEQUENCE_DELAYS = [0, 3, 7, 14, 30] as const;
+/**
+ * J+0 / J+3 / J+7 e basta. I passi a 14 e 30 giorni sono stati tolti (25/08):
+ * senza rilevamento affidabile delle risposte su OGNI canale, un "ti riscrivo
+ * dopo un mese" a chi magari ha già risposto è il modo più costoso di farsi
+ * segnalare come spam. Tre tocchi in una settimana bastano; chi non risponde
+ * passa a freddo e si ricontatta con una campagna, non con l'insistenza.
+ */
+export const DEFAULT_AUDIT_SEQUENCE_DELAYS = [0, 3, 7] as const;
 
 function addDays(from: Date, days: number): Date {
   const d = new Date(from);
@@ -57,32 +64,6 @@ Abbiamo preparato un'analisi dettagliata della vostra presenza online: se vuoi t
 Quando preferisci?
 
 Cordiali saluti,
-Lorenzo Matarazzo · Online Station`,
-    },
-    {
-      delayDays: 14,
-      subject: `${params.companyName}: i risultati ottenibili`,
-      body: `Buongiorno,
-
-molte attività come la vostra, sistemando ${problem.toLowerCase()}, hanno aumentato richieste e contatti in poche settimane.
-
-Mi piacerebbe mostrarvi, dati alla mano, cosa si può ottenere nel vostro caso specifico. Bastano 15 minuti, anche al telefono.
-
-Vi va questa settimana o la prossima?
-
-Cordiali saluti,
-Lorenzo Matarazzo · Online Station`,
-    },
-    {
-      delayDays: 30,
-      subject: `Chiudo qui, ma resto a disposizione — ${params.companyName}`,
-      body: `Buongiorno,
-
-questo è il mio ultimo messaggio, per non risultare insistente.
-
-Se anche solo in futuro vorrete migliorare ${problem.toLowerCase()}, basta un vostro "sì" e organizzo subito una consulenza gratuita con il report già pronto.
-
-Vi lascio il mio contatto diretto. Grazie e a presto,
 Lorenzo Matarazzo · Online Station`,
     },
   ];
@@ -492,8 +473,30 @@ export async function markSequenceStepSentByDraftId(draftId: string): Promise<vo
   });
   if (!draft?.sequenceStepId) return;
 
-  await prisma.outreachSequenceStep.update({
+  const step = await prisma.outreachSequenceStep.update({
     where: { id: draft.sequenceStepId },
     data: { status: "SENT" },
+    select: { sequenceId: true, stepIndex: true, delayDays: true },
   });
+
+  // RI-ANCORAGGIO: i ritardi valgono dal giorno dell'INVIO REALE, non dal
+  // giorno in cui la sequenza fu programmata. Senza questo, una prima mail
+  // approvata con calma aveva il J+3 già scaduto e il follow-up partiva il
+  // giorno dopo: due mail in due giorni, l'opposto del ritmo promesso.
+  const sentAt = new Date();
+  const successivi = await prisma.outreachSequenceStep.findMany({
+    where: {
+      sequenceId: step.sequenceId,
+      stepIndex: { gt: step.stepIndex },
+      status: "SCHEDULED",
+    },
+    select: { id: true, delayDays: true },
+  });
+  for (const s of successivi) {
+    const delta = Math.max(1, (s.delayDays ?? 0) - (step.delayDays ?? 0));
+    await prisma.outreachSequenceStep.update({
+      where: { id: s.id },
+      data: { scheduledFor: addDays(sentAt, delta) },
+    });
+  }
 }

@@ -75,6 +75,14 @@ describe("qualità della bozza outreach", () => {
     expect(r.problems.map((p) => p.code)).toContain("ragione_sociale_grezza");
   });
 
+  it("blocca il nome-segnaposto dell'anagrafica (trovato dal vivo il 25/08)", () => {
+    const r = validateOutreachDraft({
+      subject: "Prospect P.IVA 01887720496: chi vi cerca non trova un sito",
+      body: CORPO_BUONO,
+    });
+    expect(r.problems.map((p) => p.code)).toContain("nome_segnaposto");
+  });
+
   it("blocca il link al report senza token", () => {
     const r = validateOutreachDraft({
       subject: "Analisi",

@@ -43,6 +43,13 @@ const PLACEHOLDER_GRAFFE = /\{\{?\s*[a-z_.]{2,40}\s*\}?\}/i;
 /** Interpolazioni fallite finite nel testo. */
 const VALORE_MANCANTE = /\b(undefined|null|NaN|\[object Object\])\b/;
 
+/**
+ * Nomi-segnaposto dell'anagrafica («Prospect P.IVA 01887720496»): in una mail
+ * dichiarano l'automatismo peggio di qualsiasi refuso. Trovato dal vivo nella
+ * prova a secco della rigenerazione del 25/08 — era la prima mail in coda.
+ */
+const NOME_SEGNAPOSTO = /\bprospect\s+p\.?\s*iva\b|\bp\.?\s*iva\s+\d{6,}/i;
+
 /** Punteggio assente stampato come zero (`0/100`, `0 / 100`). */
 const PUNTEGGIO_ZERO = /\b0\s*\/\s*100\b/;
 
@@ -96,6 +103,13 @@ export function validateOutreachDraft(input: {
       problems,
       "valore_mancante",
       "Nel testo compare un valore non calcolato (undefined/null/NaN)."
+    );
+  }
+  if (NOME_SEGNAPOSTO.test(testo)) {
+    add(
+      problems,
+      "nome_segnaposto",
+      "Il nome dell'azienda è un segnaposto dell'anagrafica (es. «Prospect P.IVA …»)."
     );
   }
   if (PUNTEGGIO_ZERO.test(testo)) {

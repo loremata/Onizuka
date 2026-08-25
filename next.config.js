@@ -48,7 +48,7 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   experimental: {
-    serverComponentsExternalPackages: ["pdfkit"],
+    serverComponentsExternalPackages: ["pdfkit", "imapflow"],
     // Includi logo/font Online Station nel bundle serverless (PDF audit/preventivi).
     outputFileTracingIncludes: {
       "/**": ["./public/fonts/**", "./public/brand/**"],

@@ -45,6 +45,7 @@ export const ADMIN_TOOL_NAV_GROUPS: AdminToolNavGroup[] = [
       { href: "/admin/audit/digital", label: "Audit digitale" },
       { href: "/admin/reach", label: "Outreach (Reach)" },
       { href: "/admin/reach/sequences", label: "Sequenze" },
+      { href: "/admin/reach/flussi", label: "Flussi outreach" },
       { href: "/admin/sales/brands", label: "Brand" },
       { href: "/admin/inserimenti", label: "Inserimenti (compensi negozio)" },
     ],
