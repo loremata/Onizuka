@@ -75,6 +75,15 @@ export type CounterClientResult =
   | { ok: true; id: string; companyName: string; reused: boolean }
   | { ok: false; error: string };
 
+/** Email sensata e non un segnaposto nostro: solo allora vale come recapito. */
+function normalizeCounterEmail(raw: string | null | undefined): string | null {
+  const email = (raw ?? "").trim().toLowerCase();
+  if (!email) return null;
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return null;
+  if (/@onizuka\.local$/.test(email)) return null;
+  return email;
+}
+
 /**
  * Crea (o riusa) il cliente dal banco con due soli campi.
  *
@@ -83,13 +92,20 @@ export type CounterClientResult =
  * persona — proprio il problema da cui veniamo (306 clienti duplicati per
  * telefono). Chi compra è un cliente, quindi nasce già CLIENTE/ACTIVE_CLIENT.
  *
- * L'email è un segnaposto interno: al banco non si raccoglie, e senza un
- * recapito vero il soggetto resta giustamente fuori da qualsiasi invio.
+ * L'email è FACOLTATIVA e non rallenta niente: se il cliente la lascia (e dice
+ * sì alle offerte) entra nella base raggiungibile con base SOFT_OPT_IN — è un
+ * cliente reale che ha appena comprato, il caso da manuale dell'art. 130(4).
+ * Senza email resta il segnaposto interno: fuori da qualsiasi invio, come prima.
+ * Ogni vendita senza recapito è un cross-sell perso: 176 registrate, 0 contattabili.
  */
 export async function createCounterClient(params: {
   ownerUserId: string;
   name: string;
   phone: string;
+  /** Facoltativa: chiesta al banco solo se il cliente ha due secondi. */
+  email?: string | null;
+  /** true = il cliente ha detto sì a ricevere offerte via email. */
+  marketingOk?: boolean;
 }): Promise<CounterClientResult> {
   const name = params.name.trim();
   const phone = params.phone.trim();
@@ -98,6 +114,9 @@ export async function createCounterClient(params: {
   const key = phoneKey(phone);
   if (!key) return { ok: false, error: "Serve un telefono valido (almeno 8 cifre)." };
 
+  const email = normalizeCounterEmail(params.email);
+  const consentBasis = email && params.marketingOk ? ("SOFT_OPT_IN" as const) : null;
+
   // Riuso: stesso numero già a sistema ⇒ nessun doppione.
   const candidates = await prisma.client.findMany({
     where: { phone: { not: null } },
@@ -105,15 +124,30 @@ export async function createCounterClient(params: {
   });
   const existing = candidates.find((c) => phoneKey(c.phone) === key);
   if (existing) {
-    // Se era un prospect, comprando diventa cliente.
-    if (existing.relationshipState !== "CLIENTE") {
-      await prisma.client
-        .update({
-          where: { id: existing.id },
-          data: { relationshipState: "CLIENTE", status: "ACTIVE_CLIENT" },
-        })
-        .catch(() => undefined);
-    }
+    // Se era un prospect, comprando diventa cliente. E se stavolta ha lasciato
+    // l'email, la si aggancia — ma solo sopra un segnaposto: un recapito reale
+    // già presente non si sovrascrive da un campo compilato di fretta al banco.
+    const current = await prisma.client.findUnique({
+      where: { id: existing.id },
+      select: { contactEmail: true, marketingConsentBasis: true },
+    });
+    const emailIsPlaceholder =
+      !current?.contactEmail || /@onizuka\.local$/i.test(current.contactEmail);
+    await prisma.client
+      .update({
+        where: { id: existing.id },
+        data: {
+          ...(existing.relationshipState !== "CLIENTE"
+            ? { relationshipState: "CLIENTE" as const, status: "ACTIVE_CLIENT" as const }
+            : {}),
+          ...(email && emailIsPlaceholder ? { contactEmail: email } : {}),
+          // Il consenso si alza (NONE → SOFT_OPT_IN), mai si abbassa da qui.
+          ...(consentBasis && current?.marketingConsentBasis === "NONE"
+            ? { marketingConsentBasis: consentBasis }
+            : {}),
+        },
+      })
+      .catch(() => undefined);
     return { ok: true, id: existing.id, companyName: existing.companyName, reused: true };
   }
 
@@ -129,12 +163,13 @@ export async function createCounterClient(params: {
       data: {
         companyName: name,
         slug,
-        // Segnaposto coerente con le altre origini: nessun recapito email
-        // raccolto al banco ⇒ nessun invio possibile, ed è corretto così.
-        contactEmail: `store+${key}@onizuka.local`,
+        // Con l'email vera il cliente diventa raggiungibile; senza, il
+        // segnaposto lo tiene giustamente fuori da qualsiasi invio.
+        contactEmail: email ?? `store+${key}@onizuka.local`,
         phone,
         relationshipState: "CLIENTE",
         status: "ACTIVE_CLIENT",
+        ...(consentBasis ? { marketingConsentBasis: consentBasis } : {}),
       },
       select: { id: true, companyName: true },
     });

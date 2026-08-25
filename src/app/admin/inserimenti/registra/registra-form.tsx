@@ -57,6 +57,9 @@ export function RegistraForm({
   const [pickedClient, setPickedClient] = useState<{ companyName: string; reused: boolean } | null>(null);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
+  // Facoltativi: non condizionano il pulsante, il banco resta veloce come prima.
+  const [newEmail, setNewEmail] = useState("");
+  const [newMarketingOk, setNewMarketingOk] = useState(false);
   const [creating, setCreating] = useState(false);
   const [clientErr, setClientErr] = useState<string | null>(null);
 
@@ -452,13 +455,36 @@ export function RegistraForm({
                     placeholder="Telefono"
                     className="w-40 rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
                   />
+                  <input
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    inputMode="email"
+                    placeholder="Email (facoltativa)"
+                    className="min-w-[12rem] flex-1 rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
+                  />
+                  {newEmail.trim() ? (
+                    <label className="flex w-full cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={newMarketingOk}
+                        onChange={(e) => setNewMarketingOk(e.target.checked)}
+                        className="h-4 w-4"
+                      />
+                      Il cliente è d&apos;accordo a ricevere offerte via email (si può disiscrivere quando vuole)
+                    </label>
+                  ) : null}
                   <button
                     type="button"
                     disabled={creating || newName.trim().length < 2 || newPhone.replace(/\D/g, "").length < 8}
                     onClick={async () => {
                       setCreating(true);
                       setClientErr(null);
-                      const res = await createClientFromCounter(newName, newPhone);
+                      const res = await createClientFromCounter(
+                        newName,
+                        newPhone,
+                        newEmail.trim() || undefined,
+                        newMarketingOk
+                      );
                       setCreating(false);
                       if (!res.ok) {
                         setClientErr(res.error);

@@ -72,6 +72,62 @@ describe("ponte negozio ↔ CRM", () => {
       expect(data.phone).toBe("333 1234567");
     });
 
+    it("con email e consenso il cliente nasce raggiungibile (SOFT_OPT_IN)", async () => {
+      prisma.client.findMany.mockResolvedValue([]);
+      prisma.client.create.mockResolvedValue({ id: "new2", companyName: "Mario Rossi" });
+      const res = await createCounterClient({ ...base, email: " Mario.Rossi@Gmail.com ", marketingOk: true });
+      expect(res).toMatchObject({ ok: true, id: "new2" });
+      const data = prisma.client.create.mock.calls[0][0].data;
+      expect(data.contactEmail).toBe("mario.rossi@gmail.com");
+      expect(data.marketingConsentBasis).toBe("SOFT_OPT_IN");
+    });
+
+    it("email senza consenso: recapito salvato ma NESSUNA base marketing", async () => {
+      prisma.client.findMany.mockResolvedValue([]);
+      prisma.client.create.mockResolvedValue({ id: "new3", companyName: "Mario Rossi" });
+      await createCounterClient({ ...base, email: "mario@libero.it", marketingOk: false });
+      const data = prisma.client.create.mock.calls[0][0].data;
+      expect(data.contactEmail).toBe("mario@libero.it");
+      expect(data.marketingConsentBasis).toBeUndefined();
+    });
+
+    it("un'email non valida o segnaposto viene ignorata, non blocca la vendita", async () => {
+      prisma.client.findMany.mockResolvedValue([]);
+      prisma.client.create.mockResolvedValue({ id: "new4", companyName: "Mario Rossi" });
+      const res = await createCounterClient({ ...base, email: "store+abc@onizuka.local", marketingOk: true });
+      expect(res).toMatchObject({ ok: true });
+      const data = prisma.client.create.mock.calls[0][0].data;
+      expect(data.contactEmail).toMatch(/@onizuka\.local$/);
+      expect(data.marketingConsentBasis).toBeUndefined();
+    });
+
+    it("al riuso, l'email vera rimpiazza il segnaposto ma mai un recapito reale", async () => {
+      prisma.client.findMany.mockResolvedValue([
+        { id: "c9", companyName: "Bar Centrale", phone: "3331234567", relationshipState: "CLIENTE" },
+      ]);
+      prisma.client.findUnique.mockResolvedValue({
+        contactEmail: "store+123@onizuka.local",
+        marketingConsentBasis: "NONE",
+      });
+      await createCounterClient({ ...base, email: "bar@centrale.it", marketingOk: true });
+      expect(prisma.client.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "c9" },
+          data: { contactEmail: "bar@centrale.it", marketingConsentBasis: "SOFT_OPT_IN" },
+        })
+      );
+
+      // Recapito reale già presente: non si tocca.
+      prisma.client.update.mockClear();
+      prisma.client.findUnique.mockResolvedValue({
+        contactEmail: "titolare@barcentrale.it",
+        marketingConsentBasis: "SOFT_OPT_IN",
+      });
+      await createCounterClient({ ...base, email: "altro@indirizzo.it", marketingOk: true });
+      const dataDelSecondoGiro = prisma.client.update.mock.calls[0]?.[0]?.data ?? {};
+      expect(dataDelSecondoGiro.contactEmail).toBeUndefined();
+    });
+
     it("rifiuta nome o telefono insufficienti", async () => {
       expect(await createCounterClient({ ...base, name: "M" })).toEqual({
         ok: false,

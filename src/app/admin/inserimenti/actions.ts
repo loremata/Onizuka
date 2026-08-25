@@ -294,11 +294,13 @@ export async function searchClientsForCounter(q: string): Promise<CounterClientH
   return searchCounterClients(q);
 }
 
-/** Crea (o riusa, sul telefono) il cliente dal banco con due campi. */
+/** Crea (o riusa, sul telefono) il cliente dal banco. Email e consenso facoltativi. */
 export async function createClientFromCounter(
   name: string,
-  phone: string
+  phone: string,
+  email?: string,
+  marketingOk?: boolean
 ): Promise<CounterClientResult> {
   const session = await requireFullAdmin();
-  return createCounterClient({ ownerUserId: session.user.id, name, phone });
+  return createCounterClient({ ownerUserId: session.user.id, name, phone, email, marketingOk });
 }
