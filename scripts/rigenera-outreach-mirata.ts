@@ -80,16 +80,16 @@ function mailSenzaSito(params: {
         .join("\n")}\n`
     : "";
 
+  // Niente cifre nel testo (26/08, decisione di Lorenzo): il prezzo ancorato
+  // per iscritto lavora al ribasso — a voce c'è chi è disposto a spendere di più.
   return {
     subject: `${params.isPersona ? "Un sito per la vostra attività" : `${params.nome}: chi vi cerca online non trova un vostro sito`}`,
-    subjectAlt: `Un sito ${params.isPersona ? "per la vostra attività" : `per ${params.nome}`}: online in 24 ore, da 197 €`,
+    subjectAlt: `Un sito ${params.isPersona ? "per la vostra attività" : `per ${params.nome}`}, anche online in 24 ore`,
     body: `Buongiorno,
 
 ${apertura} Oggi chi cerca un'attività come la vostra confronta due o tre risultati su Google — e sceglie quasi sempre chi un sito ce l'ha.
 ${fatti}
-Siamo Online Station, a Rosignano Solvay: il negozio TIM e Fastweb sulla vecchia Aurelia, con una squadra che fa siti per le attività della zona. Prezzi chiari, senza sorprese:
-- sito espresso, online in 24 ore: 197 €;
-- sito professionale su misura: da 749 €.
+Siamo Online Station, a Rosignano Solvay: il negozio TIM e Fastweb sulla vecchia Aurelia, con una squadra che fa siti per le attività della zona. Dal sito essenziale pronto in 24 ore al progetto su misura, con costi chiari e senza sorprese.
 
 Abbiamo anche già pronta una breve analisi gratuita della vostra presenza online: basta rispondere a questa mail (o scriverci su WhatsApp al 327 377 7737) e saremo lieti di mostrarvela, senza impegno.
 
@@ -146,6 +146,7 @@ async function main() {
   const pronte: Pronta[] = [];
   let daChiudere: string[] = [];
   let giaInviate = 0,
+    inApprovazione = 0,
     senzaAudit = 0,
     scarti = 0;
   const motiviScarto = new Map<string, number>();
@@ -159,6 +160,14 @@ async function main() {
     const step0 = s.steps.find((p) => p.stepIndex === 0);
     if (!step0 || step0.status === "SENT") {
       giaInviate++;
+      continue;
+    }
+    // Step già ATTIVATO = bozza in mano all'operatore, in approvazione su
+    // Telegram: NON si tocca. Rieseguire lo script non deve mai cancellare
+    // quello che Lorenzo sta leggendo (lezione del 26/08: tre raffiche di
+    // notifiche in un giorno perché ogni giro rifaceva anche il presente).
+    if (step0.status === "ACTIVATED") {
+      inApprovazione++;
       continue;
     }
 
@@ -256,7 +265,7 @@ async function main() {
   console.log(`pronte da rigenerare:   ${pronte.length}  (A senza sito: ${perSegmento.A} · B restyling: ${perSegmento.B})`);
   console.log(`  con telefono (doppio canale): ${pronte.filter((p) => p.haTelefono).length}`);
   console.log(`da chiudere (niente email → WhatsApp/telefono): ${daChiudere.length}`);
-  console.log(`già inviate (intoccate): ${giaInviate} · senza audit/report: ${senzaAudit}`);
+  console.log(`già inviate (intoccate): ${giaInviate} · in approvazione (intoccate): ${inApprovazione} · senza audit: ${senzaAudit}`);
   const motiviTxt = Array.from(motiviScarto.entries())
     .map(([k, v]) => `${k}:${v}`)
     .join(", ");
@@ -300,7 +309,9 @@ async function main() {
   const oggi = new Date();
   let i = 0;
   for (const p of pronte) {
-    const dataStep0 = giornoFeriale(oggi, Math.floor(i / LOTTO_GIORNALIERO));
+    // Si parte dal PROSSIMO giorno feriale: il lotto di oggi è già in mano
+    // all'operatore e non va raddoppiato da una riesecuzione dello script.
+    const dataStep0 = giornoFeriale(oggi, 1 + Math.floor(i / LOTTO_GIORNALIERO));
     i += 1;
 
     // Le bozze pendenti dei vecchi step diventano storia dichiarata, non muta.
