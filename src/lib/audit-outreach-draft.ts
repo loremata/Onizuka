@@ -16,7 +16,6 @@ function buildStructuredSalesEmail(params: {
   piattaformaTerzi?: string | null;
   gbpReviewCount?: number | null;
   gbpRating?: number | null;
-  reportUrl?: string;
 }): { subject: string; subjectAlt: string; body: string } {
   const { companyName, findings } = params;
   const n = findings.length;
@@ -80,17 +79,15 @@ ${solutionsBlock}
 ${opener}
 ${gbpLine ? `\n${gbpLine}\n` : ""}${blocco}
 
-${
-    params.reportUrl
-      ? `Ho preparato per voi l'analisi completa e gratuita, la trovate qui:\n${params.reportUrl}\n\nSe dopo averla vista vi va di approfondire, in una breve consulenza vi mostro le priorità e i risultati ottenibili, dati alla mano.`
-      : "Ho già pronto il report completo della vostra presenza online: se vi va ve lo illustro in una consulenza gratuita, in call o di persona, con priorità e risultati ottenibili, dati alla mano."
-  }
-
-Mi basta un vostro cenno con un paio di slot comodi tra questa e la prossima settimana e organizzo io l'incontro.
+Il report completo della vostra presenza online è già pronto: basta rispondere a questa mail e saremo lieti di mostrarvelo — con le priorità e i risultati ottenibili, senza impegno.
 
 Cordiali saluti,
 Lorenzo Matarazzo
 Online Station`;
+  // Niente link nel corpo (decisione 26/08): i token dei report scadono a 30
+  // giorni — i primi destinatari cliccavano su "report scaduto" — e ogni link
+  // in una mail a freddo pesa sulla deliverability. Il report diventa il
+  // motivo per RISPONDERE: lo si mostra a chi risponde, non lo si allega.
 
   return { subject, subjectAlt, body };
 }
@@ -125,7 +122,6 @@ export function buildFirstAuditOutreachEmail(params: {
   piattaformaTerzi?: string | null;
   gbpReviewCount?: number | null;
   gbpRating?: number | null;
-  reportUrl?: string;
 }): { subject: string; body: string; subjectAlt?: string } {
   // Il nome arriva dalla visura camerale: va ripulito prima di finire in un
   // oggetto mail, altrimenti si legge «Az.Agr.Marchi E Barsotti Societa'
@@ -137,15 +133,13 @@ export function buildFirstAuditOutreachEmail(params: {
   // Percorso principale: email costruita sui fatti misurati dall'audit.
   //
   // Ci si passa anche con ZERO punti verificabili, purché ci sia un aggancio
-  // vero — sito assente, pagina di terzi, scheda Google — e il report da
-  // mandare. La vecchia scorciatoia rimandava questi casi al testo generico,
-  // che oltre a essere vago perdeva per strada il link al report: succedeva su
-  // 298 audit su 854, cioè un terzo delle mail sarebbe uscito senza l'unica
-  // cosa che dà valore al contatto.
+  // vero — sito assente, pagina di terzi, scheda Google. Il report non viaggia
+  // più come link (scade a 30 giorni e pesa sulla deliverability): è l'esca
+  // per la risposta, quindi basta l'aggancio.
   const findings = (params.findings ?? []).filter((f) => f.gap?.trim() && f.solution?.trim()).slice(0, 3);
   const agganciaDatoCerto =
     !!params.piattaformaTerzi || params.hasWebsite === false || typeof params.gbpReviewCount === "number";
-  if (findings.length > 0 || (agganciaDatoCerto && params.reportUrl)) {
+  if (findings.length > 0 || agganciaDatoCerto) {
     return buildStructuredSalesEmail({
       companyName,
       findings,
@@ -153,7 +147,6 @@ export function buildFirstAuditOutreachEmail(params: {
       piattaformaTerzi: params.piattaformaTerzi,
       gbpReviewCount: params.gbpReviewCount,
       gbpRating: params.gbpRating,
-      reportUrl: params.reportUrl,
     });
   }
 

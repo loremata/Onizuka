@@ -84,7 +84,6 @@ async function main() {
       piattaformaTerzi: terzi ? piattaformaDi(a.website) : null,
       gbpReviewCount: a.gbpReviewCount,
       gbpRating: a.gbpRating == null ? null : Number(a.gbpRating),
-      reportUrl: `https://onizuka.it/report/${a.publicReportToken}`,
     });
 
     // Guardia: non scrivere mai una mail con il link monco o senza corpo.

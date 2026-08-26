@@ -246,7 +246,6 @@ export async function runDigitalAuditForClient(params: {
       piattaformaTerzi: sitoDiTerzi ? piattaformaDi(client.website) : null,
       gbpReviewCount: gbpSnapshot?.gbpReviewCount ?? null,
       gbpRating: gbpSnapshot?.gbpRating ?? null,
-      reportUrl,
     });
     const draft = await prisma.outreachDraft.create({
       data: {

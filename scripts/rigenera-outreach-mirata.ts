@@ -60,13 +60,14 @@ function giornoFeriale(base: Date, avanti: number): Date {
   return d;
 }
 
-/** Segmento A: niente sito → proposta diretta, prezzi in chiaro, zero fumo. */
+/** Segmento A: niente sito → proposta diretta, prezzi in chiaro, zero fumo.
+ *  Nessun link nel corpo (26/08): i token dei report scadono e i link pesano
+ *  sulla deliverability — il report si offre a chi RISPONDE. */
 function mailSenzaSito(params: {
   nome: string;
   isPersona: boolean;
   gbpFatti: string[];
   piattaforma: string | null;
-  reportUrl: string;
 }): { subject: string; subjectAlt: string; body: string } {
   const chi = params.isPersona ? "la vostra attività" : params.nome;
   const apertura = params.piattaforma
@@ -90,9 +91,7 @@ Siamo Online Station, a Rosignano Solvay: il negozio TIM e Fastweb sulla vecchia
 - sito espresso, online in 24 ore: 197 €;
 - sito professionale su misura: da 749 €.
 
-Ho preparato anche una breve analisi gratuita della vostra presenza online: ${params.reportUrl}
-
-Se vi interessa, rispondete a questa mail o scriveteci su WhatsApp al 327 377 7737: vi diciamo cosa serve davvero, senza impegno.
+Abbiamo anche già pronta una breve analisi gratuita della vostra presenza online: basta rispondere a questa mail (o scriverci su WhatsApp al 327 377 7737) e saremo lieti di mostrarvela, senza impegno.
 
 Cordiali saluti,
 Lorenzo Matarazzo · Online Station · onlinestation.it`,
@@ -153,7 +152,7 @@ async function main() {
 
   for (const s of sequenze) {
     const a = s.digitalAudit;
-    if (!a || !a.publicReportToken) {
+    if (!a) {
       senzaAudit++;
       continue;
     }
@@ -181,7 +180,6 @@ async function main() {
     const nomeSegnaposto = /\bprospect\s+p\.?\s*iva\b|\bp\.?\s*iva\s+\d{6,}/i.test(pulito.nome);
     const nome = nomeSegnaposto ? "" : pulito.nome;
     const isPersona = pulito.isPersona || nomeSegnaposto;
-    const reportUrl = `https://onizuka.it/report/${a.publicReportToken}`;
 
     let subject: string, subjectAlt: string | null, body: string, problemFollow: string;
     let segmento: "A" | "B";
@@ -192,7 +190,6 @@ async function main() {
         isPersona,
         gbpFatti: findings.map((f) => f.gap),
         piattaforma: terzi ? piattaformaDi(a.website) : null,
-        reportUrl,
       });
       subject = m.subject;
       subjectAlt = m.subjectAlt;
@@ -208,7 +205,6 @@ async function main() {
         piattaformaTerzi: null,
         gbpReviewCount: a.gbpReviewCount,
         gbpRating: a.gbpRating == null ? null : Number(a.gbpRating),
-        reportUrl,
       });
       subject = m.subject;
       subjectAlt = m.subjectAlt ?? null;
@@ -313,7 +309,7 @@ async function main() {
         status: { in: ["PENDING_APPROVAL", "DRAFT"] },
         sequenceStep: { sequenceId: p.seqId },
       },
-      data: { status: "CANCELLED", statusNote: "Sostituita dalla rigenerazione mirata del 25/08 (copy per segmento)" },
+      data: { status: "CANCELLED", statusNote: "Sostituita dalla rigenerazione mirata (copy aggiornata)" },
     });
 
     await prisma.outreachSequence.update({ where: { id: p.seqId }, data: { status: "ACTIVE" } });

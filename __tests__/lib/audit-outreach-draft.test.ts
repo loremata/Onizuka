@@ -39,8 +39,11 @@ describe("buildFirstAuditOutreachEmail", () => {
     });
     expect(subject).toContain("Pizzeria Roma");
     expect(subject).toContain("2 aree");
-    expect(body).toContain("consulenza gratuita");
+    // Il report è l'esca per la RISPOSTA, non un link (26/08: i token scadono
+    // a 30 giorni e i link pesano sulla deliverability delle mail a freddo).
     expect(body).toContain("report");
+    expect(body).toContain("rispondere a questa mail");
+    expect(body).not.toMatch(/https?:\/\/[^\s]*\/report\//);
     expect(body).toContain("progetto personalizzato di gestione dei social");
     expect(body).toContain("Online Station");
     // nessun brand interno deve trapelare
