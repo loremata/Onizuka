@@ -1,6 +1,9 @@
 import { ImapFlow } from "imapflow";
 import { prisma } from "@/lib/prisma";
 import { stopActiveOutreachSequences, captureHotReply } from "@/lib/outreach-sequence-stop";
+import { ensureDigitalAuditPublicReportToken, publicReportPath } from "@/lib/public-report-token";
+import { buildReplyKit } from "@/lib/reply-kit";
+import { nomeCommerciale } from "@/lib/nome-commerciale";
 
 /**
  * RILEVAMENTO DELLE RISPOSTE VIA EMAIL — il canale che mancava.
@@ -117,7 +120,14 @@ export async function checkOutreachEmailReplies(): Promise<ReplyWatchResult> {
       prisma.outreachDraft.findFirst({
         where: { status: "SENT", sentToEmail: from },
         orderBy: { sentAt: "desc" },
-        select: { id: true, repliedAt: true, clientId: true, leadId: true, ownerUserId: true },
+        select: {
+          id: true,
+          repliedAt: true,
+          clientId: true,
+          leadId: true,
+          ownerUserId: true,
+          digitalAuditId: true,
+        },
       }),
       prisma.client.findFirst({
         where: { contactEmail: { equals: from, mode: "insensitive" } },
@@ -152,15 +162,50 @@ export async function checkOutreachEmailReplies(): Promise<ReplyWatchResult> {
     // qualcosa: niente rumore a ogni scansione della stessa risposta.
     if (!alreadyHandled || stopped.stopped > 0) {
       const ownerUserId = sentDraft?.ownerUserId ?? leadHit?.ownerUserId;
-      const company =
+      const companyRaw =
         clientHit?.companyName ?? leadHit?.businessName ?? leadHit?.title ?? from;
       if (ownerUserId) {
+        // Il report promesso in mail ha il token a scadenza (30 giorni): al
+        // momento della risposta va RIGENERATO, così il link che Lorenzo gira
+        // è fresco e vale da subito. Se l'audit non si trova, il kit parte
+        // comunque, solo senza link.
+        let reportUrl: string | null = null;
+        try {
+          // ⚠️ `OR: []` in Prisma matcha TUTTO: la ricerca di ripiego parte
+          // solo se c'è almeno un aggancio (lead o cliente).
+          const agganci = [
+            ...(leadId ? [{ leadId }] : []),
+            ...(clientId ? [{ clientId }] : []),
+          ];
+          const auditId =
+            sentDraft?.digitalAuditId ??
+            (agganci.length
+              ? (
+                  await prisma.digitalAudit.findFirst({
+                    where: { OR: agganci },
+                    orderBy: { createdAt: "desc" },
+                    select: { id: true },
+                  })
+                )?.id ?? null
+              : null);
+          if (auditId) {
+            const { token } = await ensureDigitalAuditPublicReportToken(auditId, ownerUserId);
+            const base = process.env.NEXTAUTH_URL?.replace(/\/$/, "") ?? "https://onizuka.it";
+            reportUrl = `${base}${publicReportPath(token)}`;
+          }
+        } catch {
+          reportUrl = null;
+        }
+
+        const { nome, isPersona } = nomeCommerciale(companyRaw);
         await captureHotReply({
           ownerUserId,
           clientId,
           leadId,
-          company,
+          company: companyRaw,
           channel: "email",
+          reportUrl,
+          replyKit: buildReplyKit({ company: isPersona ? null : nome, reportUrl }),
         }).catch(() => undefined);
       }
     }

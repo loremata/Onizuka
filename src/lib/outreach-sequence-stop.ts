@@ -67,6 +67,11 @@ export async function captureHotReply(params: {
   leadId?: string | null;
   company: string;
   channel: string;
+  /** Link al report pubblico col token GIÀ rigenerato: finisce nel task e su
+   *  Telegram, così la risposta parte col materiale in mano. */
+  reportUrl?: string | null;
+  /** Risposte-tipo pronte (da reply-kit): solo su Telegram, per il telefono. */
+  replyKit?: string | null;
 }): Promise<void> {
   const { ownerUserId, clientId, leadId, company, channel } = params;
   const href = clientId
@@ -92,7 +97,13 @@ export async function captureHotReply(params: {
         ownerUserId,
         relatedClientId: clientId ?? null,
         title: `Rispondi a ${company}`,
-        description: `Ha risposto su ${channel}: lead caldo, ricontatta subito.\n${href}`,
+        description: [
+          `Ha risposto su ${channel}: lead caldo, ricontatta subito.`,
+          params.reportUrl ? `Report (link fresco): ${params.reportUrl}` : "",
+          href,
+        ]
+          .filter(Boolean)
+          .join("\n"),
         status: "TODO",
         priority: "URGENT",
         dueDate: new Date(),
@@ -114,7 +125,13 @@ export async function captureHotReply(params: {
     .catch(() => undefined);
   await bumpNotificationRev([ownerUserId]).catch(() => undefined);
   await notifyAdminsViaTelegram(
-    `🔥 ${company} ha risposto su ${channel} — follow-up messi in pausa. Ricontatta a mano.`
+    [
+      `🔥 ${company} ha risposto su ${channel} — follow-up messi in pausa. Rispondi SUBITO: la velocità qui vale più del testo perfetto.`,
+      params.reportUrl ? `\n📄 Report pronto da girare (link fresco): ${params.reportUrl}` : "",
+      params.replyKit ? `\n${params.replyKit}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n")
   ).catch(() => undefined);
 }
 

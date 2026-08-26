@@ -342,6 +342,9 @@ export async function runDigitalAuditForClient(params: {
     data: {
       outreachLinkedInBody: kit.linkedInBody,
       outreachCallScript: kit.callScript,
+      // Mancava solo qui: il testo WhatsApp veniva salvato dal percorso Sheet
+      // ma non da questo (il principale) — e la coda WhatsApp restava vuota.
+      outreachWhatsAppBody: kit.whatsAppBody,
     },
   });
   await ensureDigitalAuditPublicReportToken(audit.id, params.ownerUserId).catch(() => undefined);

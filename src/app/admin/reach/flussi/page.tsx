@@ -58,6 +58,50 @@ function truncate(text: string, max = 160): string {
   return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
 }
 
+/** Nomi-segnaposto tipo "Prospect P.IVA 01234567890": non vanno mai messi in un messaggio. */
+const PLACEHOLDER_COMPANY = /prospect\s+p\.?\s*iva|p\.?\s*iva\s+\d{6,}/i;
+
+/**
+ * Numero per wa.me: solo cifre. I mobili italiani salvati senza prefisso
+ * (10 cifre, iniziano per 3) ricevono il "39"; chi ce l'ha già resta com'è.
+ */
+function waNumber(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 10 && digits.startsWith("3")) return `39${digits}`;
+  return digits;
+}
+
+function waLink(phone: string, message: string): string {
+  return `https://wa.me/${waNumber(phone)}?text=${encodeURIComponent(message)}`;
+}
+
+/** "di {azienda}", oppure "della sua attività" quando il nome è un segnaposto. */
+function companyPhrase(company: string): string {
+  const c = company.trim();
+  if (!c || c === "—" || PLACEHOLDER_COMPANY.test(c)) return "della sua attività";
+  return `di ${c}`;
+}
+
+/** Messaggio di rinforzo il giorno dopo la mail (sezione A). */
+function waReinforceMessage(company: string): string {
+  return `Buongiorno! Sono Lorenzo di Online Station, il negozio TIM sulla vecchia Aurelia a Rosignano. Le ho scritto una mail in questi giorni sulla presenza online ${companyPhrase(company)} — se le fa più comodo le racconto tutto qui su WhatsApp, ci vogliono due minuti.`;
+}
+
+/** Primo contatto WhatsApp per lead senza email (sezione B, fallback se l'audit non ha un testo usabile). */
+function waColdMessage(company: string): string {
+  return `Buongiorno! Sono Lorenzo di Online Station, il negozio TIM sulla vecchia Aurelia a Rosignano Solvay. Abbiamo dato un'occhiata alla presenza online ${companyPhrase(company)} e abbiamo preparato una breve analisi gratuita: se le interessa gliela mostro volentieri, senza impegno.`;
+}
+
+/**
+ * Il testo WhatsApp generato con l'audit è usabile solo se non contiene
+ * segnaposto rotti ("punteggio sintetico 0/100", "[nome]").
+ */
+function auditWhatsAppUsable(body: string | null): body is string {
+  if (!body || !body.trim()) return false;
+  const t = body.toLowerCase();
+  return !t.includes("punteggio sintetico 0/100") && !t.includes("[nome]");
+}
+
 /**
  * Conteggi per giorno (ultimi `days` giorni, oggi incluso) su fuso Italia.
  * Aggrega in JS un elenco di sole date già filtrato lato DB.
@@ -121,6 +165,7 @@ export default async function AdminReachFlussiPage() {
   const ownerUserId = session.user.id;
 
   const now = new Date();
+  const d4 = new Date(now.getTime() - 4 * 86_400_000);
   const d7 = new Date(now.getTime() - 7 * 86_400_000);
   const d30 = new Date(now.getTime() - 30 * 86_400_000);
   // Finestra larga 14 giorni: il bucketing per giorno (fuso Italia) scarta gli estremi.
@@ -171,6 +216,9 @@ export default async function AdminReachFlussiPage() {
       leadDates,
       leadBySource,
       scrapeJobs,
+      waReinforceRows,
+      waQueueAudits,
+      waOnlyLeadCount,
     ] = await Promise.all([
       // Tutte le PENDING_APPROVAL con la sola email: serve allo split del tile.
       prisma.outreachDraft.findMany({
@@ -260,6 +308,64 @@ export default async function AdminReachFlussiPage() {
           error: true,
         },
       }),
+      // Sezione A: mail partite negli ultimi 4 giorni, ancora senza risposta,
+      // con un telefono su cliente o lead. Buffer 40: il filtro fine sul numero
+      // (solo cifre) avviene in JS, in pagina restano max 25.
+      prisma.outreachDraft.findMany({
+        where: {
+          ownerUserId,
+          status: "SENT",
+          sentAt: { gte: d4 },
+          repliedAt: null,
+          OR: [
+            { client: { is: { phone: { not: null }, NOT: { phone: "" } } } },
+            { lead: { is: { phone: { not: null }, NOT: { phone: "" } } } },
+          ],
+        },
+        orderBy: { sentAt: "desc" },
+        take: 40,
+        select: {
+          id: true,
+          sentAt: true,
+          client: { select: { companyName: true, phone: true } },
+          lead: { select: { title: true, businessName: true, phone: true } },
+        },
+      }),
+      // Sezione B: si parte dagli audit COMPLETED col lead incluso (un solo round-trip).
+      // Buffer 60: la dedup per lead e il filtro sul numero avvengono in JS, max 25 in pagina.
+      prisma.digitalAudit.findMany({
+        where: {
+          ownerUserId,
+          status: "COMPLETED",
+          lead: {
+            is: {
+              phone: { not: null },
+              NOT: { phone: "" },
+              OR: [{ email: null }, { email: "" }, { email: { endsWith: "@onizuka.local" } }],
+            },
+          },
+        },
+        orderBy: { overallScore: "asc" },
+        take: 60,
+        select: {
+          id: true,
+          overallScore: true,
+          outreachWhatsAppBody: true,
+          lead: {
+            select: { id: true, title: true, businessName: true, phone: true, city: true },
+          },
+        },
+      }),
+      // Conteggio pieno dei lead lavorabili solo via WhatsApp (telefono sì, email no, audit fatto).
+      prisma.lead.count({
+        where: {
+          ownerUserId,
+          phone: { not: null },
+          NOT: { phone: "" },
+          OR: [{ email: null }, { email: "" }, { email: { endsWith: "@onizuka.local" } }],
+          digitalAudits: { some: { status: "COMPLETED" } },
+        },
+      }),
     ]);
 
     return {
@@ -285,6 +391,9 @@ export default async function AdminReachFlussiPage() {
       leadDates,
       leadBySource,
       scrapeJobs,
+      waReinforceRows,
+      waQueueAudits,
+      waOnlyLeadCount,
     };
   });
 
@@ -308,6 +417,48 @@ export default async function AdminReachFlussiPage() {
   const pendingTotal = data.pendingRecipients.length;
   const pendingSendable = data.pendingRecipients.filter((d) => resolveRecipient(d).sendable).length;
   const pendingNoEmail = pendingTotal - pendingSendable;
+
+  // Sezione A: righe con telefono risolto (cliente, poi lead) e messaggio di rinforzo pronto.
+  const waReinforce = data.waReinforceRows
+    .map((d) => {
+      const phone = (d.client?.phone ?? d.lead?.phone ?? "").trim();
+      const company = companyLabel(d);
+      return { id: d.id, sentAt: d.sentAt, phone, company, message: waReinforceMessage(company) };
+    })
+    .filter((r) => waNumber(r.phone).length > 0)
+    .slice(0, 25);
+
+  // Sezione B: dedup per lead (un lead può avere più audit: resta il primo = punteggio peggiore).
+  const seenWaLeadIds = new Set<string>();
+  const waQueue: {
+    auditId: string;
+    leadId: string;
+    company: string;
+    city: string | null;
+    phone: string;
+    score: number | null;
+    message: string;
+  }[] = [];
+  for (const audit of data.waQueueAudits) {
+    if (waQueue.length >= 25) break;
+    const lead = audit.lead;
+    if (!lead) continue;
+    const phone = (lead.phone ?? "").trim();
+    if (waNumber(phone).length === 0 || seenWaLeadIds.has(lead.id)) continue;
+    seenWaLeadIds.add(lead.id);
+    const company = lead.businessName?.trim() || lead.title;
+    waQueue.push({
+      auditId: audit.id,
+      leadId: lead.id,
+      company,
+      city: lead.city,
+      phone,
+      score: audit.overallScore,
+      message: auditWhatsAppUsable(audit.outreachWhatsAppBody)
+        ? audit.outreachWhatsAppBody.trim()
+        : waColdMessage(company),
+    });
+  }
 
   const cancelledReasons = [...data.cancelledByNote].sort((a, b) => b._count._all - a._count._all);
   const queueCountByStatus = new Map(data.queueByStatus.map((g) => [g.status, g._count._all]));
@@ -429,6 +580,109 @@ export default async function AdminReachFlussiPage() {
                       </tr>
                     );
                   })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 2a · WhatsApp di rinforzo sulle mail appena inviate */}
+      <Card>
+        <CardHeader>
+          <CardTitle>📲 WhatsApp di rinforzo (inviate recenti con telefono)</CardTitle>
+          <CardDescription>
+            Mail inviate negli ultimi 4 giorni, ancora senza risposta, dove abbiamo anche il telefono:
+            un messaggio il giorno dopo moltiplica le risposte.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {waReinforce.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nessuna mail recente con telefono da rinforzare.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-sm">
+                <thead>
+                  <tr className="border-b text-left align-bottom">
+                    <th className="pb-2 pr-3 font-medium">Azienda</th>
+                    <th className="pb-2 pr-3 font-medium">Inviata il</th>
+                    <th className="pb-2 pr-3 font-medium">Telefono</th>
+                    <th className="pb-2 font-medium">WhatsApp</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {waReinforce.map((r) => (
+                    <tr key={r.id} className="border-b align-top last:border-0">
+                      <td className="py-2 pr-3 font-medium">{r.company}</td>
+                      <td className="py-2 pr-3 whitespace-nowrap text-muted-foreground">
+                        {r.sentAt ? dateTimeFmt.format(r.sentAt) : "—"}
+                      </td>
+                      <td className="py-2 pr-3 whitespace-nowrap tabular-nums">{r.phone}</td>
+                      <td className="py-2">
+                        <Button asChild variant="outline" size="sm">
+                          <a href={waLink(r.phone, r.message)} target="_blank" rel="noopener">
+                            Apri WhatsApp
+                          </a>
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 2b · Coda WhatsApp per i lead senza email */}
+      <Card>
+        <CardHeader>
+          <CardTitle>📴 Coda WhatsApp (telefono sì, email no)</CardTitle>
+          <CardDescription>
+            {data.waOnlyLeadCount} lead lavorabili solo via WhatsApp · audit completato, ordinati dal
+            punteggio peggiore (più bisogno).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {waQueue.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nessun lead senza email con telefono e audit completato.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[840px] text-left text-sm">
+                <thead>
+                  <tr className="border-b text-left align-bottom">
+                    <th className="pb-2 pr-3 font-medium">Azienda</th>
+                    <th className="pb-2 pr-3 font-medium">Città</th>
+                    <th className="pb-2 pr-3 font-medium">Telefono</th>
+                    <th className="pb-2 pr-3 font-medium">Punteggio audit</th>
+                    <th className="pb-2 font-medium">Azioni</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {waQueue.map((r) => (
+                    <tr key={r.leadId} className="border-b align-top last:border-0">
+                      <td className="py-2 pr-3 font-medium">{r.company}</td>
+                      <td className="py-2 pr-3 text-muted-foreground">{r.city?.trim() || "—"}</td>
+                      <td className="py-2 pr-3 whitespace-nowrap tabular-nums">{r.phone}</td>
+                      <td className="py-2 pr-3 tabular-nums">
+                        {r.score != null ? `${r.score}/100` : "—"}
+                      </td>
+                      <td className="py-2">
+                        <div className="flex flex-wrap gap-2">
+                          <Button asChild variant="outline" size="sm">
+                            <a href={waLink(r.phone, r.message)} target="_blank" rel="noopener">
+                              Apri WhatsApp
+                            </a>
+                          </Button>
+                          <Button asChild variant="outline" size="sm">
+                            <Link href={`/admin/audit/digital/${r.auditId}`}>Audit</Link>
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
