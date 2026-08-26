@@ -289,6 +289,18 @@ export async function activateSequenceStep(stepId: string): Promise<{ draftId: s
     bodyAlt: step.bodyAlt,
   });
 
+  // Uno step può avere UNA sola bozza agganciata (unique su sequenceStepId), ma
+  // una bozza VECCHIA — cancellata dall'igiene o sostituita da una rigenerazione —
+  // resta agganciata e occupa il posto: la create nuova esplodeva con "Unique
+  // constraint failed" e (fino al fix del loop qui sotto) uccideva l'intero cron.
+  // È il crash osservato il 24/08 e il 26/08. La bozza storica si sgancia e resta
+  // in archivio con la sua nota; il posto torna libero. Le SENT non si toccano:
+  // uno step con bozza inviata non arriva qui (status SENT, non SCHEDULED).
+  await prisma.outreachDraft.updateMany({
+    where: { sequenceStepId: step.id, status: { not: "SENT" } },
+    data: { sequenceStepId: null },
+  });
+
   const draft = await prisma.outreachDraft.create({
     data: {
       ownerUserId: step.sequence.ownerUserId,
@@ -376,6 +388,8 @@ export async function activateSequenceStep(stepId: string): Promise<{ draftId: s
 
 export async function processDueOutreachSequenceSteps(): Promise<{
   activated: number;
+  /** Step la cui attivazione è fallita: il giro prosegue, ma il numero si vede. */
+  activationFailed?: number;
   completedSequences: number;
   skippedWeekend?: boolean;
   hygiene?: { stepsSkipped: number; draftsCancelled: number };
@@ -418,10 +432,19 @@ export async function processDueOutreachSequenceSteps(): Promise<{
     orderBy: { scheduledFor: "asc" },
   });
 
+  // Uno step marcio non deve più fermare tutti gli altri: il 26/08 un solo
+  // conflitto sulla prima attivazione ha buttato via l'intero giro (e con lui
+  // ogni notifica Telegram del mattino). Si continua, si conta, si riferisce.
   let activated = 0;
+  let failed = 0;
   for (const step of due) {
-    const result = await activateSequenceStep(step.id);
-    if (result) activated += 1;
+    try {
+      const result = await activateSequenceStep(step.id);
+      if (result) activated += 1;
+    } catch (e) {
+      failed += 1;
+      console.error(`[reach-sequences] step ${step.id} fallito:`, e instanceof Error ? e.message : e);
+    }
   }
 
   const activeSequences = await prisma.outreachSequence.findMany({
@@ -462,7 +485,7 @@ export async function processDueOutreachSequenceSteps(): Promise<{
     }
   }
 
-  return { activated, completedSequences, hygiene };
+  return { activated, activationFailed: failed, completedSequences, hygiene };
 }
 
 /** Segna step come SENT quando la bozza collegata viene inviata. */
