@@ -264,8 +264,8 @@ export async function activateSequenceStep(stepId: string): Promise<{ draftId: s
     include: {
       sequence: {
         include: {
-          client: { select: { companyName: true } },
-          lead: { select: { title: true, businessName: true } },
+          client: { select: { companyName: true, contactEmail: true } },
+          lead: { select: { title: true, businessName: true, email: true } },
         },
       },
     },
@@ -370,16 +370,36 @@ export async function activateSequenceStep(stepId: string): Promise<{ draftId: s
     ],
   };
 
+  // La notifica porta il TESTO INTEGRALE: da Telegram si decide se approvare o
+  // modificare, e senza corpo non si decide niente (richiesta di Lorenzo del
+  // 26/08, primo giorno di bozze). Il tetto Telegram è 4096: teniamo margine.
+  const base = process.env.NEXTAUTH_URL?.replace(/\/$/, "") ?? "https://onizuka.it";
+  const recipient =
+    [step.sequence.client?.contactEmail, step.sequence.lead?.email].find(
+      (e) => !!e && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e) && !/@onizuka\.local$/i.test(e)
+    ) ?? null;
+  const bodyFull = built.draftFields.body ?? "";
+  const bodyShown = bodyFull.length > 3200 ? `${bodyFull.slice(0, 3200)}\n[…testo troncato: apri la bozza]` : bodyFull;
+
   await notifyAdminsViaTelegram(
     [
-      "Onizuka · Follow-up sequenza",
+      step.stepIndex === 0
+        ? "✉️ Onizuka · PRIMA MAIL da approvare"
+        : `Onizuka · Follow-up sequenza (J+${step.delayDays})`,
       "",
       `Cliente: ${company}`,
-      `Step: ${step.stepIndex + 1} (J+${step.delayDays})`,
+      recipient ? `A: ${recipient}` : "⚠️ Senza email valida (Approva non invierà)",
       `Oggetto (${built.variant}): ${built.previewSubject}`,
+      built.draftFields.subjectAlt ? `Oggetto (B): ${built.draftFields.subjectAlt}` : "",
       "",
-      "Bozza in attesa di approvazione in Reach.",
-    ].join("\n"),
+      "──────────",
+      bodyShown,
+      "──────────",
+      "",
+      `👉 Modifica o dettagli: ${base}/admin/reach?draft=${draft.id}`,
+    ]
+      .filter(Boolean)
+      .join("\n"),
     keyboard
   );
 

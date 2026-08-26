@@ -35,7 +35,12 @@ export async function notifyDigitalAuditCompleted(params: {
         ? "⚠️ Senza email valida → usa WhatsApp/telefono (Approva non invierà)"
         : `A: ${params.recipientEmail}`
       : "",
-    params.outreachDraftId ? `👉 Leggi la bozza completa: ${base}/admin/reach?draft=${params.outreachDraftId}` : "",
+    // Il corpo va mostrato QUI: senza testo non si decide tra Approva e
+    // Modifica. Il campo esisteva già ma non veniva mai reso.
+    params.draftBody
+      ? `──────────\n${params.draftBody.length > 2600 ? `${params.draftBody.slice(0, 2600)}\n[…troncato: apri la bozza]` : params.draftBody}\n──────────`
+      : "",
+    params.outreachDraftId ? `👉 Modifica o dettagli: ${base}/admin/reach?draft=${params.outreachDraftId}` : "",
     "",
     `Scheda audit: ${auditUrl}`,
   ].filter(Boolean);
