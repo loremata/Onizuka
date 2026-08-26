@@ -89,12 +89,14 @@ function mailSenzaSito(params: {
 
 ${apertura} Oggi chi cerca un'attività come la vostra confronta due o tre risultati su Google — e sceglie quasi sempre chi un sito ce l'ha.
 ${fatti}
-Siamo Online Station, a Rosignano Solvay: il negozio TIM e Fastweb sulla vecchia Aurelia, con una squadra che fa siti per le attività della zona. Dal sito essenziale pronto in 24 ore al progetto su misura, con costi chiari e senza sorprese.
+Siamo Online Station, a Rosignano Solvay: il negozio TIM e Fastweb sulla vecchia Aurelia, con una squadra che realizza siti per le attività della zona. Dal sito essenziale pronto in 24 ore al progetto su misura, con costi chiari e senza sorprese.
 
 Abbiamo anche già pronta una breve analisi gratuita della vostra presenza online: basta rispondere a questa mail (o scriverci su WhatsApp al 327 377 7737) e saremo lieti di mostrarvela, senza impegno.
 
 Cordiali saluti,
-Lorenzo Matarazzo · Online Station · onlinestation.it`,
+Lorenzo Matarazzo
+Online Station · Via Vecchia Aurelia 393, Rosignano Solvay
+Tel. 0586 017371 · WhatsApp 327 377 7737 · onlinestation.it`,
   };
 }
 
@@ -144,6 +146,8 @@ async function main() {
   };
 
   const pronte: Pronta[] = [];
+  /** Follow-up da riscrivere nelle sequenze con prima mail già in approvazione. */
+  const soloFollowUp: { stepId: string; subject: string; body: string }[] = [];
   let daChiudere: string[] = [];
   let giaInviate = 0,
     inApprovazione = 0,
@@ -163,11 +167,27 @@ async function main() {
       continue;
     }
     // Step già ATTIVATO = bozza in mano all'operatore, in approvazione su
-    // Telegram: NON si tocca. Rieseguire lo script non deve mai cancellare
-    // quello che Lorenzo sta leggendo (lezione del 26/08: tre raffiche di
-    // notifiche in un giorno perché ogni giro rifaceva anche il presente).
+    // Telegram: la PRIMA mail non si tocca (lezione del 26/08: tre raffiche di
+    // notifiche in un giorno). Ma i FOLLOW-UP di quelle sequenze sono ancora
+    // SCHEDULED col testo vecchio: quelli vanno aggiornati comunque — il J+3
+    // col «Re:» finto non deve partire mai, nemmeno per le sequenze in corso.
     if (step0.status === "ACTIVATED") {
       inApprovazione++;
+      const pulitoFU = nomeCommerciale(a.businessName);
+      const followNuovi = buildAuditSequenceSteps({
+        companyName: pulitoFU.isPersona ? "la vostra attività" : pulitoFU.nome,
+        firstSubject: "",
+        firstBody: "",
+      }).slice(1);
+      soloFollowUp.push(
+        ...s.steps
+          .filter((p) => p.stepIndex >= 1 && p.stepIndex <= 2 && p.status === "SCHEDULED")
+          .map((p) => {
+            const t = followNuovi.find((x, idx) => idx + 1 === p.stepIndex);
+            return t ? { stepId: p.id, subject: t.subject, body: t.body } : null;
+          })
+          .filter((x): x is { stepId: string; subject: string; body: string } => x !== null)
+      );
       continue;
     }
 
@@ -265,7 +285,7 @@ async function main() {
   console.log(`pronte da rigenerare:   ${pronte.length}  (A senza sito: ${perSegmento.A} · B restyling: ${perSegmento.B})`);
   console.log(`  con telefono (doppio canale): ${pronte.filter((p) => p.haTelefono).length}`);
   console.log(`da chiudere (niente email → WhatsApp/telefono): ${daChiudere.length}`);
-  console.log(`già inviate (intoccate): ${giaInviate} · in approvazione (intoccate): ${inApprovazione} · senza audit: ${senzaAudit}`);
+  console.log(`già inviate (intoccate): ${giaInviate} · in approvazione (prima mail intoccata, follow-up aggiornati: ${soloFollowUp.length}): ${inApprovazione} · senza audit: ${senzaAudit}`);
   const motiviTxt = Array.from(motiviScarto.entries())
     .map(([k, v]) => `${k}:${v}`)
     .join(", ");
@@ -357,7 +377,15 @@ async function main() {
     }
   }
 
-  console.log(`APPLICATO: ${pronte.length} sequenze rigenerate, ${daChiudere.length} chiuse.`);
+  // Follow-up delle sequenze in approvazione: solo il testo, mai lo stato.
+  for (const f of soloFollowUp) {
+    await prisma.outreachSequenceStep.update({
+      where: { id: f.stepId },
+      data: { subject: f.subject, body: f.body },
+    });
+  }
+
+  console.log(`APPLICATO: ${pronte.length} sequenze rigenerate, ${daChiudere.length} chiuse, ${soloFollowUp.length} follow-up aggiornati nelle sequenze in corso.`);
   console.log("Verifica sul DB, non su questo log: conta step0 SCHEDULED con scheduledFor >= oggi.");
 }
 

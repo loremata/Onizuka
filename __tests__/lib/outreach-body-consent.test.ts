@@ -26,7 +26,7 @@ describe("corpo email outreach", () => {
 
     it("porta comunque il link di disiscrizione", () => {
       expect(html).toContain(UNSUB);
-      expect(html).toContain("Disiscriviti");
+      expect(html).toContain("Per non ricevere più queste email");
     });
 
     it("dichiara da dove arriva il contatto", () => {

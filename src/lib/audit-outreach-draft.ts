@@ -3,6 +3,23 @@ import type { AuditFinding } from "@/lib/audit-service-recommendations";
 import { nomeCommerciale } from "@/lib/nome-commerciale";
 
 /**
+ * Firma completa, uguale su ogni prima mail: indirizzo fisico e due numeri
+ * veri sono la prova di esistenza che nessuno spammer si sogna di mettere —
+ * e aprono il canale telefono senza bisogno di link.
+ */
+const FIRMA = `Cordiali saluti,
+Lorenzo Matarazzo
+Online Station · Via Vecchia Aurelia 393, Rosignano Solvay
+Tel. 0586 017371 · WhatsApp 327 377 7737 · onlinestation.it`;
+
+/** Rotazione deterministica: stessa azienda → stesso oggetto, sempre. */
+function ruota(companyName: string, n: number): number {
+  let h = 0;
+  for (const c of companyName) h = (h + c.charCodeAt(0)) % 997;
+  return h % n;
+}
+
+/**
  * Email diretta orientata alla vendita, linguaggio semplice e senza brand interni:
  * abbiamo analizzato → queste lacune generano questi problemi → le risolviamo con queste soluzioni
  * → CTA decisa verso consulenza gratuita (con report già pronto da condividere).
@@ -16,7 +33,7 @@ function buildStructuredSalesEmail(params: {
   piattaformaTerzi?: string | null;
   gbpReviewCount?: number | null;
   gbpRating?: number | null;
-}): { subject: string; subjectAlt: string; body: string } {
+}): { subject: string; subjectAlt?: string; body: string } {
   const { companyName, findings } = params;
   const n = findings.length;
 
@@ -30,13 +47,18 @@ function buildStructuredSalesEmail(params: {
     .map((s) => `✓ ${s}`)
     .join("\n");
 
+  // Chi sono e perché scrivo, PRIMA del cosa: per un'attività locale «sono di
+  // zona» è metà della fiducia — e spiega come mai ho guardato proprio loro.
+  const identita =
+    "sono Lorenzo di Online Station, a Rosignano Solvay: seguiamo la presenza online delle attività della zona.";
+
   // Apertura sul segnale più forte e concreto (= più credibile del generico "abbiamo analizzato").
   const opener =
     params.piattaformaTerzi
-      ? `cercando online ${companyName} ho trovato ${params.piattaformaTerzi}, ma non un sito vostro: chi vi cerca oggi vede una presenza che non controllate e che non porta a voi.`
+      ? `Cercando online ${companyName} ho trovato ${params.piattaformaTerzi}, ma non un sito vostro: chi vi cerca oggi vede una presenza che non controllate e che non porta a voi.`
       : params.hasWebsite === false
-        ? `cercando online ${companyName} non ho trovato un sito web attivo: chi vi cerca oggi su Google rischia di non trovarvi — o di trovare prima un concorrente.`
-        : `ho analizzato la presenza online di ${companyName} e preparato un report dettagliato con le aree su cui potete crescere.`;
+        ? `Cercando online ${companyName} non ho trovato un sito web attivo: chi vi cerca oggi su Google rischia di non trovarvi — o di trovare prima un concorrente.`
+        : `Ho dato un'occhiata a come appare ${companyName} a chi la cerca su Google, e ho preparato un report con le aree su cui potete crescere.`;
 
   // Riferimento concreto al profilo Google, quando disponibile: dimostra che ho guardato davvero.
   let gbpLine = "";
@@ -49,14 +71,38 @@ function buildStructuredSalesEmail(params: {
           }: una buona base, su cui però si può costruire molto di più.`;
   }
 
-  // Oggetto principale (benefit/curiosità) + variante A/B (loss-framing) per testare l'open rate.
-  const subject =
-    params.piattaformaTerzi
-      ? `${companyName}: online vi rappresenta una pagina che non è vostra`
-      : params.hasWebsite === false
-      ? `${companyName}: chi vi cerca su Google non trova il vostro sito`
-      : `${companyName}: ${n} ${n === 1 ? "area" : "aree"} da sistemare nella vostra presenza online`;
-  const subjectAlt = `${companyName}: ${n} ${n === 1 ? "area" : "aree"} che oggi vi fanno perdere clienti`;
+  // Oggetto principale a ROTAZIONE (nei paesi piccoli i titolari si parlano:
+  // due mail identiche mostrate al bar = lettera in serie) + variante A/B
+  // (loss-framing) per testare la resa. Con zero punti verificabili niente
+  // conteggi in oggetto: «0 aree da sistemare» si squalifica da sola.
+  const generico = companyName === "la vostra azienda";
+  let subject: string;
+  if (params.piattaformaTerzi) {
+    subject = `${companyName}: online vi rappresenta una pagina che non è vostra`;
+  } else if (params.hasWebsite === false) {
+    subject = generico
+      ? "Chi vi cerca su Google non trova il vostro sito"
+      : `${companyName}: chi vi cerca su Google non trova il vostro sito`;
+  } else if (n === 0) {
+    subject = generico
+      ? "Ho dato un'occhiata alla vostra presenza online"
+      : `Ho dato un'occhiata alla presenza online di ${companyName}`;
+  } else {
+    const varianti = generico
+      ? [
+          `${n} ${n === 1 ? "cosa" : "cose"} da sistemare nella vostra presenza online`,
+          "Ho dato un'occhiata alla vostra presenza online",
+          `La vostra attività su Google: ${n} ${n === 1 ? "punto che merita" : "punti che meritano"} attenzione`,
+        ]
+      : [
+          `${companyName}: ${n} ${n === 1 ? "cosa" : "cose"} da sistemare nella vostra presenza online`,
+          `Ho dato un'occhiata alla presenza online di ${companyName}`,
+          `${companyName} su Google: ${n} ${n === 1 ? "punto che merita" : "punti che meritano"} attenzione`,
+        ];
+    subject = varianti[ruota(companyName, varianti.length)];
+  }
+  const subjectAlt =
+    n > 0 ? `${companyName}: ${n} ${n === 1 ? "area" : "aree"} che oggi vi fanno perdere clienti` : undefined;
 
   // Con zero punti verificabili l'elenco non si scrive: la mail resta sul dato
   // certo dell'apertura (sito assente, pagina di terzi, scheda Google) e passa
@@ -76,14 +122,15 @@ ${solutionsBlock}
 
   const body = `Buongiorno,
 
-${opener}
+${identita} ${opener}
 ${gbpLine ? `\n${gbpLine}\n` : ""}${blocco}
 
 Il report completo della vostra presenza online è già pronto: basta rispondere a questa mail e saremo lieti di mostrarvelo — con le priorità e i risultati ottenibili, senza impegno.
 
-Cordiali saluti,
-Lorenzo Matarazzo
-Online Station`;
+${FIRMA}`
+    // Righe vuote doppie quando un blocco è assente: cosmetico, ma nei client
+    // di posta si vede. Mai più di una riga vuota di fila.
+    .replace(/\n{3,}/g, "\n\n");
   // Niente link nel corpo (decisione 26/08): i token dei report scadono a 30
   // giorni — i primi destinatari cliccavano su "report scaduto" — e ogni link
   // in una mail a freddo pesa sulla deliverability. Il report diventa il
@@ -169,7 +216,7 @@ export function buildFirstAuditOutreachEmail(params: {
         : `\n\nDall'analisi emerge un'opportunità su ${problem.toLowerCase()}.`;
     return {
       subject,
-      body: `${bodyBase}${scoreNote}\n\nSe vi va, possiamo confrontarci in una breve call questa settimana.\n\nCordiali saluti,\nLorenzo Matarazzo`,
+      body: `${bodyBase}${scoreNote}\n\nSe vi va, possiamo confrontarci in una breve call questa settimana.\n\n${FIRMA}`,
     };
   }
 
@@ -183,11 +230,10 @@ ho dato un'occhiata alla presenza digitale di ${companyName}${
 
 Emergono margini concreti su ${problem.toLowerCase()}.
 
-Un intervento su ${offer} potrebbe portare risultati misurabili senza dispersione.
+Un intervento su ${offer} può portare risultati concreti e misurabili.
 
 Se vi va, possiamo confrontarci in una breve call questa settimana.
 
-Cordiali saluti,
-Lorenzo Matarazzo`,
+${FIRMA}`,
   };
 }

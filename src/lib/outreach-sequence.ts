@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { nomeCommerciale } from "@/lib/nome-commerciale";
 import { sweepStaleOutreach } from "@/lib/outreach-hygiene";
 import { isAutoSendAllowed } from "@/lib/outreach-send-cap";
 import { buildOutreachDraftFromSequenceStep } from "@/lib/reach-sequence-draft";
@@ -33,37 +34,51 @@ export function buildAuditSequenceSteps(params: {
   companyName: string;
   firstSubject: string;
   firstBody: string;
+  /** Non più usato nei follow-up: incollare una stringa-diagnosi in una frase
+   *  («l'opportunità su presenza social debole o incoerente») dichiarava
+   *  l'automatismo. I seguiti rimandano all'analisi, non ai suoi campi. */
   priorityProblem?: string | null;
 }): SequenceStepTemplate[] {
-  const problem = params.priorityProblem?.trim() ?? "migliorare la presenza digitale";
+  // Nome commerciale applicato QUI, a monte: qualunque chiamante passi la
+  // ragione sociale da visura, il follow-up non la stampa. Un nome di persona
+  // o un segnaposto non è un'insegna: si passa al generico.
+  const nc = nomeCommerciale(params.companyName);
+  const generico = !nc.nome || nc.isPersona || /^la vostra (attività|azienda)$/i.test(nc.nome);
+  const nome = generico ? "" : nc.nome;
+  const suffisso = nome ? ` — ${nome}` : "";
+  const diChi = nome ? `di ${nome}` : "della vostra attività";
+
+  // Riscritti il 26/08 (revisione copy): il vecchio J+3 aveva il «Re:» finto,
+  // il tu e il voi nella stessa frase e il gergo da agenzia (follow-up, slot).
+  // La seconda impressione deve valere quanto la prima.
   return [
     { delayDays: 0, subject: params.firstSubject, body: params.firstBody },
     {
       delayDays: 3,
-      subject: `Re: opportunità per ${params.companyName}`,
+      subject: `Torno un attimo da voi${suffisso}`,
       body: `Buongiorno,
 
-ti scrivo un breve follow-up sul messaggio di qualche giorno fa.
+vi ho scritto qualche giorno fa a proposito della presenza online ${diChi} — capisco le giornate piene, quindi due righe soltanto.
 
-Resta valida l'opportunità su ${problem.toLowerCase()}: se ti va, in 15 minuti ti mostro le priorità e cosa cambierebbe in pratica per ${params.companyName}.
+L'analisi che avevo preparato per voi è ancora qui, pronta: dentro c'è anche la cosa che sistemerei per prima, quella che rende di più con meno sforzo.
 
-Dimmi pure un paio di slot e mi organizzo io.
+Se vi va di vederla, basta un «sì» in risposta. Senza impegno.
 
 Cordiali saluti,
-Lorenzo Matarazzo · Online Station`,
+Lorenzo Matarazzo · Online Station — Rosignano Solvay`,
     },
     {
       delayDays: 7,
-      subject: `Un'idea concreta per ${params.companyName}`,
+      subject: `Ultimo messaggio, promesso${suffisso}`,
       body: `Buongiorno,
 
-riprendo il filo con uno spunto pratico: intervenendo su ${problem.toLowerCase()} si possono recuperare contatti che oggi vanno persi.
+questo è l'ultimo messaggio che vi mando: non voglio essere insistente.
 
-Abbiamo preparato un'analisi dettagliata della vostra presenza online: se vuoi te la giro e ne parliamo insieme, senza impegno.
+L'analisi gratuita della vostra presenza online resta a disposizione — se un giorno vorrete vederla, basta rispondere a questa mail e ve la mostro, con le priorità da cui partirei.
 
-Quando preferisci?
+E se passate da Rosignano, ci trovate in Via Vecchia Aurelia 393, il negozio TIM e Fastweb: un caffè e due consigli non si negano a nessuno.
 
-Cordiali saluti,
+Buon lavoro,
 Lorenzo Matarazzo · Online Station`,
     },
   ];

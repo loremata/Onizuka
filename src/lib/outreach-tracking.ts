@@ -78,7 +78,7 @@ function footerLines(opts: OutreachBodyOptions): string[] {
   const lines: string[] = [];
   if (opts.sourceNote?.trim()) lines.push(opts.sourceNote.trim());
   if (opts.unsubscribeUrl) {
-    lines.push(`Non vuoi più ricevere queste email? Disiscriviti: ${opts.unsubscribeUrl}`);
+    lines.push(`Per non ricevere più queste email: ${opts.unsubscribeUrl}`);
   }
   return lines;
 }
@@ -112,7 +112,7 @@ export function wrapOutreachHtmlBody(
         opts.sourceNote?.trim() ? `${escapeHtml(opts.sourceNote.trim())}<br>` : ""
       }${
         opts.unsubscribeUrl
-          ? `Non vuoi più ricevere queste email? <a href="${opts.unsubscribeUrl}" style="color:#666">Disiscriviti</a>.`
+          ? `Per non ricevere più queste email: <a href="${opts.unsubscribeUrl}" style="color:#666">disiscrivetevi qui</a>.`
           : ""
       }</div>`
     : "";

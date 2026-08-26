@@ -17,9 +17,11 @@ import { buildMailtoUrl } from "@/lib/mailto-outreach";
  * è stato raccolto presso l'interessato (il caso di tutti i lead da scraping).
  * Personalizzabile con la env `REACH_DATA_SOURCE_NOTE`.
  */
+// In «voi», come il corpo della mail: il footer in «tu» sotto una mail in
+// «voi» era la crepa che rivelava lo stampo (revisione copy del 26/08).
 const DATA_SOURCE_NOTE =
   process.env.REACH_DATA_SOURCE_NOTE?.trim() ||
-  "Ti scriviamo da Online Station. Abbiamo reperito questo contatto tra le informazioni aziendali pubbliche; se preferisci non essere ricontattato usa il link qui sotto.";
+  "Vi scriviamo da Online Station (Rosignano Solvay). Il vostro contatto proviene da informazioni aziendali pubbliche; se preferite non essere ricontattati, usate il link qui sotto.";
 
 /**
  * Registra sul draft il motivo per cui l'invio non e' passato: e' quello che la

@@ -38,14 +38,24 @@ describe("buildFirstAuditOutreachEmail", () => {
       ],
     });
     expect(subject).toContain("Pizzeria Roma");
-    expect(subject).toContain("2 aree");
+    // L'oggetto RUOTA su tre varianti (nei paesi piccoli i titolari si
+    // parlano): qualunque esca, deve essere una delle tre.
+    expect(subject).toMatch(
+      /2 cose da sistemare|Ho dato un'occhiata alla presenza online|2 punti che meritano attenzione/
+    );
+    // Chi sono e perché scrivo, in apertura: metà della fiducia locale.
+    expect(body).toContain("sono Lorenzo di Online Station, a Rosignano Solvay");
     // Il report è l'esca per la RISPOSTA, non un link (26/08: i token scadono
     // a 30 giorni e i link pesano sulla deliverability delle mail a freddo).
     expect(body).toContain("report");
     expect(body).toContain("rispondere a questa mail");
     expect(body).not.toMatch(/https?:\/\/[^\s]*\/report\//);
     expect(body).toContain("progetto personalizzato di gestione dei social");
-    expect(body).toContain("Online Station");
+    // La firma è un biglietto da visita: indirizzo fisico e numeri veri.
+    expect(body).toContain("Via Vecchia Aurelia 393");
+    expect(body).toContain("0586 017371");
+    // Mai più di una riga vuota di fila (si vede nei client di posta).
+    expect(body).not.toMatch(/\n{3,}/);
     // nessun brand interno deve trapelare
     expect(body).not.toMatch(/StudioPop|DoctorLead|LabSeven|Brandity/i);
   });
