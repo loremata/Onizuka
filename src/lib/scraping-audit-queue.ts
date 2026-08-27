@@ -6,7 +6,15 @@ import { runDigitalAuditUnified } from "@/lib/audit-commercial-entry";
 import { processNonVatSheetQueueItem } from "@/lib/audit-sheet-domain-row";
 import { enrichAuditOutreach } from "@/lib/audit-sheet-queue-processor-enrich";
 
-export const SCRAPING_AUDIT_DAILY_CAP = Number(process.env.SCRAPING_AUDIT_DAILY_CAP) || 50;
+/**
+ * Quanti audit al giorno. Il limite vero non è tecnico ma UMANO: quasi ogni audit
+ * con email produce una bozza in attesa di approvazione, e le bozze non approvate
+ * entro 14 giorni scadono. A 50/giorno contro ~15 approvazioni al giorno la coda
+ * cresce di 35 al giorno e in due settimane si ricomincia a buttare via i lead
+ * migliori in silenzio. 20 tiene il passo di chi approva; si alza con la env
+ * quando l'approvazione diventa più veloce.
+ */
+export const SCRAPING_AUDIT_DAILY_CAP = Number(process.env.SCRAPING_AUDIT_DAILY_CAP) || 20;
 const STALE_PROCESSING_MS = 10 * 60_000;
 const SCRAPING_PREFIX = "scraping:";
 

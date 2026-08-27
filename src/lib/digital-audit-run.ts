@@ -210,7 +210,31 @@ export async function runDigitalAuditForClient(params: {
   let outreachReportUrl: string | undefined;
   let outreachSubject: string | undefined;
   let outreachBody: string | undefined;
-  if (params.createOutreachDraft && !skipOutreachExistingClient) {
+
+  // Senza un recapito email REALE la prima mail non partirà mai: creare bozza e
+  // sequenza vuol dire solo mettere in coda di approvazione qualcosa che verrà
+  // bloccato all'invio e scadrà in silenzio dopo 14 giorni. È il meccanismo che
+  // ha prodotto 1.210 bozze cancellate mute. Quel lead ha un'altra strada — la
+  // coda WhatsApp della dashboard flussi — e l'audit resta comunque fatto, col
+  // suo report. L'email viene cercata sul sito poco sopra: qui sappiamo già se c'è.
+  const emailReale = (e?: string | null) =>
+    !!e && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.trim()) && !/@onizuka\.local$/i.test(e.trim());
+  const emailLead = leadId
+    ? (await prisma.lead.findUnique({ where: { id: leadId }, select: { email: true } }))?.email ?? null
+    : null;
+  const haRecapito = emailReale(client.contactEmail) || emailReale(emailLead);
+  if (params.createOutreachDraft && !skipOutreachExistingClient && !haRecapito) {
+    await prisma.digitalAudit
+      .update({
+        where: { id: audit.id },
+        data: {
+          internalNotes: `${audit.internalNotes ?? ""} · Nessuna bozza: manca un'email reale (va su WhatsApp/telefono).`.slice(0, 1000),
+        },
+      })
+      .catch(() => undefined);
+  }
+
+  if (params.createOutreachDraft && !skipOutreachExistingClient && haRecapito) {
     // Re-audit: chiudi le sequenze ancora attive/in pausa dello stesso cliente,
     // così non restano due sequenze parallele a mandare doppi follow-up.
     await prisma.outreachSequence
