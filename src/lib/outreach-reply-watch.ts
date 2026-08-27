@@ -4,6 +4,13 @@ import { stopActiveOutreachSequences, captureHotReply } from "@/lib/outreach-seq
 import { ensureDigitalAuditPublicReportToken, publicReportPath } from "@/lib/public-report-token";
 import { buildReplyKit } from "@/lib/reply-kit";
 import { nomeCommerciale } from "@/lib/nome-commerciale";
+import {
+  applicaBouncePermanente,
+  parseBounce,
+  registraBounce,
+  sembraBounce,
+  type BounceParsed,
+} from "@/lib/outreach-bounce";
 
 /**
  * RILEVAMENTO DELLE RISPOSTE VIA EMAIL — il canale che mancava.
@@ -21,6 +28,11 @@ import { nomeCommerciale } from "@/lib/nome-commerciale";
  * successivo un no-op per lo stesso mittente. Non marca niente come letto e
  * non tocca la casella: sola lettura.
  *
+ * Nello stesso giro riconosce anche i RIMBALZI (MAILER-DAEMON): un indirizzo che
+ * non esiste viene registrato in `EmailBounce` e da lì in poi è fuori dal giro
+ * (vedi `outreach-bounce.ts`). Costa una fetch in più solo per i messaggi che
+ * hanno l'aria del bounce, non per tutta la casella.
+ *
  * Credenziali: riusa quelle SMTP di Hostinger già configurate
  * (GMAIL_SMTP_USER / GMAIL_SMTP_PASSWORD), con host IMAP dedotto o esplicito
  * via OUTREACH_IMAP_HOST. Se mancano, il cron risponde "non configurato" senza
@@ -35,8 +47,15 @@ type ReplyWatchResult = {
   matchedSenders: number;
   sequencesStopped: number;
   draftsMarked: number;
+  /** Notifiche di mancata consegna lette in questo giro. */
+  bounces: number;
+  /** Di quelle, gli indirizzi bruciati per sempre (5.x.x). */
+  bouncesPermanent: number;
   note?: string;
 };
+
+/** Quante notifiche di mancata consegna si scaricano al massimo per giro. */
+const MAX_BOUNCE_PER_GIRO = 25;
 
 function imapConfig(): { host: string; user: string; pass: string } | null {
   const user = process.env.OUTREACH_IMAP_USER?.trim() || process.env.GMAIL_SMTP_USER?.trim();
@@ -71,6 +90,8 @@ export async function checkOutreachEmailReplies(): Promise<ReplyWatchResult> {
       matchedSenders: 0,
       sequencesStopped: 0,
       draftsMarked: 0,
+      bounces: 0,
+      bouncesPermanent: 0,
       note: "IMAP non configurato (OUTREACH_IMAP_* o GMAIL_SMTP_*).",
     };
   }
@@ -84,6 +105,8 @@ export async function checkOutreachEmailReplies(): Promise<ReplyWatchResult> {
   });
 
   const senders = new Map<string, { subject: string; date: Date }>();
+  const bounceUids: number[] = [];
+  const bounces: { parsed: BounceParsed; date: Date }[] = [];
   let scanned = 0;
 
   await client.connect();
@@ -92,14 +115,36 @@ export async function checkOutreachEmailReplies(): Promise<ReplyWatchResult> {
     try {
       const since = new Date(Date.now() - LOOKBACK_DAYS * 86_400_000);
       // ENVELOPE basta: mittente, oggetto, data. Il corpo non serve e non si scarica.
-      for await (const msg of client.fetch({ since }, { envelope: true, internalDate: true })) {
+      for await (const msg of client.fetch({ since }, { envelope: true, internalDate: true, uid: true })) {
         scanned += 1;
         const from = msg.envelope?.from?.[0]?.address?.trim().toLowerCase();
-        if (!from || isOwnAddress(from, cfg.user)) continue;
+        if (!from) continue;
+        // I rimbalzi si riconoscono PRIMA del filtro sui nostri indirizzi: quando
+        // è il nostro stesso server a rifiutare, il MAILER-DAEMON è del nostro dominio.
+        if (sembraBounce(from, msg.envelope?.subject ?? "")) {
+          if (msg.uid) bounceUids.push(msg.uid);
+          continue;
+        }
+        if (isOwnAddress(from, cfg.user)) continue;
         const date = msg.internalDate ? new Date(msg.internalDate) : new Date();
         const prev = senders.get(from);
         if (!prev || date > prev.date) {
           senders.set(from, { subject: msg.envelope?.subject ?? "", date });
+        }
+      }
+      // Solo per i sospetti bounce si scarica il sorgente: il destinatario fallito
+      // sta nel corpo (Final-Recipient / risposta SMTP), non nell'involucro.
+      const daLeggere = bounceUids.slice(-MAX_BOUNCE_PER_GIRO);
+      if (daLeggere.length) {
+        for await (const msg of client.fetch(
+          daLeggere.join(","),
+          { source: true, internalDate: true },
+          { uid: true }
+        )) {
+          const parsed = parseBounce(msg.source ? msg.source.toString("utf8") : "", [cfg.user]);
+          if (parsed) {
+            bounces.push({ parsed, date: msg.internalDate ? new Date(msg.internalDate) : new Date() });
+          }
         }
       }
     } finally {
@@ -112,6 +157,25 @@ export async function checkOutreachEmailReplies(): Promise<ReplyWatchResult> {
   let matchedSenders = 0;
   let sequencesStopped = 0;
   let draftsMarked = 0;
+  let bouncesNuovi = 0;
+  let bouncesPermanent = 0;
+
+  // Rimbalzi: registrarli è ciò che impedisce di riprovare all'infinito su una
+  // casella che non esiste. Un errore qui non deve far saltare le risposte.
+  for (const b of bounces) {
+    try {
+      const nuovo = await registraBounce(b.parsed, b.date);
+      if (!nuovo) continue;
+      bouncesNuovi += 1;
+      if (!b.parsed.permanent) continue;
+      bouncesPermanent += 1;
+      const esito = await applicaBouncePermanente(b.parsed.email, b.parsed);
+      sequencesStopped += esito.sequencesStopped;
+      draftsMarked += esito.draftsMarked;
+    } catch (e) {
+      console.error("[reach-replies] rimbalzo non registrato:", e instanceof Error ? e.message : e);
+    }
+  }
 
   for (const [from, info] of Array.from(senders.entries())) {
     // È uno dei nostri destinatari? Tre agganci possibili: l'invio registrato,
@@ -211,5 +275,13 @@ export async function checkOutreachEmailReplies(): Promise<ReplyWatchResult> {
     }
   }
 
-  return { configured: true, scanned, matchedSenders, sequencesStopped, draftsMarked };
+  return {
+    configured: true,
+    scanned,
+    matchedSenders,
+    sequencesStopped,
+    draftsMarked,
+    bounces: bouncesNuovi,
+    bouncesPermanent,
+  };
 }

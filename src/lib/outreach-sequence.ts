@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { nomeCommerciale } from "@/lib/nome-commerciale";
 import { sweepStaleOutreach } from "@/lib/outreach-hygiene";
+import { isHardBounced } from "@/lib/outreach-bounce";
 import { isAutoSendAllowed } from "@/lib/outreach-send-cap";
 import { buildOutreachDraftFromSequenceStep } from "@/lib/reach-sequence-draft";
 import { notifyAdminsViaTelegram, type TelegramInlineKeyboard } from "@/lib/telegram-bot";
@@ -288,6 +289,20 @@ export async function activateSequenceStep(stepId: string): Promise<{ draftId: s
 
   if (!step || step.status !== "SCHEDULED") return null;
   if (step.sequence.status !== "ACTIVE") return null;
+
+  // Recapito gia' rimbalzato in modo permanente: lo step si chiude qui, senza
+  // creare una bozza che nessuno potra' mai spedire (ne' sprecare l'attenzione
+  // di chi approva). Vedi outreach-bounce.ts.
+  const recapito = [step.sequence.client?.contactEmail, step.sequence.lead?.email]
+    .map((e) => e?.trim())
+    .find((e) => e && !/@onizuka[.]local$/i.test(e));
+  if (recapito && (await isHardBounced(recapito))) {
+    await prisma.outreachSequenceStep.updateMany({
+      where: { id: stepId, status: "SCHEDULED" },
+      data: { status: "SKIPPED" },
+    });
+    return null;
+  }
 
   // Claim atomico: solo un run "vince" SCHEDULED→ACTIVATED. Senza, due esecuzioni
   // sovrapposte del cron creerebbero due bozze (e due invii) per lo stesso step.

@@ -9,6 +9,7 @@ import { resolveReachAbVariantForSend } from "@/lib/reach-ab-default";
 import { ensureClientOptOutToken, isEmailable } from "@/lib/campaigns/consent";
 import { buildUnsubscribeUrl } from "@/lib/unsubscribe-link";
 import { checkRecipientCooldown } from "@/lib/outreach-hygiene";
+import { isHardBounced } from "@/lib/outreach-bounce";
 import { describeOutreachQuality, validateOutreachDraft } from "@/lib/outreach-quality";
 import { buildMailtoUrl } from "@/lib/mailto-outreach";
 
@@ -123,6 +124,14 @@ export async function sendOutreachDraftNow(
   if (/@onizuka\.local$/i.test(to) || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
     annotaBlocco(draftId, "Bloccata: email segnaposto/non valida (serve WhatsApp o chiamata)");
     return { sent: false, to, note: "Email segnaposto/non valida — usa WhatsApp o chiamata." };
+  }
+
+  // ── Recapito rimbalzato ──────────────────────────────────────────────────
+  // Se quell'indirizzo ha già rifiutato in modo permanente (5.x.x), riprovare
+  // non lo fa esistere: aggiunge solo un altro colpo alla reputazione del dominio.
+  if (await isHardBounced(to)) {
+    annotaBlocco(draftId, "Bloccata: recapito inesistente (mail rimbalzata)");
+    return { sent: false, to, note: "Recapito inesistente: la posta a questo indirizzo rimbalza." };
   }
 
   // ── Doppioni in anagrafica ───────────────────────────────────────────────

@@ -1602,6 +1602,28 @@ model OutreachSequence {
   @@index([clientId])
 }
 
+/// Recapiti che hanno rimbalzato. Il MAILER-DAEMON è l'unica fonte che dice se un
+/// indirizzo esiste davvero: gli indirizzi dell'outreach vengono dallo scraping e una
+/// parte è vecchia. Un rimbalzo permanente (5.x.x) toglie l'indirizzo dal giro —
+/// insistere su una casella inesistente brucia la reputazione del dominio, cioè la
+/// consegna delle mail che invece arriverebbero. I temporanei (4.x.x) si registrano
+/// e basta: una casella piena si svuota.
+model EmailBounce {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  /// true = 5.x.x, indirizzo bruciato (blocca invii e attivazioni).
+  permanent Boolean  @default(true)
+  /// Codice di stato riportato dal server ("5.1.1", "550").
+  code      String?
+  /// Diagnostica del server, per la dashboard.
+  reason    String?  @db.Text
+  count     Int      @default(1)
+  firstAt   DateTime @default(now())
+  lastAt    DateTime @default(now())
+
+  @@index([permanent, lastAt])
+}
+
 model OutreachSequenceStep {
   id           String                     @id @default(cuid())
   sequenceId   String
