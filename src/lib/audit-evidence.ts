@@ -57,23 +57,57 @@ export interface AuditMetrics {
  */
 const NON_SITI = [
   "facebook.com", "fb.com", "instagram.com", "linkedin.com", "twitter.com", "x.com",
-  "tiktok.com", "youtube.com", "doctolib.it", "miodottore.it", "tripadvisor.",
+  "tiktok.com", "youtube.com", "doctolib.it", "miodottore.it",
   "thefork.it", "paginegialle.it", "virgilio.it", "cylex.it", "misterimprese.it",
-  "prontoimprese.it", "europages.", "wixsite.com", "business.site", "wordpress.com",
-  "blogspot.", "altervista.org", "jimdosite.com", "sitiwebs.com",
+  "prontoimprese.it", "wixsite.com", "business.site", "wordpress.com",
+  "altervista.org", "jimdosite.com", "sitiwebs.com",
 ];
 
-/** true se l'URL è un profilo su piattaforma altrui, non un sito aziendale. */
+/**
+ * Marchi che cambiano dominio di primo livello (tripadvisor.it/.com,
+ * europages.it/.co.uk, blogspot.com/.it): si riconoscono dall'etichetta, non
+ * dal dominio intero.
+ */
+const NON_SITI_MARCHI = ["tripadvisor", "europages", "blogspot"];
+
+/** Host di un URL, minuscolo e senza "www." (tollera url scritti a mano). */
+function hostDi(url: string): string {
+  const grezzo = url.trim();
+  try {
+    return new URL(grezzo.startsWith("http") ? grezzo : `https://${grezzo}`).hostname
+      .toLowerCase()
+      .replace(/^www\./, "");
+  } catch {
+    return grezzo
+      .toLowerCase()
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .split("/")[0];
+  }
+}
+
+/**
+ * true se l'URL è un profilo su piattaforma altrui, non un sito aziendale.
+ *
+ * Il confronto è sull'HOST, non sul testo dell'URL: cercare "x.com" dentro la
+ * stringa bocciava come "profilo social" qualunque sito che quelle lettere se le
+ * ritrovava dentro (linux.com, phoenix.com, un dominio con "…x.company"), e a
+ * quell'azienda si finiva per scrivere che un sito non ce l'ha.
+ */
 export function isNonSito(url?: string | null): boolean {
   if (!url) return false;
-  const u = url.toLowerCase();
-  return NON_SITI.some((d) => u.includes(d));
+  const host = hostDi(url);
+  if (!host) return false;
+  if (NON_SITI.some((d) => host === d || host.endsWith(`.${d}`))) return true;
+  const etichette = host.split(".");
+  return NON_SITI_MARCHI.some((m) => etichette.includes(m));
 }
 
 /** Etichetta leggibile della piattaforma, per dirlo al cliente senza tecnicismi. */
 export function piattaformaDi(url?: string | null): string | null {
   if (!url) return null;
-  const u = url.toLowerCase();
+  // Sull'host, per lo stesso motivo di isNonSito: il testo dell'URL mente.
+  const u = hostDi(url);
   if (u.includes("facebook.com") || u.includes("fb.com")) return "una pagina Facebook";
   if (u.includes("instagram.com")) return "un profilo Instagram";
   if (u.includes("linkedin.com")) return "una pagina LinkedIn";

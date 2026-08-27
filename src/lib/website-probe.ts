@@ -304,7 +304,96 @@ export function extractRichSignals(
 }
 
 const PROBE_TIMEOUT_MS = 12_000;
-const MAX_HTML_BYTES = 120_000;
+// 120 KB tagliavano a meta' le pagine con CSS inline (oggi la norma): il taglio
+// cadeva prima di </head> e il report diceva "meta description mancante" o
+// "nessun modulo di contatto" su siti che li avevano.
+const MAX_HTML_BYTES = 350_000;
+
+/** Come ci presentiamo: prima dichiarati, poi come un visitatore qualunque. */
+const UA_BOT = "Onizuka-AuditBot/1.0 (+https://onizuka.it)";
+const UA_BROWSER =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+  "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+/** Stati che sanno di "bloccato", non di "rotto": vale la pena riprovare. */
+const STATI_DA_RIPROVARE = new Set([401, 403, 405, 406, 409, 429, 500, 503]);
+
+async function fetchPagina(url: string, ua: string): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+  try {
+    return await safeFetch(url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": ua,
+        Accept: "text/html,application/xhtml+xml",
+        "Accept-Language": "it-IT,it;q=0.9",
+      },
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Un errore di rete che non vale la pena riprovare: la risposta e' gia' definitiva. */
+function inutileRiprovare(err: unknown): boolean {
+  const msg = String(err instanceof Error ? err.message : err).toLowerCase();
+  // Dominio che non esiste: e' un fatto, ed e' anzi il caso in cui il report ha
+  // ragione. Timeout: l'attesa piena c'e' gia' stata, ripeterla non aggiunge nulla.
+  return msg.includes("enotfound") || msg.includes("eai_again") || msg.includes("abort");
+}
+
+/**
+ * Scarica la home separando un sito ROTTO da un sito che semplicemente non ci
+ * voleva:
+ *  1. user-agent dichiarato (la forma corretta);
+ *  2. se il server ha risposto BLOCCANDO (403 e simili), si riprova da browser —
+ *     Cloudflare, ModSecurity e mezzo hosting italiano rispondono 403 a tutto il
+ *     resto, e il report finiva per dire "sito non raggiungibile" di un sito che
+ *     al cliente si apre benissimo (4 casi su 19 verificati a mano);
+ *  3. http:// quando l'indirizzo in anagrafica era senza schema e l'https non
+ *     regge: piccoli siti ancora solo in chiaro, che esistono eccome.
+ * Nessun tentativo in piu' quando la risposta è già definitiva (dominio che non
+ * esiste, timeout): il giro resta veloce dove non c'è niente da salvare.
+ */
+async function fetchConRipieghi(
+  url: string,
+  senzaSchema: boolean
+): Promise<{ res: Response; url: string }> {
+  let ultimaRisposta: { res: Response; url: string } | null = null;
+  let ultimoErrore: unknown = null;
+
+  const prova = async (u: string, ua: string): Promise<{ res: Response; url: string } | null> => {
+    try {
+      const res = await fetchPagina(u, ua);
+      if (res.ok || !STATI_DA_RIPROVARE.has(res.status)) return { res, url: u };
+      ultimaRisposta = { res, url: u };
+      return null;
+    } catch (err) {
+      ultimoErrore = err;
+      if (inutileRiprovare(err)) throw err;
+      return null;
+    }
+  };
+
+  const primo = await prova(url, UA_BOT);
+  if (primo) return primo;
+
+  // Il server ha risposto (bloccando): l'user-agent puo' fare la differenza.
+  if (ultimaRisposta) {
+    const secondo = await prova(url, UA_BROWSER);
+    if (secondo) return secondo;
+  }
+
+  if (senzaSchema && url.startsWith("https://")) {
+    const inChiaro = `http://${url.slice("https://".length)}`;
+    const terzo = await prova(inChiaro, UA_BROWSER);
+    if (terzo) return terzo;
+  }
+
+  if (ultimaRisposta) return ultimaRisposta;
+  throw ultimoErrore instanceof Error ? ultimoErrore : new Error("Fetch fallito");
+}
 
 function normalizeUrl(raw: string): string | null {
   const trimmed = raw.trim();
@@ -345,7 +434,7 @@ async function probeSeoFiles(siteUrl: string): Promise<Pick<WebsiteProbeResult, 
       const timer = setTimeout(() => controller.abort(), 5000);
       const res = await safeFetch(`${origin}${path}`, {
         signal: controller.signal,
-        headers: { "User-Agent": "Onizuka-AuditBot/1.0 (+https://onizuka.it)" },
+        headers: { "User-Agent": UA_BOT },
       });
       clearTimeout(timer);
       if (!res.ok) continue;
@@ -388,18 +477,16 @@ export async function probeWebsite(rawUrl: string | null | undefined): Promise<W
   };
 
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+    // `senzaSchema`: l'indirizzo in anagrafica non diceva http o https, quindi
+    // l'https lo abbiamo messo noi e il ripiego in chiaro e' legittimo.
+    const senzaSchema = !/^https?:\/\//i.test((rawUrl ?? "").trim());
+    const esito = await fetchConRipieghi(url, senzaSchema);
+    const res = esito.res;
+    if (esito.url !== url) {
+      base.url = esito.url;
+      base.https = esito.url.startsWith("https://");
+    }
 
-    const res = await safeFetch(url, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "Onizuka-AuditBot/1.0 (+https://onizuka.it)",
-        Accept: "text/html,application/xhtml+xml",
-      },
-    });
-
-    clearTimeout(timer);
     base.responseMs = Date.now() - started;
     base.statusCode = res.status;
     base.ok = res.ok;
@@ -432,7 +519,8 @@ export async function probeWebsite(rawUrl: string | null | undefined): Promise<W
       }
     })();
     Object.assign(base, extractRichSignals(rawHtml, html, siteHost));
-    Object.assign(base, await probeSeoFiles(url));
+    // Sull'URL che ha risposto davvero (puo' essere il ripiego in http).
+    Object.assign(base, await probeSeoFiles(base.url));
 
     if (!base.metaDescription) {
       base.error = base.ok ? undefined : `HTTP ${res.status}`;
@@ -603,10 +691,7 @@ async function discoverInnerPageUrls(baseUrl: string, max = 2): Promise<string[]
     const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
     const res = await safeFetch(baseUrl, {
       signal: controller.signal,
-      headers: {
-        "User-Agent": "Onizuka-AuditBot/1.0 (+https://onizuka.it)",
-        Accept: "text/html",
-      },
+      headers: { "User-Agent": UA_BROWSER, Accept: "text/html" },
     });
     clearTimeout(timer);
     if (!res.ok) return [];

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -71,6 +72,17 @@ function cwvRating(kind: "lcp" | "cls" | "tbt", v: number): ScoreTone {
   if (poor) return tone(35);
   return tone(55);
 }
+
+/**
+ * Pagina pubblica (link con token) ma NON pubblicabile: contiene il nome
+ * dell'azienda analizzata e i suoi punti deboli. Finire nei risultati di Google
+ * significherebbe che un prospect trova online la pagella che gli abbiamo fatto —
+ * il modo più rapido per perderlo. Il token basta a proteggere l'accesso, non
+ * l'indicizzazione: quella si nega qui.
+ */
+export const metadata: Metadata = {
+  robots: { index: false, follow: false, nocache: true },
+};
 
 export default async function PublicAuditReportPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
