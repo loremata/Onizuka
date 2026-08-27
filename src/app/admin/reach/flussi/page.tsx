@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { runWithDb } from "@/lib/with-db";
 import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { validateOutreachDraft } from "@/lib/outreach-quality";
+import { isNonSito } from "@/lib/audit-evidence";
 import { DbUnavailableBanner } from "@/components/onizuka/db-unavailable-banner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -160,6 +161,136 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
+type EsitoInvio = {
+  id: string;
+  abVariantSent: string | null;
+  repliedAt: Date | null;
+  sentToEmail: string | null;
+  sequenceStep: { stepIndex: number } | null;
+  client: { website: string | null; city: string | null } | null;
+  lead: { website: string | null; city: string | null; source: string | null } | null;
+};
+
+/** Un contatto = una PERSONA raggiunta, non una bozza (la sequenza è di tre mail). */
+type EsitoContatto = { variante: string; segmento: string; comune: string; risposta: boolean };
+
+/** Segmento del messaggio: A = senza un sito vero, B = con sito (restyling). */
+function segmentoDi(r: EsitoInvio): string {
+  const sito = (r.lead?.website || r.client?.website || "").trim();
+  return !sito || isNonSito(sito) ? "A · senza sito" : "B · con sito";
+}
+
+/** Provenienza: prima il comune dello scraping, poi la città in anagrafica. */
+function comuneDi(r: EsitoInvio): string {
+  const m = (r.lead?.source ?? "").match(/^scraping(?:-google)?:(.+)$/);
+  if (m) return m[1].trim();
+  const citta = (r.lead?.city || r.client?.city || "").trim();
+  if (!citta) return "—";
+  return citta.charAt(0).toUpperCase() + citta.slice(1).toLowerCase();
+}
+
+/**
+ * Riduce gli invii a contatti raggiunti: la risposta arriva a una qualunque
+ * delle mail della sequenza, ma il merito è della PRIMA (è quella che ha aperto
+ * la porta), quindi variante e segmento si prendono dal primo invio a quel recapito.
+ * `sentOutcomes` arriva dal più recente al più vecchio: si scorre al contrario.
+ */
+function contattiDagliInvii(invii: EsitoInvio[]): EsitoContatto[] {
+  const perRecapito = new Map<string, EsitoContatto>();
+  for (let i = invii.length - 1; i >= 0; i--) {
+    const r = invii[i];
+    const chiave = r.sentToEmail?.trim().toLowerCase() || `bozza:${r.id}`;
+    const esistente = perRecapito.get(chiave);
+    if (!esistente) {
+      perRecapito.set(chiave, {
+        variante: r.abVariantSent ? `Variante ${r.abVariantSent}` : "Variante non registrata",
+        segmento: segmentoDi(r),
+        comune: comuneDi(r),
+        risposta: Boolean(r.repliedAt),
+      });
+    } else if (r.repliedAt) {
+      esistente.risposta = true;
+    }
+  }
+  return Array.from(perRecapito.values());
+}
+
+/** Tasso di risposta per chiave, dal gruppo più contattato al meno. */
+function tassiPerChiave(
+  contatti: EsitoContatto[],
+  chiave: (c: EsitoContatto) => string
+): { chiave: string; contattati: number; risposte: number; tasso: number }[] {
+  const m = new Map<string, { contattati: number; risposte: number }>();
+  for (const c of contatti) {
+    const k = chiave(c);
+    const cur = m.get(k) ?? { contattati: 0, risposte: 0 };
+    cur.contattati += 1;
+    if (c.risposta) cur.risposte += 1;
+    m.set(k, cur);
+  }
+  return Array.from(m.entries())
+    .map(([k, v]) => ({
+      chiave: k,
+      contattati: v.contattati,
+      risposte: v.risposte,
+      tasso: v.contattati ? (v.risposte / v.contattati) * 100 : 0,
+    }))
+    .sort((a, b) => b.contattati - a.contattati);
+}
+
+/** Sotto questa soglia il tasso è rumore: si mostra, ma detto. */
+const CAMPIONE_MINIMO = 30;
+
+function TabellaEsiti({
+  titolo,
+  righe,
+}: {
+  titolo: string;
+  righe: { chiave: string; contattati: number; risposte: number; tasso: number }[];
+}) {
+  if (righe.length === 0) {
+    return (
+      <div>
+        <p className="mb-2 text-sm font-medium">{titolo}</p>
+        <p className="text-sm text-muted-foreground">Ancora nessun invio.</p>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <p className="mb-2 text-sm font-medium">{titolo}</p>
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-b align-bottom text-muted-foreground">
+            <th className="pb-1 pr-3 font-medium">Gruppo</th>
+            <th className="pb-1 pr-3 text-right font-medium">Contattati</th>
+            <th className="pb-1 pr-3 text-right font-medium">Risposte</th>
+            <th className="pb-1 text-right font-medium">Tasso</th>
+          </tr>
+        </thead>
+        <tbody>
+          {righe.slice(0, 8).map((r) => (
+            <tr key={r.chiave} className="border-b last:border-0">
+              <td className="py-1 pr-3">{r.chiave}</td>
+              <td className="py-1 pr-3 text-right tabular-nums">{r.contattati}</td>
+              <td className="py-1 pr-3 text-right tabular-nums">{r.risposte}</td>
+              <td className="py-1 text-right tabular-nums">
+                {r.contattati < CAMPIONE_MINIMO ? (
+                  <span className="text-muted-foreground" title={`Meno di ${CAMPIONE_MINIMO} contatti: il dato non è ancora indicativo`}>
+                    {r.risposte === 0 ? "—" : `${r.tasso.toFixed(0)}%`} <span className="text-xs">(pochi)</span>
+                  </span>
+                ) : (
+                  `${r.tasso.toFixed(1)}%`
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default async function AdminReachFlussiPage() {
   const session = await requireAdminArea();
   const ownerUserId = session.user.id;
@@ -219,6 +350,9 @@ export default async function AdminReachFlussiPage() {
       waReinforceRows,
       waQueueAudits,
       waOnlyLeadCount,
+      sentOutcomes,
+      bounceRows,
+      bouncePermanentCount,
     ] = await Promise.all([
       // Tutte le PENDING_APPROVAL con la sola email: serve allo split del tile.
       prisma.outreachDraft.findMany({
@@ -366,6 +500,27 @@ export default async function AdminReachFlussiPage() {
           digitalAudits: { some: { status: "COMPLETED" } },
         },
       }),
+      // Esiti degli invii: e' l'unica misura lecita sul contatto a freddo. Il
+      // pixel di apertura resta a zero per costruzione (niente consenso alla
+      // profilazione), quindi l'A/B sulle aperture non direbbe nulla: conta chi
+      // RISPONDE. Poche righe, si aggregano in memoria.
+      prisma.outreachDraft.findMany({
+        where: { ownerUserId, status: "SENT" },
+        orderBy: { sentAt: "desc" },
+        take: 2000,
+        select: {
+          id: true,
+          abVariantSent: true,
+          repliedAt: true,
+          sentToEmail: true,
+          sequenceStep: { select: { stepIndex: true } },
+          client: { select: { website: true, city: true } },
+          lead: { select: { website: true, city: true, source: true } },
+        },
+      }),
+      // Recapiti che hanno rimbalzato: indirizzi che non esistono piu'.
+      prisma.emailBounce.findMany({ orderBy: { lastAt: "desc" }, take: 20 }),
+      prisma.emailBounce.count({ where: { permanent: true } }),
     ]);
 
     return {
@@ -394,6 +549,9 @@ export default async function AdminReachFlussiPage() {
       waReinforceRows,
       waQueueAudits,
       waOnlyLeadCount,
+      sentOutcomes,
+      bounceRows,
+      bouncePermanentCount,
     };
   });
 
@@ -473,6 +631,13 @@ export default async function AdminReachFlussiPage() {
     .sort((a, b) => b._count._all - a._count._all)
     .slice(0, 8);
 
+  const contatti = contattiDagliInvii(data.sentOutcomes);
+  const risposteTotali = contatti.filter((c) => c.risposta).length;
+  const tassoGlobale = contatti.length ? (risposteTotali / contatti.length) * 100 : 0;
+  const tassoPerVariante = tassiPerChiave(contatti, (c) => c.variante);
+  const tassoPerSegmento = tassiPerChiave(contatti, (c) => c.segmento);
+  const tassoPerComune = tassiPerChiave(contatti, (c) => c.comune);
+
   return (
     <div className="space-y-8">
       <div>
@@ -528,7 +693,29 @@ export default async function AdminReachFlussiPage() {
           value={String(data.cancelledTotal)}
           hint="bozze annullate (totale storico)"
         />
+        <StatTile
+          label="Recapiti falliti"
+          value={String(data.bouncePermanentCount)}
+          hint="indirizzi che rimbalzano: fuori dal giro"
+        />
       </div>
+
+      {/* 1a · Tasso di risposta — l'unica misura che vale sul contatto a freddo */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Chi risponde</CardTitle>
+          <CardDescription>
+            {contatti.length === 0
+              ? "Nessuna mail ancora partita: qui comparirà il tasso di risposta appena il primo lotto esce."
+              : `${risposteTotali} risposte su ${contatti.length} persone contattate (${tassoGlobale.toFixed(1)}%). Aperture e clic restano a zero per scelta (niente profilazione senza consenso): la risposta è l'unico esito misurabile.`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-6 lg:grid-cols-3">
+          <TabellaEsiti titolo="Per variante dell'oggetto (A/B)" righe={tassoPerVariante} />
+          <TabellaEsiti titolo="Per segmento del messaggio" righe={tassoPerSegmento} />
+          <TabellaEsiti titolo="Per comune" righe={tassoPerComune} />
+        </CardContent>
+      </Card>
 
       {/* 2 · In attesa di approvazione adesso */}
       <Card>
@@ -750,6 +937,49 @@ export default async function AdminReachFlussiPage() {
               </table>
             </div>
           ) : null}
+        </CardContent>
+      </Card>
+
+      {/* 3a · Recapiti falliti (rimbalzi) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recapiti falliti</CardTitle>
+          <CardDescription>
+            Indirizzi che il server di destinazione ha rifiutato. Quelli permanenti escono dal giro da
+            soli: insistere su una casella che non esiste rovina la consegna anche delle mail buone.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {data.bounceRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nessun rimbalzo registrato.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead>
+                  <tr className="border-b text-left align-bottom">
+                    <th className="pb-2 pr-3 font-medium">Indirizzo</th>
+                    <th className="pb-2 pr-3 font-medium">Tipo</th>
+                    <th className="pb-2 pr-3 font-medium">Motivo dal server</th>
+                    <th className="pb-2 font-medium">Ultimo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.bounceRows.map((b) => (
+                    <tr key={b.id} className="border-b last:border-0">
+                      <td className="py-2 pr-3">{b.email}</td>
+                      <td className="py-2 pr-3">
+                        <Badge variant={b.permanent ? "destructive" : "warning"}>
+                          {b.permanent ? `Definitivo${b.code ? ` · ${b.code}` : ""}` : `Temporaneo${b.code ? ` · ${b.code}` : ""}`}
+                        </Badge>
+                      </td>
+                      <td className="py-2 pr-3 text-muted-foreground">{b.reason ? truncate(b.reason, 90) : "—"}</td>
+                      <td className="py-2 text-muted-foreground">{dateFmt.format(b.lastAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
