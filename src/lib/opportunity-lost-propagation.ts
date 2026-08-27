@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { leadLifecycleForStage } from "@/lib/lead-lifecycle";
+import { setLeadStage } from "@/lib/lead-stage";
 
 export type OpportunityLostResult = {
   /** `false` = transazione fallita, stato LOST compreso: il chiamante non deve dire "fatto". */
@@ -59,9 +59,11 @@ export async function propagateOpportunityLost(
       if (opp.leadId && opp.lead) {
         const stage = opp.lead.commercialProspectStage ?? undefined;
         if (!stage || (stage !== "WON" && stage !== "LOST")) {
-          await tx.lead.update({
+          await setLeadStage({
+            db: tx,
             where: { id: opp.leadId },
-            data: leadLifecycleForStage("NURTURING"),
+            stage: "NURTURING",
+            source: "opportunita:persa",
           });
           leadNurturing = true;
         }

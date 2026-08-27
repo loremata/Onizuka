@@ -274,6 +274,22 @@ export async function markSequenceReplied(sequenceId: string): Promise<ActionRes
     seq.client?.companyName ?? seq.lead?.businessName?.trim() ?? seq.lead?.title ?? "Prospect";
   const nextAction = "Ha risposto all'outreach: ricontattare per fissare la consulenza gratuita.";
 
+  // Quale mail ha prodotto la risposta: e' l'anello che mancava per attribuire
+  // il ricavo alla singola mail (e quindi alla variante e al segmento), invece
+  // che genericamente "all'outreach". Prima quella marcata come risposta, poi
+  // l'ultima davvero inviata della sequenza.
+  const draftDellaRisposta =
+    (await prisma.outreachDraft.findFirst({
+      where: { ownerUserId: session.user.id, sequenceStep: { sequenceId }, repliedAt: { not: null } },
+      orderBy: { repliedAt: "desc" },
+      select: { id: true },
+    })) ??
+    (await prisma.outreachDraft.findFirst({
+      where: { ownerUserId: session.user.id, sequenceStep: { sequenceId }, status: "SENT" },
+      orderBy: { sentAt: "desc" },
+      select: { id: true },
+    }));
+
   const existing = await prisma.opportunity.findFirst({
     where: {
       ownerUserId: session.user.id,
@@ -287,7 +303,15 @@ export async function markSequenceReplied(sequenceId: string): Promise<ActionRes
   if (existing) {
     await prisma.opportunity.update({
       where: { id: existing.id },
-      data: { priority: "HIGH", nextAction },
+      data: {
+        priority: "HIGH",
+        nextAction,
+        // Non si riscrive un'attribuzione gia' presente: la prima mail che ha
+        // aperto la conversazione resta quella a cui il merito appartiene.
+        ...(draftDellaRisposta && !existing.outreachDraftId
+          ? { outreachDraftId: draftDellaRisposta.id }
+          : {}),
+      },
     });
     opportunityId = existing.id;
   } else {
@@ -301,6 +325,7 @@ export async function markSequenceReplied(sequenceId: string): Promise<ActionRes
         status: "OPEN",
         priority: "HIGH",
         source: "OUTREACH_REPLY",
+        outreachDraftId: draftDellaRisposta?.id,
         nextAction,
       },
     });

@@ -1075,6 +1075,7 @@ model Lead {
   dossierClient     Client?            @relation("ClientLeadDossier", fields: [clientId], references: [id], onDelete: SetNull)
   outreachDrafts    OutreachDraft[]
   outreachSequences OutreachSequence[]
+  stageEvents       LeadStageEvent[]
   followups         LeadFollowup[]
   digitalAudits     DigitalAudit[]     @relation("AuditLead")
   opportunities     Opportunity[]
@@ -1085,6 +1086,26 @@ model Lead {
   @@index([googlePlaceId])
   @@index([ownerUserId, googlePlaceId])
   @@index([clientId])
+}
+
+/// Storico delle transizioni di stadio del lead. Senza, il funnel era una
+/// fotografia senza passato: si vedeva DOVE sta un lead, mai da quanto ci sta
+/// né quale passaggio l'ha portato lì (e quindi nemmeno dove si inceppa).
+model LeadStageEvent {
+  id        String                   @id @default(cuid())
+  leadId    String
+  fromStage CommercialProspectStage?
+  toStage   CommercialProspectStage
+  /// Chi ha causato il passaggio: "outreach:invio", "audit:completato",
+  /// "opportunita:vinta", "manuale"… Serve a distinguere il funnel vero dalle
+  /// scritture automatiche.
+  source    String?
+  at        DateTime                 @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, at])
+  @@index([toStage, at])
 }
 
 /// Follow-up programmato su lead (walk-in, enrichment).
@@ -1161,6 +1182,10 @@ model Opportunity {
   source         String?
   /// Audit che ha generato l'opportunità.
   digitalAuditId String?
+  /// Mail che ha prodotto la risposta da cui nasce l'opportunità. Senza, il
+  /// ricavo si fermava a "è arrivato dall'outreach" e non si poteva risalire
+  /// alla mail — quindi nemmeno alla variante e al segmento che l'hanno ottenuta.
+  outreachDraftId String?
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 
@@ -1168,6 +1193,7 @@ model Opportunity {
   client Client?            @relation(fields: [clientId], references: [id], onDelete: Cascade)
   lead   Lead?              @relation(fields: [leadId], references: [id], onDelete: SetNull)
   asset  Asset?             @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  outreachDraft OutreachDraft? @relation(fields: [outreachDraftId], references: [id], onDelete: SetNull)
   quotes OpportunityQuote[]
 
   @@index([ownerUserId])
@@ -1177,6 +1203,7 @@ model Opportunity {
   @@index([assetId])
   @@index([digitalAuditId])
   @@index([source])
+  @@index([outreachDraftId])
 }
 
 /// Preventivo commerciale collegato a un'opportunità (MVP).
@@ -1571,6 +1598,7 @@ model OutreachDraft {
   lead         Lead?                 @relation(fields: [leadId], references: [id], onDelete: SetNull)
   digitalAudit DigitalAudit?         @relation(fields: [digitalAuditId], references: [id], onDelete: SetNull)
   sequenceStep OutreachSequenceStep? @relation(fields: [sequenceStepId], references: [id], onDelete: SetNull)
+  opportunities Opportunity[]
 
   @@index([ownerUserId])
   @@index([status])

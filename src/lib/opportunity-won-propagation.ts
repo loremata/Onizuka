@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { setLeadStage } from "@/lib/lead-stage";
 
 export type OpportunityWonResult = {
   /**
@@ -142,11 +143,12 @@ export async function propagateOpportunityWon(opportunityId: string): Promise<Op
             })
           : null;
 
-        await tx.lead.update({
+        await setLeadStage({
+          db: tx,
           where: { id: opp.leadId },
-          data: {
-            status: "CONVERTED",
-            commercialProspectStage: "WON",
+          stage: "WON",
+          source: "opportunita:vinta",
+          extraData: {
             ...(clientId
               ? alreadyConverted
                 ? { clientId }

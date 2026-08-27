@@ -7,7 +7,7 @@ import { runDigitalAuditForClient } from "@/lib/digital-audit-run";
 import { prepareAuditCommercialTarget } from "@/lib/audit-commercial-match";
 import { logAdminAction } from "@/lib/admin-audit-log";
 import { findClientByFiscalIdentity } from "@/lib/client-fiscal-identity";
-import { leadLifecycleForStage } from "@/lib/lead-lifecycle";
+import { setLeadStage } from "@/lib/lead-stage";
 
 export type ProspectVatPipelineResult = {
   clientId: string;
@@ -135,9 +135,10 @@ export async function runProspectDigitalAiByVat(params: {
   if (!leadId) throw new Error("Lead non risolto dalla pipeline audit.");
 
   const lead = await prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
-  await prisma.lead.update({
+  await setLeadStage({
     where: { id: lead.id },
-    data: leadLifecycleForStage("AUDIT_IN_PROGRESS"),
+    stage: "AUDIT_IN_PROGRESS",
+    source: "audit:pipeline-piva",
   });
 
   const auditResult = await runDigitalAuditForClient({
@@ -173,10 +174,11 @@ export async function runProspectDigitalAiByVat(params: {
       ? "AWAITING_SEND_APPROVAL"
       : "REPORT_GENERATED";
 
-  await prisma.lead.update({
+  await setLeadStage({
     where: { id: lead.id },
-    data: {
-      ...leadLifecycleForStage(stage),
+    stage,
+    source: "audit:pipeline-piva",
+    extraData: {
       notes: [
         lead.notes?.trim(),
         `Audit ${auditResult.auditId} · ${new Date().toISOString().slice(0, 10)}`,

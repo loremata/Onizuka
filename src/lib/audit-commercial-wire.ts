@@ -1,6 +1,6 @@
 import type { AuditMatchKind } from "@/lib/audit-commercial-match";
 import { prisma } from "@/lib/prisma";
-import { leadLifecycleForStage } from "@/lib/lead-lifecycle";
+import { setLeadStage } from "@/lib/lead-stage";
 import { ensureOpportunityFromDigitalAudit } from "@/lib/audit-opportunity-from-audit";
 import { createAuditFollowUpTasks } from "@/lib/audit-follow-up";
 import { commercialPriorityFromAuditScore } from "@/lib/audit-service-recommendations";
@@ -63,12 +63,9 @@ export async function wireAuditCommercialCrm(
         : params.overallScore < 50
           ? "AWAITING_SEND_APPROVAL"
           : "REPORT_GENERATED";
-    await prisma.lead
-      .update({
-        where: { id: leadId },
-        data: leadLifecycleForStage(stage),
-      })
-      .catch(() => undefined);
+    await setLeadStage({ where: { id: leadId }, stage, source: "audit:report" }).catch(
+      () => undefined
+    );
   }
 
   let opportunityId: string | undefined;

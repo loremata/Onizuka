@@ -12,7 +12,10 @@ const STAGE_TO_STATUS: Record<CommercialProspectStage, LeadStatus> = {
   AUDIT_COMPLETED: "QUALIFIED",
   REPORT_GENERATED: "QUALIFIED",
   PROPOSAL_GENERATED: "QUALIFIED",
-  AWAITING_SEND_APPROVAL: "CONTACTED",
+  // Una bozza in attesa di approvazione NON e' un contatto: la mail non e'
+  // partita. Mappandolo su CONTACTED, 496 lead risultavano "contattati" senza
+  // che nessuno avesse ricevuto niente — e il funnel mentiva sul punto che conta.
+  AWAITING_SEND_APPROVAL: "QUALIFIED",
   FIRST_AUDIT_MAIL_SENT: "CONTACTED",
   FOLLOW_UP_SCHEDULED: "CONTACTED",
   FOLLOW_UP_SENT: "CONTACTED",
@@ -39,7 +42,8 @@ const STATUS_TO_REPRESENTATIVE_STAGE: Record<LeadStatus, CommercialProspectStage
   NEW: "PROSPECT_ENTERED",
   COLD: "NURTURING",
   QUALIFIED: "AUDIT_IN_PROGRESS",
-  CONTACTED: "AWAITING_SEND_APPROVAL",
+  // Il primo stadio in cui qualcuno ha davvero ricevuto una mail.
+  CONTACTED: "FIRST_AUDIT_MAIL_SENT",
   CONVERTED: "WON",
   LOST: "LOST",
 };

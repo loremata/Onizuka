@@ -18,7 +18,8 @@ import {
 } from "@/lib/client-fiscal-identity";
 import { formatFiscalUniqueViolation } from "@/lib/fiscal-unique-error";
 import { lifecycleForRelationshipState } from "@/lib/client-lifecycle";
-import { leadLifecycleForStage, representativeStageForStatus } from "@/lib/lead-lifecycle";
+import { representativeStageForStatus } from "@/lib/lead-lifecycle";
+import { setLeadStage } from "@/lib/lead-stage";
 import { inferClientKind } from "@/lib/client-kind";
 import { normalizeFiscalCode, normalizeFiscalIdentity, normalizeVatNumber } from "@/lib/fiscal-normalize";
 import { runLeadCreatedAutomationRules } from "@/lib/automation-rules-run";
@@ -329,14 +330,12 @@ export async function convertLeadToClient(
               country,
             },
           });
-      await tx.lead.update({
+      await setLeadStage({
+        db: tx,
         where: { id: leadId },
-        data: {
-          status: "CONVERTED",
-          convertedClientId: client.id,
-          clientId: client.id,
-          commercialProspectStage: "WON",
-        },
+        stage: "WON",
+        source: "manuale:conversione-in-cliente",
+        extraData: { convertedClientId: client.id, clientId: client.id },
       });
       // Solo le opp ancora senza cliente (non riassegnare quelle già di un altro cliente).
       await tx.opportunity.updateMany({
@@ -426,11 +425,12 @@ export async function updateLeadStatus(
   if (existing.status === status) return null;
 
   try {
-    await prisma.lead.update({
+    // Coerenza status↔stage: un cambio manuale di status allinea SEMPRE anche lo
+    // stage (fonte di verità) al rappresentativo del bucket, evitando divergenze.
+    await setLeadStage({
       where: { id: leadId },
-      // Coerenza status↔stage: un cambio manuale di status allinea SEMPRE anche lo
-      // stage (fonte di verità) al rappresentativo del bucket, evitando divergenze.
-      data: leadLifecycleForStage(representativeStageForStatus(status)),
+      stage: representativeStageForStatus(status),
+      source: "manuale:cambio-stato",
     });
     if (status === "LOST") {
       await prisma.leadFollowup.updateMany({

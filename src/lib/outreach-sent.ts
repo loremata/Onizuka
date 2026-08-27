@@ -2,15 +2,14 @@ import type { CommercialProspectStage } from "@prisma/client";
 import { runReachDraftSentAutomationRules } from "@/lib/automation-rules-run";
 import { prisma } from "@/lib/prisma";
 import { markSequenceStepSentByDraftId } from "@/lib/outreach-sequence";
-import { leadLifecycleForStage } from "@/lib/lead-lifecycle";
-import { commercialProspectStageOptions } from "@/lib/commercial-prospect-stage";
+import { setLeadStage } from "@/lib/lead-stage";
 
 /**
- * Avanza lo stadio funnel del lead quando una mail parte davvero. Solo IN AVANTI:
- * usa l'ordine di `commercialProspectStageOptions` e non regredisce mai da stadi
- * più avanzati o terminali (WON/LOST/NURTURING hanno indice ≥ target). Il lead è
- * quello collegato alla bozza (leadId) o, per bozze cliente-only, il satellite via
+ * Avanza lo stadio funnel del lead quando una mail parte davvero. Solo IN AVANTI
+ * (`onlyForward`): un lead già vinto o perso non torna indietro. Il lead è quello
+ * collegato alla bozza (leadId) o, per bozze cliente-only, il satellite via
  * clientId. Chiude il buco per cui `FIRST_AUDIT_MAIL_SENT` non veniva mai impostato.
+ * Il passaggio finisce in `LeadStageEvent`: è il momento in cui il contatto esiste.
  */
 async function advanceLeadStageOnSend(
   leadId: string | null,
@@ -19,21 +18,12 @@ async function advanceLeadStageOnSend(
 ): Promise<void> {
   const where = leadId ? { id: leadId } : clientId ? { clientId } : null;
   if (!where) return;
-  const lead = await prisma.lead.findFirst({
+  await setLeadStage({
     where,
-    select: { id: true, commercialProspectStage: true },
-  });
-  if (!lead) return;
-  const order = commercialProspectStageOptions;
-  // Stage nullo = nessuno stadio ancora → curIdx -1, così il target avanza comunque.
-  const curIdx = lead.commercialProspectStage
-    ? order.indexOf(lead.commercialProspectStage)
-    : -1;
-  const tgtIdx = order.indexOf(targetStage);
-  if (tgtIdx < 0 || tgtIdx <= curIdx) return; // solo avanzamento
-  await prisma.lead
-    .update({ where: { id: lead.id }, data: leadLifecycleForStage(targetStage) })
-    .catch(() => undefined);
+    stage: targetStage,
+    source: targetStage === "FOLLOW_UP_SENT" ? "outreach:follow-up" : "outreach:prima-mail",
+    onlyForward: true,
+  }).catch(() => undefined);
 }
 
 /** Segna bozza outreach come inviata (timestamp + sequenza collegata). */

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { nomeCommerciale } from "@/lib/nome-commerciale";
 import { sweepStaleOutreach } from "@/lib/outreach-hygiene";
 import { isHardBounced } from "@/lib/outreach-bounce";
+import { setLeadStage } from "@/lib/lead-stage";
 import { isAutoSendAllowed } from "@/lib/outreach-send-cap";
 import { buildOutreachDraftFromSequenceStep } from "@/lib/reach-sequence-draft";
 import { notifyAdminsViaTelegram, type TelegramInlineKeyboard } from "@/lib/telegram-bot";
@@ -516,20 +517,20 @@ export async function processDueOutreachSequenceSteps(): Promise<{
       // Sequenza conclusa restando ACTIVE = nessuna risposta (una risposta l'avrebbe
       // messa in PAUSED). Il lead satellite passa a "freddo/nurturing" invece di
       // restare LEAD attivo all'infinito.
-      if (seq.leadId) {
-        await prisma.lead
-          .updateMany({
-            where: { id: seq.leadId, status: { notIn: ["CONVERTED", "LOST"] } },
-            data: { status: "COLD" },
-          })
-          .catch(() => undefined);
-      } else if (seq.clientId) {
-        await prisma.lead
-          .updateMany({
-            where: { clientId: seq.clientId, status: { notIn: ["CONVERTED", "LOST"] } },
-            data: { status: "COLD" },
-          })
-          .catch(() => undefined);
+      // Lo stadio va spostato insieme allo status, altrimenti resta scritto
+      // "in attesa di approvazione" su un lead ormai freddo: era una delle
+      // divergenze status/stage che rendevano il funnel inaffidabile.
+      const dove = seq.leadId
+        ? { id: seq.leadId }
+        : seq.clientId
+          ? { clientId: seq.clientId }
+          : null;
+      if (dove) {
+        await setLeadStage({
+          where: { ...dove, status: { notIn: ["CONVERTED", "LOST"] } },
+          stage: "NURTURING",
+          source: "sequenza:conclusa-senza-risposta",
+        }).catch(() => undefined);
       }
       completedSequences += 1;
     }

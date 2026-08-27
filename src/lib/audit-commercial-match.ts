@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { leadLifecycleForStage } from "@/lib/lead-lifecycle";
+import { setLeadStage } from "@/lib/lead-stage";
 import { findClientByFiscalIdentity } from "@/lib/client-fiscal-identity";
 import { normalizeFiscalCode, normalizeVatNumber } from "@/lib/fiscal-normalize";
 import { ensureBusinessClientByVat } from "@/lib/prospect-vat-pipeline";
@@ -330,9 +330,10 @@ export async function prepareAuditCommercialTarget(
         const ensured = await ensureBusinessClientByVat({ vatNumber: fiscalKey, macroCategory: "DIGITAL_AI" });
         clientId = ensured.clientId;
         createdClient = ensured.created;
-        await prisma.lead.update({
+        await setLeadStage({
           where: { id: lead.id },
-          data: leadLifecycleForStage("AUDIT_IN_PROGRESS"),
+          stage: "AUDIT_IN_PROGRESS",
+          source: "audit:avvio",
         });
       }
       return {

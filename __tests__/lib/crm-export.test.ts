@@ -47,6 +47,7 @@ describe("crm-export", () => {
         ownerUserId: "u1",
         source: null,
         digitalAuditId: null,
+        outreachDraftId: null,
         status: OpportunityStatus.OPEN,
         priority: OpportunityPriority.MEDIUM,
         estimatedValue: new Prisma.Decimal(1200),
