@@ -7,8 +7,9 @@ export type GbpAuditSnapshot = {
   gbpReviewCount: number | null;
   gbpPlaceName: string | null;
   gbpCategories: string[];
-  gbpHasHours: boolean;
-  gbpPhotoCount: number;
+  /// null = non misurato (vedi GbpPlaceInsights): non diventa mai "manca".
+  gbpHasHours: boolean | null;
+  gbpPhotoCount: number | null;
   gbpWebsite: string | null;
   gbpPhone: string | null;
 };

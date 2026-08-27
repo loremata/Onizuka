@@ -338,57 +338,48 @@ async function fetchPagina(url: string, ua: string): Promise<Response> {
 /** Un errore di rete che non vale la pena riprovare: la risposta e' gia' definitiva. */
 function inutileRiprovare(err: unknown): boolean {
   const msg = String(err instanceof Error ? err.message : err).toLowerCase();
-  // Dominio che non esiste: e' un fatto, ed e' anzi il caso in cui il report ha
-  // ragione. Timeout: l'attesa piena c'e' gia' stata, ripeterla non aggiunge nulla.
-  return msg.includes("enotfound") || msg.includes("eai_again") || msg.includes("abort");
+  // Dominio che non esiste: e' un fatto, ed e' anzi il caso in cui il report ha ragione.
+  return msg.includes("enotfound") || msg.includes("eai_again");
+}
+
+/**
+ * Indirizzi da provare, in ordine. Un browser di oggi tenta https anche quando
+ * il link e' scritto in chiaro: se il sito il certificato ce l'ha, scrivere
+ * "il vostro sito non usa una connessione sicura" e' falso — ed e' una riga che
+ * finiva in cima a una mail a freddo solo perche' in anagrafica c'era un http.
+ */
+function candidatiUrl(url: string): string[] {
+  if (url.startsWith("http://")) return [`https://${url.slice("http://".length)}`, url];
+  return [url, `http://${url.slice("https://".length)}`];
 }
 
 /**
  * Scarica la home separando un sito ROTTO da un sito che semplicemente non ci
- * voleva:
- *  1. user-agent dichiarato (la forma corretta);
- *  2. se il server ha risposto BLOCCANDO (403 e simili), si riprova da browser —
- *     Cloudflare, ModSecurity e mezzo hosting italiano rispondono 403 a tutto il
- *     resto, e il report finiva per dire "sito non raggiungibile" di un sito che
- *     al cliente si apre benissimo (4 casi su 19 verificati a mano);
- *  3. http:// quando l'indirizzo in anagrafica era senza schema e l'https non
- *     regge: piccoli siti ancora solo in chiaro, che esistono eccome.
- * Nessun tentativo in piu' quando la risposta è già definitiva (dominio che non
- * esiste, timeout): il giro resta veloce dove non c'è niente da salvare.
+ * voleva: per ogni indirizzo candidato ci si presenta prima come Onizuka-AuditBot
+ * e, se il server risponde BLOCCANDO (403 e simili), si riprova da browser —
+ * Cloudflare, ModSecurity e mezzo hosting italiano rispondono 403 a tutto il
+ * resto, e il report finiva per dire "sito non raggiungibile" di un sito che al
+ * cliente si apre benissimo (4 su 19 verificati a mano).
  */
-async function fetchConRipieghi(
-  url: string,
-  senzaSchema: boolean
-): Promise<{ res: Response; url: string }> {
+async function fetchConRipieghi(url: string): Promise<{ res: Response; url: string }> {
   let ultimaRisposta: { res: Response; url: string } | null = null;
   let ultimoErrore: unknown = null;
 
-  const prova = async (u: string, ua: string): Promise<{ res: Response; url: string } | null> => {
-    try {
-      const res = await fetchPagina(u, ua);
-      if (res.ok || !STATI_DA_RIPROVARE.has(res.status)) return { res, url: u };
-      ultimaRisposta = { res, url: u };
-      return null;
-    } catch (err) {
-      ultimoErrore = err;
-      if (inutileRiprovare(err)) throw err;
-      return null;
+  for (const candidato of candidatiUrl(url)) {
+    for (const ua of [UA_BOT, UA_BROWSER]) {
+      try {
+        const res = await fetchPagina(candidato, ua);
+        if (res.ok || !STATI_DA_RIPROVARE.has(res.status)) return { res, url: candidato };
+        ultimaRisposta = { res, url: candidato };
+      } catch (err) {
+        ultimoErrore = err;
+        // Dominio inesistente: nessun altro tentativo puo' cambiare la risposta.
+        if (inutileRiprovare(err)) {
+          throw err instanceof Error ? err : new Error("Fetch fallito");
+        }
+        break; // errore di rete: cambiare user-agent non serve, si passa allo schema dopo
+      }
     }
-  };
-
-  const primo = await prova(url, UA_BOT);
-  if (primo) return primo;
-
-  // Il server ha risposto (bloccando): l'user-agent puo' fare la differenza.
-  if (ultimaRisposta) {
-    const secondo = await prova(url, UA_BROWSER);
-    if (secondo) return secondo;
-  }
-
-  if (senzaSchema && url.startsWith("https://")) {
-    const inChiaro = `http://${url.slice("https://".length)}`;
-    const terzo = await prova(inChiaro, UA_BROWSER);
-    if (terzo) return terzo;
   }
 
   if (ultimaRisposta) return ultimaRisposta;
@@ -477,10 +468,7 @@ export async function probeWebsite(rawUrl: string | null | undefined): Promise<W
   };
 
   try {
-    // `senzaSchema`: l'indirizzo in anagrafica non diceva http o https, quindi
-    // l'https lo abbiamo messo noi e il ripiego in chiaro e' legittimo.
-    const senzaSchema = !/^https?:\/\//i.test((rawUrl ?? "").trim());
-    const esito = await fetchConRipieghi(url, senzaSchema);
+    const esito = await fetchConRipieghi(url);
     const res = esito.res;
     if (esito.url !== url) {
       base.url = esito.url;

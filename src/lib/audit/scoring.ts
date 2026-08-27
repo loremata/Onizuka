@@ -18,8 +18,9 @@ export type AuditGbpSignals = {
   rating: number | null;
   reviewCount: number | null;
   categories: string[];
-  hasHours: boolean;
-  photoCount: number;
+  /// null = non misurato. Le righe del report parlano solo di cio' che e' noto.
+  hasHours: boolean | null;
+  photoCount: number | null;
 };
 
 export type AuditSignals = {
@@ -158,22 +159,26 @@ export function scoreAudit(signals: AuditSignals): {
       base = 60;
       pos.push("Scheda Google Business Profile presente.");
       if (gbp.categories.length) pos.push(`Categoria: ${gbp.categories.slice(0, 2).join(", ")}.`);
-      if (gbp.hasHours) {
+      // Orari e foto entrano nel punteggio solo se li abbiamo davvero letti:
+      // un dato mancante non e' un difetto dell'azienda.
+      if (gbp.hasHours === true) {
         base += 7;
         pos.push("Orari di apertura pubblicati.");
-      } else {
+      } else if (gbp.hasHours === false) {
         base -= 6;
         iss.push("Orari di apertura non pubblicati sulla scheda: chi cerca «aperto ora» rischia di non trovarvi.");
       }
-      if (gbp.photoCount >= 5) {
-        base += 7;
-        pos.push(`${gbp.photoCount} foto sulla scheda.`);
-      } else if (gbp.photoCount > 0) {
-        base += 2;
-        iss.push(`Poche foto sulla scheda (${gbp.photoCount}): le schede con più foto ricevono più contatti.`);
-      } else {
-        base -= 5;
-        iss.push("Nessuna foto sulla scheda Google: le schede con foto ricevono molte più richieste.");
+      if (gbp.photoCount != null) {
+        if (gbp.photoCount >= 5) {
+          base += 7;
+          pos.push(`${gbp.photoCount} foto sulla scheda.`);
+        } else if (gbp.photoCount > 0) {
+          base += 2;
+          iss.push(`Poche foto sulla scheda (${gbp.photoCount}): le schede con più foto ricevono più contatti.`);
+        } else {
+          base -= 5;
+          iss.push("Nessuna foto sulla scheda Google: le schede con foto ricevono molte più richieste.");
+        }
       }
       if (probe?.hasGoogleMapsLink) {
         base += 6;

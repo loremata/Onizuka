@@ -124,8 +124,9 @@ export async function runDigitalAuditForClient(params: {
       rating: gbpSnapshot?.gbpRating ?? null,
       reviewCount: gbpSnapshot?.gbpReviewCount ?? null,
       categories: gbpSnapshot?.gbpCategories ?? [],
-      hasHours: gbpSnapshot?.gbpHasHours ?? false,
-      photoCount: gbpSnapshot?.gbpPhotoCount ?? 0,
+      // Senza scheda letta restano NULL: "non lo so" non deve diventare "vi manca".
+      hasHours: gbpSnapshot?.gbpHasHours ?? null,
+      photoCount: gbpSnapshot?.gbpPhotoCount ?? null,
     },
     city: client.city,
   });

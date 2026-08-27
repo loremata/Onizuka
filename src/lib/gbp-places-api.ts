@@ -1,12 +1,15 @@
 import { textContainsGbpUrl } from "@/lib/gbp-audit-signals";
+import { nameSim, normName } from "@/lib/scraping/normalize";
 
 export type GbpPlaceInsights = {
   placeName: string;
   rating: number | null;
   reviewCount: number | null;
   categories: string[];
-  hasHours: boolean;
-  photoCount: number;
+  /// null = non lo sappiamo (la scheda non e' stata letta nel dettaglio). Diverso
+  /// da false: "non lo so" non puo' diventare "non avete gli orari" in una mail.
+  hasHours: boolean | null;
+  photoCount: number | null;
   website: string | null;
   phone: string | null;
   source: "places_api" | "none";
@@ -82,10 +85,20 @@ function normalizePhoneIntl(raw: string): string | null {
 }
 
 /** Find Place per testo (nome+città) o telefono; se trova, arricchisce con i Details. */
+/**
+ * Soglia di somiglianza tra il nome cercato e quello della scheda trovata.
+ * Sotto, la scheda e' di qualcun altro: meglio nessun dato Google che i dati di
+ * un'altra azienda (a un cliente era stata attribuita la scheda Doctolib di un
+ * medico con un altro nome, e la mail gliene parlava come fosse sua).
+ */
+const SOMIGLIANZA_MINIMA = 0.5;
+
 async function findPlaceByInput(
   input: string,
   inputtype: "textquery" | "phonenumber",
-  apiKey: string
+  apiKey: string,
+  /** Ragione sociale attesa: verificata solo sulla ricerca per testo. */
+  nomeAtteso?: string | null
 ): Promise<GbpPlaceInsights | null> {
   const url = new URL("https://maps.googleapis.com/maps/api/place/findplacefromtext/json");
   url.searchParams.set("input", input);
@@ -101,6 +114,13 @@ async function findPlaceByInput(
   };
   if (data.status !== "OK" || !data.candidates?.[0]) return null;
   const c = data.candidates[0];
+
+  // La ricerca per testo restituisce "il posto piu' probabile", non "il posto
+  // giusto": senza questo controllo si prendeva sempre il primo candidato.
+  if (inputtype === "textquery" && nomeAtteso?.trim()) {
+    const somiglianza = nameSim(normName(c.name ?? ""), normName(nomeAtteso));
+    if (somiglianza < SOMIGLIANZA_MINIMA) return null;
+  }
   if (c.place_id) {
     const detailed = await fetchPlaceDetails(c.place_id, apiKey);
     if (detailed) return detailed;
@@ -110,8 +130,11 @@ async function findPlaceByInput(
     rating: typeof c.rating === "number" ? c.rating : null,
     reviewCount: typeof c.user_ratings_total === "number" ? c.user_ratings_total : null,
     categories: [],
-    hasHours: false,
-    photoCount: 0,
+    // Il dettaglio non e' arrivato: orari e foto restano SCONOSCIUTI. Prima qui
+    // c'erano false e 0, e il report li raccontava come fatti — "non avete gli
+    // orari pubblicati" a chi li aveva.
+    hasHours: null,
+    photoCount: null,
     website: null,
     phone: null,
     source: "places_api",
@@ -149,7 +172,7 @@ export async function fetchGbpPlaceInsights(params: {
   const name = params.businessName?.trim();
   if (!name) return null;
   const query = [name, params.city?.trim()].filter(Boolean).join(" ");
-  return findPlaceByInput(query, "textquery", apiKey);
+  return findPlaceByInput(query, "textquery", apiKey, name);
 }
 
 export function isGbpPlacesApiConfigured(): boolean {
