@@ -44,7 +44,16 @@ const DIAGNOSI_TEMPORANEA =
 
 /** Vero se un messaggio, dal solo involucro, ha l'aria di una notifica di mancata consegna. */
 export function sembraBounce(from: string, subject: string): boolean {
-  return MITTENTE_DAEMON.test((from ?? "").trim()) || OGGETTO_BOUNCE.test(subject ?? "");
+  return isMittenteDaemon(from) || OGGETTO_BOUNCE.test(subject ?? "");
+}
+
+/**
+ * Vero solo se a scrivere è il sistema di posta. Un oggetto che somiglia a una
+ * notifica non basta a scartare il messaggio come risposta: la risposta di un
+ * prospect è il segnale più prezioso che abbiamo, e non si perde per un titolo.
+ */
+export function isMittenteDaemon(from: string): boolean {
+  return MITTENTE_DAEMON.test((from ?? "").trim());
 }
 
 /** Estrae la classe e il codice di stato ("5", "5.1.1") dal sorgente. */

@@ -8,6 +8,7 @@ import {
   applicaBouncePermanente,
   parseBounce,
   registraBounce,
+  isMittenteDaemon,
   sembraBounce,
   type BounceParsed,
 } from "@/lib/outreach-bounce";
@@ -121,11 +122,13 @@ export async function checkOutreachEmailReplies(): Promise<ReplyWatchResult> {
         if (!from) continue;
         // I rimbalzi si riconoscono PRIMA del filtro sui nostri indirizzi: quando
         // è il nostro stesso server a rifiutare, il MAILER-DAEMON è del nostro dominio.
-        if (sembraBounce(from, msg.envelope?.subject ?? "")) {
-          if (msg.uid) bounceUids.push(msg.uid);
-          continue;
+        if (sembraBounce(from, msg.envelope?.subject ?? "") && msg.uid) {
+          bounceUids.push(msg.uid);
         }
-        if (isOwnAddress(from, cfg.user)) continue;
+        // Solo il sistema di posta non può essere una risposta. Un oggetto che
+        // somiglia a una notifica di mancata consegna sì: quel messaggio viene
+        // letto come rimbalzo E resta candidato risposta.
+        if (isMittenteDaemon(from) || isOwnAddress(from, cfg.user)) continue;
         const date = msg.internalDate ? new Date(msg.internalDate) : new Date();
         const prev = senders.get(from);
         if (!prev || date > prev.date) {
