@@ -43,38 +43,36 @@ export async function processScrapingAuditBatch(batchLimit = 4): Promise<{
     return { processed: 0, done: 0, failed: 0, skipped: 0, capReached: true, doneToday };
   }
 
-  // Prioritizzazione per CONTATTABILITÀ: prima i lead con un canale reale
-  // (sito / telefono / email), poi quelli senza. Evita di bruciare il tetto
-  // giornaliero su micro-lead solo-registro (nessun sito/tel/email → audit "morti").
-  // Si ordina in JS su una finestra di PENDING: sito ed email sono già sull'item,
-  // il telefono si legge dal Lead collegato (sheetRowKey = "scraping:<leadId>").
+  // Prioritizzazione per CONTATTABILITÀ, fatta dal DATABASE.
+  //
+  // Prima si prendevano i 500 PENDING più vecchi e si ordinavano in memoria: con
+  // una coda piccola bastava, ma dopo Rosignano e Cecina i PENDING sono quasi
+  // 4.000 e la finestra dei 500 si riempiva di micro-lead solo-registro (niente
+  // sito, niente telefono, niente email). Risultato: il tetto giornaliero bruciato
+  // per settimane su audit ciechi, mentre i ~750 con un canale vero aspettavano.
+  //
+  // L'ordinamento è quindi sull'intera coda: sito(2) + telefono(1) + email(1),
+  // poi FIFO a parità. Il telefono sta sul Lead (sheetRowKey = "scraping:<leadId>"),
+  // e si aggancia con una join invece che con una seconda query.
   const take = Math.min(batchLimit, remaining);
-  const PRIORITIZE_WINDOW = 500;
-  const pending = await prisma.auditSheetQueueItem.findMany({
-    where: { status: "PENDING", sheetRowKey: { startsWith: SCRAPING_PREFIX } },
-    orderBy: { createdAt: "asc" },
-    take: PRIORITIZE_WINDOW,
-  });
-
-  const isReal = (v?: string | null) => Boolean(v?.trim()) && !/@onizuka\.local$/i.test(v ?? "");
-  // Telefono dal Lead (non presente sull'item): una sola query per la finestra.
-  const leadIds = pending.map((i) => i.sheetRowKey.slice(SCRAPING_PREFIX.length)).filter(Boolean);
-  const leads = leadIds.length
-    ? await prisma.lead.findMany({ where: { id: { in: leadIds } }, select: { id: true, phone: true } })
+  const scelti = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT q."id"
+    FROM "AuditSheetQueueItem" q
+    LEFT JOIN "Lead" l ON l."id" = substring(q."sheetRowKey" from ${SCRAPING_PREFIX.length + 1}::int)
+    WHERE q."status" = 'PENDING' AND q."sheetRowKey" LIKE ${`${SCRAPING_PREFIX}%`}
+    ORDER BY
+      (
+        (CASE WHEN COALESCE(q."website", '') <> '' THEN 2 ELSE 0 END) +
+        (CASE WHEN COALESCE(q."contactEmail", '') <> ''
+              AND q."contactEmail" NOT ILIKE '%@onizuka.local' THEN 1 ELSE 0 END) +
+        (CASE WHEN COALESCE(l."phone", '') <> '' THEN 1 ELSE 0 END)
+      ) DESC,
+      q."createdAt" ASC
+    LIMIT ${take}
+  `;
+  const items = scelti.length
+    ? await prisma.auditSheetQueueItem.findMany({ where: { id: { in: scelti.map((r) => r.id) } } })
     : [];
-  const phoneByLead = new Map(leads.map((l) => [l.id, l.phone]));
-
-  const contactScore = (i: (typeof pending)[number]) => {
-    const phone = phoneByLead.get(i.sheetRowKey.slice(SCRAPING_PREFIX.length));
-    return (isReal(i.website) ? 2 : 0) + (isReal(phone) ? 1 : 0) + (isReal(i.contactEmail) ? 1 : 0);
-  };
-
-  // Ordine: contattabilità desc, poi FIFO (createdAt asc) a parità.
-  const items = pending
-    .map((i, idx) => ({ i, idx, s: contactScore(i) }))
-    .sort((a, b) => b.s - a.s || a.idx - b.idx)
-    .slice(0, take)
-    .map((x) => x.i);
 
   let done = 0;
   let failed = 0;
