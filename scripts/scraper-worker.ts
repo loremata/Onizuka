@@ -20,6 +20,11 @@ loadEnvFile(process.cwd(), ".env.worker", { override: true });
 
 // Single-pass: su GitHub Actions vogliamo drenare la coda e uscire, non pollare all'infinito.
 const ONCE = process.env.WORKER_ONCE === "1";
+// Tetto di durata (minuti): il runner GitHub viene ucciso al timeout del job e un
+// crawl grosso (Rosignano, Cecina: >1500 schede a ~4s l'una) non ci sta in una sola
+// esecuzione. Con il tetto il worker si ferma PRIMA, salva la cache e rimette il job
+// in coda: la ripresa riparte dalle schede già scaricate. 0 = nessun tetto (uso da PC).
+const MAX_MINUTES = Number(process.env.WORKER_MAX_MINUTES) || 0;
 const POLL_MS = 5000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const mask = (u?: string) => (u ? u.replace(/:[^:@]+@/, ":***@") : "(mancante)");
@@ -28,7 +33,7 @@ async function main() {
   // Import dinamici DOPO il caricamento env (Prisma legge DATABASE_URL all'istanza).
   const { prisma } = await import("@/lib/prisma");
   const { registroSlugCandidates } = await import("@/lib/scraping/registro-slug");
-  const { scrapeRegistro } = await import("@/lib/scraping/registro");
+  const { scrapeRegistro, ERRORE_SCADENZA } = await import("@/lib/scraping/registro");
   const { scrapePlaces } = await import("@/lib/scraping/places");
   const { resolveCompanies } = await import("@/lib/scraping/resolve");
   const { importScrapedCompanies } = await import("@/lib/scraping/import-leads");
@@ -37,10 +42,20 @@ async function main() {
   type RegistroItem = import("@/lib/scraping/types").RegistroItem;
 
   const apiKey = process.env.GOOGLE_PLACES_API_KEY || "";
+  const scadenza = MAX_MINUTES ? Date.now() + MAX_MINUTES * 60_000 : Infinity;
+  const scaduto = () => Date.now() >= scadenza;
   console.log(`[worker] avviato. DB: ${mask(process.env.DATABASE_URL)} · Places key: ${apiKey ? "presente" : "ASSENTE"}`);
+  if (MAX_MINUTES) console.log(`[worker] tetto di durata: ${MAX_MINUTES} min (poi rimette in coda e esce).`);
   if (!apiKey) console.log("[worker] ⚠️  senza GOOGLE_PLACES_API_KEY l'arricchimento Google sarà saltato.");
 
   for (;;) {
+    // Tetto di durata raggiunto: non si prende un nuovo job (quello in corso è già
+    // stato rimesso in coda dal ramo di scadenza qui sotto).
+    if (scaduto()) {
+      console.log("[worker] tetto di durata raggiunto — esco: i job in coda ripartono al prossimo giro.");
+      break;
+    }
+
     // Claim di un job in coda (worker singolo: findFirst + update).
     const next = await prisma.scrapeJob.findFirst({
       where: { status: "QUEUED" },
@@ -99,6 +114,7 @@ async function main() {
       const { items: registro } = await scrapeRegistro(candidati, onProgress, {
         cache: cacheRegistro,
         onCacheSave: salvaCacheRegistro,
+        shouldStop: scaduto,
       });
       const active = registro.filter((r) => r.stato === "attiva").length;
       await prisma.scrapeJob.update({
@@ -142,6 +158,18 @@ async function main() {
       console.log(`[worker] job ${job.id} DONE · lead creati ${result.created} · saltati ${result.skippedExisting}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+
+      // Interruzione per tetto di durata: NON è un fallimento. Il job torna in coda
+      // con la cache del crawl già salvata e riprende al giro successivo.
+      if (msg === ERRORE_SCADENZA) {
+        await prisma.scrapeJob.update({
+          where: { id: job.id },
+          data: { status: "QUEUED", phase: "registro", startedAt: null, heartbeatAt: new Date() },
+        });
+        console.log(`[worker] job ${job.id} sospeso per tetto di durata — rimesso in coda (riprende dalla cache).`);
+        break;
+      }
+
       await prisma.scrapeJob.update({
         where: { id: job.id },
         data: { status: "ERROR", error: msg.slice(0, 1000), finishedAt: new Date() },

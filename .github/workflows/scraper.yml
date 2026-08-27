@@ -18,6 +18,11 @@ on:
   workflow_dispatch:
   repository_dispatch:
     types: [scrape]
+  # Rete di sicurezza: ogni 6 ore riprende quello che è rimasto in coda — i crawl
+  # grossi che si fermano al tetto di durata e i job creati dal pulsante quando il
+  # dispatch non parte. Se la coda è vuota il run esce in pochi secondi (guardia sotto).
+  schedule:
+    - cron: "17 */6 * * *"
 
 permissions:
   contents: read
@@ -30,26 +35,51 @@ concurrency:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    # Un crawl grosso (Rosignano, Cecina: oltre 1500 schede a ~4s l'una) non sta in
+    # 2 ore. Il worker si ferma da solo a WORKER_MAX_MINUTES e rimette il job in coda,
+    # quindi questo timeout è solo la rete esterna.
+    timeout-minutes: 350
     steps:
+      # Sui giri programmati non ha senso montare l'ambiente se non c'è lavoro:
+      # una query e via. In caso di dubbio (errore psql) si prosegue.
+      - name: Coda da smaltire?
+        id: coda
+        if: github.event_name == 'schedule'
+        env:
+          SCRAPER_DATABASE_URL: ${{ secrets.SCRAPER_DATABASE_URL }}
+        run: |
+          url="${SCRAPER_DATABASE_URL%%\?*}"
+          n=$(psql "$url" -tAc "select count(*) from \"ScrapeJob\" where status = 'QUEUED'" 2>/dev/null || echo "?")
+          echo "job in coda: $n"
+          echo "queued=$n" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
+        if: github.event_name != 'schedule' || steps.coda.outputs.queued != '0'
 
       - uses: pnpm/action-setup@v4
+        if: github.event_name != 'schedule' || steps.coda.outputs.queued != '0'
         with:
           version: 11.3.0
 
       - uses: actions/setup-node@v4
+        if: github.event_name != 'schedule' || steps.coda.outputs.queued != '0'
         with:
           node-version: "22"
           cache: pnpm
 
       - run: pnpm install --no-frozen-lockfile
+        if: github.event_name != 'schedule' || steps.coda.outputs.queued != '0'
 
       - run: pnpm exec prisma generate
+        if: github.event_name != 'schedule' || steps.coda.outputs.queued != '0'
 
       - name: Run scraper worker (single pass)
+        if: github.event_name != 'schedule' || steps.coda.outputs.queued != '0'
         env:
           WORKER_ONCE: "1"
+          # Sotto il timeout del job: il worker si ferma prima, salva la cache del
+          # crawl e rimette il job in coda (lo riprende il giro programmato dopo).
+          WORKER_MAX_MINUTES: "320"
           DATABASE_URL: ${{ secrets.SCRAPER_DATABASE_URL }}
           GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
         run: pnpm exec tsx scripts/scraper-worker.ts

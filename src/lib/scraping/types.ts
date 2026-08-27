@@ -24,6 +24,10 @@ export interface PlaceItem {
   placeId: string;
   nome: string;
   indirizzo: string;
+  /// Comune AMMINISTRATIVO secondo Google (administrative_area_level_3): è il campo
+  /// che dice davvero in che comune sta l'attività. L'indirizzo scritto, nelle
+  /// frazioni, riporta il nome della frazione (Rosignano Solvay ≠ Rosignano Marittimo).
+  comuneAmm: string;
   telefono: string;
   sitoWeb: string;
   categoria: string;

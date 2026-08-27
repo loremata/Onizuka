@@ -107,7 +107,15 @@ const CACHE_OGNI = 25;
 export interface ScrapeRegistroOptions {
   cache?: RegistroItem[];
   onCacheSave?: (items: RegistroItem[]) => Promise<void>;
+  /// Interruzione pulita (tetto di durata del runner CI): quando ritorna true il
+  /// crawl salva la cache e si ferma. Il chiamante rimette il job in coda: la
+  /// ripresa parte dalle schede già scaricate.
+  shouldStop?: () => boolean;
 }
+
+/// Messaggio dell'interruzione per scadenza: il chiamante lo riconosce e NON
+/// tratta il job come fallito (va rimesso in coda, non messo in ERROR).
+export const ERRORE_SCADENZA = "scraping:scadenza-worker";
 
 // Pipeline registro: risolve lo slug, raccoglie i link, scarica le schede.
 // Resumabile: con `cache` riparte dalle schede già fatte; con `onCacheSave`
@@ -144,6 +152,12 @@ export async function scrapeRegistro(
     if (giaFatte.has(BASE + row.href)) {
       fatte++;
       continue;
+    }
+    // Tetto di durata raggiunto: si salva il lavoro fatto e si esce con un errore
+    // riconoscibile (il worker rimette il job in coda invece di segnarlo fallito).
+    if (opzioni.shouldStop?.()) {
+      await salvaCache();
+      throw new Error(ERRORE_SCADENZA);
     }
     await delay();
     const { ok, html } = await fetchViaCurl(BASE + row.href);
