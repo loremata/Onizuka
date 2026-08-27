@@ -4,7 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { runWithDb } from "@/lib/with-db";
 import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { validateOutreachDraft } from "@/lib/outreach-quality";
-import { isNonSito } from "@/lib/audit-evidence";
+import {
+  CAMPIONE_MINIMO,
+  contattiDagliInvii,
+  tassiPerChiave,
+  type TassoGruppo,
+} from "@/lib/reach-reply-rate";
 import { DbUnavailableBanner } from "@/components/onizuka/db-unavailable-banner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -161,93 +166,7 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
-type EsitoInvio = {
-  id: string;
-  abVariantSent: string | null;
-  repliedAt: Date | null;
-  sentToEmail: string | null;
-  sequenceStep: { stepIndex: number } | null;
-  client: { website: string | null; city: string | null } | null;
-  lead: { website: string | null; city: string | null; source: string | null } | null;
-};
-
-/** Un contatto = una PERSONA raggiunta, non una bozza (la sequenza è di tre mail). */
-type EsitoContatto = { variante: string; segmento: string; comune: string; risposta: boolean };
-
-/** Segmento del messaggio: A = senza un sito vero, B = con sito (restyling). */
-function segmentoDi(r: EsitoInvio): string {
-  const sito = (r.lead?.website || r.client?.website || "").trim();
-  return !sito || isNonSito(sito) ? "A · senza sito" : "B · con sito";
-}
-
-/** Provenienza: prima il comune dello scraping, poi la città in anagrafica. */
-function comuneDi(r: EsitoInvio): string {
-  const m = (r.lead?.source ?? "").match(/^scraping(?:-google)?:(.+)$/);
-  if (m) return m[1].trim();
-  const citta = (r.lead?.city || r.client?.city || "").trim();
-  if (!citta) return "—";
-  return citta.charAt(0).toUpperCase() + citta.slice(1).toLowerCase();
-}
-
-/**
- * Riduce gli invii a contatti raggiunti: la risposta arriva a una qualunque
- * delle mail della sequenza, ma il merito è della PRIMA (è quella che ha aperto
- * la porta), quindi variante e segmento si prendono dal primo invio a quel recapito.
- * `sentOutcomes` arriva dal più recente al più vecchio: si scorre al contrario.
- */
-function contattiDagliInvii(invii: EsitoInvio[]): EsitoContatto[] {
-  const perRecapito = new Map<string, EsitoContatto>();
-  for (let i = invii.length - 1; i >= 0; i--) {
-    const r = invii[i];
-    const chiave = r.sentToEmail?.trim().toLowerCase() || `bozza:${r.id}`;
-    const esistente = perRecapito.get(chiave);
-    if (!esistente) {
-      perRecapito.set(chiave, {
-        variante: r.abVariantSent ? `Variante ${r.abVariantSent}` : "Variante non registrata",
-        segmento: segmentoDi(r),
-        comune: comuneDi(r),
-        risposta: Boolean(r.repliedAt),
-      });
-    } else if (r.repliedAt) {
-      esistente.risposta = true;
-    }
-  }
-  return Array.from(perRecapito.values());
-}
-
-/** Tasso di risposta per chiave, dal gruppo più contattato al meno. */
-function tassiPerChiave(
-  contatti: EsitoContatto[],
-  chiave: (c: EsitoContatto) => string
-): { chiave: string; contattati: number; risposte: number; tasso: number }[] {
-  const m = new Map<string, { contattati: number; risposte: number }>();
-  for (const c of contatti) {
-    const k = chiave(c);
-    const cur = m.get(k) ?? { contattati: 0, risposte: 0 };
-    cur.contattati += 1;
-    if (c.risposta) cur.risposte += 1;
-    m.set(k, cur);
-  }
-  return Array.from(m.entries())
-    .map(([k, v]) => ({
-      chiave: k,
-      contattati: v.contattati,
-      risposte: v.risposte,
-      tasso: v.contattati ? (v.risposte / v.contattati) * 100 : 0,
-    }))
-    .sort((a, b) => b.contattati - a.contattati);
-}
-
-/** Sotto questa soglia il tasso è rumore: si mostra, ma detto. */
-const CAMPIONE_MINIMO = 30;
-
-function TabellaEsiti({
-  titolo,
-  righe,
-}: {
-  titolo: string;
-  righe: { chiave: string; contattati: number; risposte: number; tasso: number }[];
-}) {
+function TabellaEsiti({ titolo, righe }: { titolo: string; righe: TassoGruppo[] }) {
   if (righe.length === 0) {
     return (
       <div>
