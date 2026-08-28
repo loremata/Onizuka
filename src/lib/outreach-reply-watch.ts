@@ -1,4 +1,5 @@
 import { ImapFlow } from "imapflow";
+import { imapConfig } from "@/lib/imap-config";
 import { prisma } from "@/lib/prisma";
 import { stopActiveOutreachSequences, captureHotReply } from "@/lib/outreach-sequence-stop";
 import { ensureDigitalAuditPublicReportToken, publicReportPath } from "@/lib/public-report-token";
@@ -57,19 +58,6 @@ type ReplyWatchResult = {
 
 /** Quante notifiche di mancata consegna si scaricano al massimo per giro. */
 const MAX_BOUNCE_PER_GIRO = 25;
-
-function imapConfig(): { host: string; user: string; pass: string } | null {
-  const user = process.env.OUTREACH_IMAP_USER?.trim() || process.env.GMAIL_SMTP_USER?.trim();
-  const pass = process.env.OUTREACH_IMAP_PASSWORD?.trim() || process.env.GMAIL_SMTP_PASSWORD?.trim();
-  if (!user || !pass) return null;
-  const host =
-    process.env.OUTREACH_IMAP_HOST?.trim() ||
-    // Hostinger: smtp.hostinger.com → imap.hostinger.com. Per altri provider
-    // impostare OUTREACH_IMAP_HOST esplicitamente.
-    (process.env.GMAIL_SMTP_HOST ?? "").replace(/^smtp\./i, "imap.") ||
-    "imap.hostinger.com";
-  return { host, user, pass };
-}
 
 /** Indirizzi nostri: una risposta non può essere un nostro stesso invio. */
 function isOwnAddress(addr: string, selfUser: string): boolean {
