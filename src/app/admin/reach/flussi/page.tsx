@@ -5,6 +5,10 @@ import { runWithDb } from "@/lib/with-db";
 import { dateTimeFormatIt } from "@/lib/datetime-it";
 import { validateOutreachDraft } from "@/lib/outreach-quality";
 import {
+  commercialProspectStageLabel,
+  commercialProspectStageOptions,
+} from "@/lib/commercial-prospect-stage";
+import {
   CAMPIONE_MINIMO,
   contattiDagliInvii,
   tassiPerChiave,
@@ -272,6 +276,8 @@ export default async function AdminReachFlussiPage() {
       sentOutcomes,
       bounceRows,
       bouncePermanentCount,
+      leadPerStadio,
+      ultimiPassaggi,
     ] = await Promise.all([
       // Tutte le PENDING_APPROVAL con la sola email: serve allo split del tile.
       prisma.outreachDraft.findMany({
@@ -440,6 +446,25 @@ export default async function AdminReachFlussiPage() {
       // Recapiti che hanno rimbalzato: indirizzi che non esistono piu'.
       prisma.emailBounce.findMany({ orderBy: { lastAt: "desc" }, take: 20 }),
       prisma.emailBounce.count({ where: { permanent: true } }),
+      // Dove sono i lead adesso: il funnel per stadio, non per stato grossolano.
+      prisma.lead.groupBy({
+        by: ["commercialProspectStage"],
+        where: { ownerUserId },
+        _count: { _all: true },
+      }),
+      // E come ci sono arrivati: lo storico dei passaggi (LeadStageEvent).
+      prisma.leadStageEvent.findMany({
+        orderBy: { at: "desc" },
+        take: 10,
+        select: {
+          id: true,
+          at: true,
+          fromStage: true,
+          toStage: true,
+          source: true,
+          lead: { select: { id: true, title: true, businessName: true } },
+        },
+      }),
     ]);
 
     return {
@@ -471,6 +496,8 @@ export default async function AdminReachFlussiPage() {
       sentOutcomes,
       bounceRows,
       bouncePermanentCount,
+      leadPerStadio,
+      ultimiPassaggi,
     };
   });
 
@@ -550,6 +577,18 @@ export default async function AdminReachFlussiPage() {
     .sort((a, b) => b._count._all - a._count._all)
     .slice(0, 8);
 
+  // Funnel per stadio: il conto per ogni stadio, nell'ordine del percorso.
+  const contoPerStadio = new Map(
+    data.leadPerStadio.map((r) => [r.commercialProspectStage ?? "—", r._count._all])
+  );
+  const stadiFunnel = commercialProspectStageOptions.map((stadio) => ({
+    stadio,
+    label: commercialProspectStageLabel[stadio],
+    n: contoPerStadio.get(stadio) ?? 0,
+  }));
+  const senzaStadio = contoPerStadio.get("—") ?? 0;
+  const massimoStadio = Math.max(1, ...stadiFunnel.map((r) => r.n));
+
   const contatti = contattiDagliInvii(data.sentOutcomes);
   const risposteTotali = contatti.filter((c) => c.risposta).length;
   const tassoGlobale = contatti.length ? (risposteTotali / contatti.length) * 100 : 0;
@@ -619,7 +658,91 @@ export default async function AdminReachFlussiPage() {
         />
       </div>
 
-      {/* 1a · Tasso di risposta — l'unica misura che vale sul contatto a freddo */}
+      {/* 1a · Dove sono i lead: il funnel per stadio + come ci sono arrivati */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Dove sono i lead</CardTitle>
+          <CardDescription>
+            Il percorso completo, stadio per stadio: ogni riga apre la lista filtrata. A destra gli
+            ultimi passaggi registrati — chi ha spostato un lead, e quando.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-6 lg:grid-cols-2">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <tbody>
+                {stadiFunnel.map((r) => (
+                  <tr key={r.stadio} className="border-b last:border-0">
+                    <td className="w-8 py-1 pr-2 text-right tabular-nums text-muted-foreground">
+                      {r.n > 0 ? r.n : "—"}
+                    </td>
+                    <td className="py-1 pr-3">
+                      {r.n > 0 ? (
+                        <Link className="text-primary hover:underline" href={`/admin/crm/leads?stage=${r.stadio}`}>
+                          {r.label}
+                        </Link>
+                      ) : (
+                        <span className="text-muted-foreground">{r.label}</span>
+                      )}
+                    </td>
+                    <td className="py-1">
+                      <div className="h-1.5 w-full rounded bg-muted">
+                        <div
+                          className="h-1.5 rounded bg-primary"
+                          style={{ width: `${Math.round((r.n / massimoStadio) * 100)}%` }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {senzaStadio > 0 ? (
+                  <tr>
+                    <td className="w-8 py-1 pr-2 text-right tabular-nums text-muted-foreground">{senzaStadio}</td>
+                    <td className="py-1 pr-3 text-muted-foreground" colSpan={2}>
+                      senza stadio assegnato
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <p className="mb-2 text-sm font-medium">Ultimi passaggi</p>
+            {data.ultimiPassaggi.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nessun passaggio registrato: lo storico parte dai cambi di stadio di oggi.
+              </p>
+            ) : (
+              <table className="w-full text-left text-sm">
+                <tbody>
+                  {data.ultimiPassaggi.map((e) => (
+                    <tr key={e.id} className="border-b last:border-0">
+                      <td className="py-1 pr-3 text-muted-foreground">{dateTimeFmt.format(e.at)}</td>
+                      <td className="py-1 pr-3">
+                        {e.lead ? (
+                          <Link className="text-primary hover:underline" href={`/admin/crm/leads/${e.lead.id}/edit`}>
+                            {truncate(e.lead.businessName?.trim() || e.lead.title, 28)}
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="py-1 pr-3">
+                        {e.fromStage ? commercialProspectStageLabel[e.fromStage] : "inizio"} →{" "}
+                        <strong>{commercialProspectStageLabel[e.toStage]}</strong>
+                      </td>
+                      <td className="py-1 text-muted-foreground">{e.source ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 1b · Tasso di risposta — l'unica misura che vale sul contatto a freddo */}
       <Card>
         <CardHeader>
           <CardTitle>Chi risponde</CardTitle>

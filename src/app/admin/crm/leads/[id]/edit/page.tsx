@@ -11,6 +11,9 @@ import { LeadForm } from "../../lead-form";
 import { LeadDeleteForm } from "../../lead-delete-form";
 import { loadAuditCommercialSummaryForLead } from "@/lib/load-audit-commercial-summary";
 import { AuditCommercialSummaryCard } from "@/components/onizuka/audit-commercial-summary-card";
+import { leadStageHistory } from "@/lib/lead-stage";
+import { commercialProspectStageLabel } from "@/lib/commercial-prospect-stage";
+import { dateTimeFormatIt } from "@/lib/datetime-it";
 
 export default async function EditLeadPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireAdminArea();
@@ -21,7 +24,7 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
   });
   if (!lead) notFound();
 
-  const [clients, referrers, auditSummary] = await Promise.all([
+  const [clients, referrers, auditSummary, storicoStadi] = await Promise.all([
     prisma.client.findMany({
       orderBy: { companyName: "asc" },
       select: { id: true, companyName: true },
@@ -32,7 +35,10 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
       select: { id: true, name: true },
     }),
     loadAuditCommercialSummaryForLead(id, session.user.id),
+    leadStageHistory(id),
   ]);
+
+  const quando = dateTimeFormatIt({ dateStyle: "short", timeStyle: "short" });
 
   return (
     <div className="space-y-6">
@@ -51,6 +57,41 @@ export default async function EditLeadPage({ params }: { params: Promise<{ id: s
         )}
       </div>
       {auditSummary ? <AuditCommercialSummaryCard summary={auditSummary} /> : null}
+
+      {/* Il percorso: dove sta il lead adesso e come ci è arrivato. Prima lo stadio
+          si vedeva solo nel presente, e per capire se un lead era fermo si tirava a
+          indovinare. */}
+      <Card className="max-w-3xl">
+        <CardHeader>
+          <CardTitle>Percorso del lead</CardTitle>
+          <CardDescription>
+            Adesso: <strong>{lead.commercialProspectStage
+              ? commercialProspectStageLabel[lead.commercialProspectStage]
+              : "nessuno stadio"}</strong>{" "}
+            (stato {lead.status.toLowerCase()}).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {storicoStadi.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nessun passaggio registrato: lo storico parte dai cambi di stadio più recenti.
+            </p>
+          ) : (
+            <ol className="space-y-2 text-sm">
+              {storicoStadi.map((e) => (
+                <li key={e.id} className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="text-muted-foreground">{quando.format(e.at)}</span>
+                  <span>
+                    {e.fromStage ? commercialProspectStageLabel[e.fromStage] : "inizio"} →{" "}
+                    <strong>{commercialProspectStageLabel[e.toStage]}</strong>
+                  </span>
+                  {e.source ? <span className="text-muted-foreground">· {e.source}</span> : null}
+                </li>
+              ))}
+            </ol>
+          )}
+        </CardContent>
+      </Card>
       <Card className="max-w-3xl">
         <CardHeader>
           <CardTitle>Modifica lead</CardTitle>
