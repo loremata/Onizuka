@@ -14,7 +14,22 @@ export async function GET() {
 
   const caps = getDeployCapabilities();
 
+  // Indirizzi dell'outreach. Le variabili su Vercel sono "sensitive": una volta
+  // scritte nessuno può più rileggerle, nemmeno dal pannello. Ma il mittente non
+  // è un segreto — sta in cima a ogni mail che parte — e serve saperlo per una
+  // ragione precisa: le risposte tornano al MITTENTE, mentre il watcher IMAP
+  // legge la casella dell'utente SMTP. Se i due indirizzi non coincidono, le
+  // risposte finiscono dove nessuno le guarda e lo stop-on-reply non scatta mai.
+  const mittente = process.env.GMAIL_SMTP_FROM?.trim() || process.env.GMAIL_SMTP_USER?.trim() || null;
+  const casellaRisposte =
+    process.env.OUTREACH_IMAP_USER?.trim() || process.env.GMAIL_SMTP_USER?.trim() || null;
+  const soloIndirizzo = (v: string | null) => v?.match(/[^<>\s"]+@[^<>\s"]+/)?.[0]?.toLowerCase() ?? v;
+
   return NextResponse.json({
+    outreachFrom: soloIndirizzo(mittente),
+    outreachInbox: soloIndirizzo(casellaRisposte),
+    outreachReplyMismatch:
+      Boolean(mittente && casellaRisposte) && soloIndirizzo(mittente) !== soloIndirizzo(casellaRisposte),
     googleCalendar: Boolean(process.env.GOOGLE_CALENDAR_CLIENT_ID),
     gmail: Boolean(process.env.GMAIL_CLIENT_ID),
     gmailSmtp: isSmtpConfigured(),

@@ -15,9 +15,18 @@ type StatusPayload = {
   upstashLoginRateLimit: boolean;
   redisApiRateLimit: boolean;
   whatsapp: boolean;
+  /** Mittente reale delle mail di outreach (GMAIL_SMTP_FROM, o l'utente SMTP). */
+  outreachFrom: string | null;
+  /** Casella che il watcher IMAP legge per risposte e rimbalzi. */
+  outreachInbox: string | null;
+  /** Le risposte tornano al mittente: se le due caselle differiscono, nessuno le legge. */
+  outreachReplyMismatch: boolean;
 };
 
-const labels: Record<keyof StatusPayload, string> = {
+const labels: Record<
+  Exclude<keyof StatusPayload, "outreachFrom" | "outreachInbox" | "outreachReplyMismatch">,
+  string
+> = {
   googleCalendar: "Google Calendar",
   gmail: "Gmail OAuth",
   gmailSmtp: "Gmail SMTP (Reach)",
@@ -50,8 +59,26 @@ export function IntegrationsStatus() {
   if (!data) return <p className="text-sm text-muted-foreground">Caricamento…</p>;
 
   return (
-    <ul className="space-y-3 text-sm">
-      {(Object.keys(labels) as (keyof StatusPayload)[]).map((key) => {
+    <div className="space-y-3">
+      {/* Gli indirizzi dell'outreach: su Vercel le variabili sono "sensitive" e non
+          si rileggono più, ma il mittente sta in cima a ogni mail che parte. */}
+      <div className="rounded-md border border-border/60 p-3 text-sm">
+        <p className="font-medium">Posta dell&apos;outreach</p>
+        <p className="mt-1 text-muted-foreground">
+          Le mail partono da <strong className="text-foreground">{data.outreachFrom ?? "— non configurato —"}</strong>
+          {" · "}le risposte vengono lette da{" "}
+          <strong className="text-foreground">{data.outreachInbox ?? "— non configurata —"}</strong>
+        </p>
+        {data.outreachReplyMismatch ? (
+          <p className="mt-2 text-destructive">
+            I due indirizzi non coincidono: chi risponde scrive al mittente, ma il controllo delle
+            risposte guarda l&apos;altra casella. Così lo stop dei follow-up non scatterebbe mai.
+          </p>
+        ) : null}
+      </div>
+
+      <ul className="space-y-3 text-sm">
+      {(Object.keys(labels) as (keyof typeof labels)[]).map((key) => {
         const val = data[key];
         const configured =
           key === "voiceTts"
@@ -89,6 +116,7 @@ export function IntegrationsStatus() {
           </li>
         );
       })}
-    </ul>
+      </ul>
+    </div>
   );
 }
