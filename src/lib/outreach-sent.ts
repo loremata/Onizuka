@@ -82,6 +82,27 @@ export async function markOutreachDraftSent(
     const targetStage: CommercialProspectStage =
       stepIndex >= 1 ? "FOLLOW_UP_SENT" : "FIRST_AUDIT_MAIL_SENT";
     await advanceLeadStageOnSend(draft.leadId, draft.clientId, targetStage);
+
+    // I due promemoria che l'audit lascia — "approva la mail" e "verifica che sia
+    // partita" — hanno senso finché la mail non parte. Da qui in poi sono rumore:
+    // a 20 audit al giorno diventerebbero 40 task morti al giorno, e una lista di
+    // cose da fare piena di cose già fatte non la guarda più nessuno.
+    if (draft.clientId) {
+      await prisma.flowTask
+        .updateMany({
+          where: {
+            relatedClientId: draft.clientId,
+            source: "audit",
+            status: { in: ["TODO", "IN_PROGRESS", "WAITING"] },
+            OR: [
+              { title: { contains: "Approva email Reach" } },
+              { title: { contains: "Verifica invio 1ª email" } },
+            ],
+          },
+          data: { status: "DONE" },
+        })
+        .catch(() => undefined);
+    }
   }
 
   return true;
