@@ -38,8 +38,8 @@ export const ACCESSO_SUBTYPES = {
   },
   TRASFORMAZIONE_FWA: {
     label: "Trasformazione FWA da proponi",
-    hint: "50 € di Gara Extra CB · conta per la soglia, niente gettone di gara",
-    weight: 1,
+    hint: "50 € di Gara Extra CB e 15 pt Customer Base · NON conta per la soglia Fisso",
+    weight: 0,
   },
 } as const;
 

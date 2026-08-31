@@ -872,6 +872,27 @@ describe("conteggio dei pezzi — cancelli, motore e UI dicono lo stesso numero"
     expect(weightedQtyOf([...fibra(10), ...fwaRic(6)], "ACCESSO_FISSO")).toBe(13);
   });
 
+  // La lettera allarga la soglia del Fisso alle sole trasformazioni verso FIBRA
+  // («Trasformazioni da RTG/ADSL verso Fibra FTTC/FTTH e gli accessi con offerta
+  // Fonia»). Quelle verso FWA no: restano pagate dalla Gara Extra CB, che conta
+  // le pratiche e quindi non risente del peso. Il 29/08/2026 il peso 1 dava la
+  // soglia per presa mezzo punto prima del vero.
+  test("la trasformazione FWA da proponi non pesa sulla soglia Fisso, ma prende i suoi 50 €", () => {
+    const trasfFwa: Sale[] = [
+      { lineKey: "ACCESSO_FISSO", feeEur: null, domiciled: false, subtype: "TRASFORMAZIONE_FWA" },
+    ];
+    expect(saleWeight("ACCESSO_FISSO", "TRASFORMAZIONE_FWA")).toBe(0);
+    // la trasformazione verso fibra invece continua a pesare 1
+    expect(saleWeight("ACCESSO_FISSO", "TRASFORMAZIONE")).toBe(1);
+    expect(weightedQtyOf([...fibra(8), ...trasfFwa], "ACCESSO_FISSO")).toBe(8);
+
+    const plan = gatePlan(16);
+    plan.params = { ...plan.params, extras: [{ key: "trasformazione_fwa", eur: 50, matchLineKey: "ACCESSO_FISSO", matchSubtype: "TRASFORMAZIONE_FWA" }] };
+    const r = computeTim(plan, [...fibra(8), ...trasfFwa], {});
+    expect(r.lines.find((l) => l.key === "ACCESSO_FISSO")!.qty).toBe(8);
+    expect(r.extras).toBe(50);
+  });
+
   test("10 fibra + 6 FWA = 13 pezzi di gara: il cancello a 16 resta CHIUSO e il premio è zero", () => {
     const plan = gatePlan(16);
     const sales = [...fibra(10), ...fwaRic(6)];
