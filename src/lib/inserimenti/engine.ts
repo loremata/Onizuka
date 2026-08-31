@@ -279,10 +279,23 @@ export function paidQtyOf(sales: Sale[], lineKey: string): number {
 }
 
 /** Peso di una vendita sulla gara: FWA ricaricabile vale 0,5 sul Fisso (soglia
- *  e canone), tutto il resto 1. UNICA definizione — la usano motore e UI. */
+ *  e canone), la trasformazione FWA vale 0, tutto il resto 1. UNICA definizione
+ *  — la usano motore e UI. */
 export function saleWeight(lineKey: string, subtype?: string | null): number {
   // FWA ricaricabile: mezzo punto sul Fisso (soglia e canone), come da lettera.
   if (lineKey === "ACCESSO_FISSO" && subtype === "FWA_RIC") return 0.5;
+  // Trasformazione FWA da proponi: NON concorre alla soglia della Gara Fisso.
+  // La lettera allarga la soglia a UNA SOLA specie di trasformazione: «ai soli
+  // fini del raggiungimento della soglia, saranno contate le Trasformazioni da
+  // RTG/ADSL verso Fibra FTTC/FTTH e gli accessi con offerta Fonia ma non
+  // saranno compensate con il gettone di gara». Le trasformazioni verso FWA
+  // hanno un paragrafo tutto loro e lì non sono nominate; la Gara Fisso di suo
+  // conta le «acquisizioni» di Accessi ULL/NIP, e una trasformazione non lo è.
+  // Restano pagate altrove, e per quelle strade il conteggio è grezzo: 50 € di
+  // Gara Extra CB (`computeExtras` conta le pratiche) e 15 punti Customer Base.
+  // Trovato il 29/08/2026: con peso 1 il motore dava la soglia per raggiunta
+  // mezzo punto prima del vero, cioè 516 € di agosto che non erano maturati.
+  if (lineKey === "ACCESSO_FISSO" && subtype === "TRASFORMAZIONE_FWA") return 0;
   // Contenuti: conta UN PEZZO PER OGNI OTT compreso nel pacchetto venduto, su
   // soglia E gettone. Dal documento del 30/07: «TIMVision S ha il pacchetto
   // base + Netflix, quindi vale 1 punto. TIMVision M ha base + Netflix e
